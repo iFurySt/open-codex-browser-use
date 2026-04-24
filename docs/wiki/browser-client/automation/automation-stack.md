@@ -61,4 +61,3 @@ from that Chrome backend.
 
 IAB mode is different: it connects to the Codex in-app browser backend selected
 by matching Codex session metadata.
-

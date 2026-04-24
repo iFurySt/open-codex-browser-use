@@ -1,0 +1,38 @@
+{
+  "name": "codio-browser-use",
+  "version": "0.1.0-alpha1",
+  "description": "Codio Browser Use plugin for routing Codex browser automation to the Codio Electron IAB backend.",
+  "author": {
+    "name": "Codio Contributors"
+  },
+  "license": "MIT",
+  "keywords": [
+    "browser",
+    "automation",
+    "iab",
+    "electron",
+    "codio"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codio Browser Use",
+    "shortDescription": "Control the Codio in-app browser from Codex",
+    "longDescription": "Routes Browser Use automation to Codio's Electron in-app browser through the local native pipe backend.",
+    "developerName": "Codio Contributors",
+    "category": "Engineering",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/openai/codex",
+    "privacyPolicyURL": "https://github.com/openai/codex",
+    "termsOfServiceURL": "https://github.com/openai/codex",
+    "defaultPrompt": [
+      "Use Codio Browser",
+      "Open localhost:3000 in Codio"
+    ],
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

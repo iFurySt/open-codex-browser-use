@@ -11,6 +11,11 @@ the information has become project knowledge and should be organized by topic.
 - `browser-client/`: reverse-engineered notes for the bundled Browser Use
   client runtime, including backend discovery, native pipe transport, command
   routing, automation primitives, and security gates.
+- `codio/`: product architecture notes for the open Electron app, including
+  Codex app-server integration, the implemented Browser Use IAB backend, and
+  local troubleshooting.
+- `open-iab/`: compatibility notes for the open Electron IAB backend against
+  the Browser Use client command surface.
 
 ## Contribution Rules
 
@@ -18,4 +23,3 @@ the information has become project knowledge and should be organized by topic.
 - Mark facts as confirmed, inferred, or open when the evidence level matters.
 - Link back to source artifacts, generated metadata, or reference documents.
 - Keep raw bulky research outputs out of the wiki; summarize the reusable facts.
-

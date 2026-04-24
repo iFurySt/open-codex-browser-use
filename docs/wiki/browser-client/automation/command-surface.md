@@ -76,4 +76,3 @@ analyzed bundle.
 The bundle contains strings or schemas for additional areas such as clipboard,
 Google Workspace export, media download, and tab content commands. These were
 not part of the observed handler registry extraction for this analyzed version.
-

@@ -1,0 +1,16 @@
+{
+  "name": "codio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codio desktop app with a Codex app-server chat surface and an Electron in-app browser.",
+  "type": "module",
+  "packageManager": "pnpm@8.15.9",
+  "scripts": {
+    "dev": "pnpm --filter @codio/desktop dev",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
+    "check": "pnpm typecheck && pnpm test"
+  }
+}

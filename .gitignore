@@ -25,6 +25,8 @@ node_modules/
 .turbo/
 .next/
 dist/
+dist-main/
+dist-renderer/
 build/
 coverage/
 target/

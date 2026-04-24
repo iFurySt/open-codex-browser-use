@@ -62,4 +62,3 @@ Some commands are explicitly treated as not needing an origin:
 
 `navigate_tab_url` is checked against the target URL. Most other tab-scoped
 commands check the current tab URL before dispatch.
-

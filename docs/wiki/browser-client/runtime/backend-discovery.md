@@ -67,4 +67,3 @@ newer or session-scoped backends.
 
 The client does not itself start Chrome or IAB. It discovers and connects to an
 already-running local backend.
-

@@ -1,28 +1,47 @@
-# open-browser-use
+# Codio
 
-English version: [`open-browser-use`](https://github.com/iFurySt/open-browser-use)
+Codio is an open-source Electron app that pairs a Codex app-server powered
+chat workspace with an Electron in-app browser.
 
 ## 简介
 
-一个面向 Agent 协作开发的基础仓库模板，可以用来启动任何你想做的产品或服务。
+Codio 的目标是复刻 Codex.app In-App Browser 的关键开源形态：左侧 chat
+最终接入 `codex app-server`，右侧通过 Electron `webview` 承载浏览器页面，
+再通过 Codex 插件/Browser Use backend 让 Codex turn 可以控制这个浏览器。
 
 ## 快速开始
 
-可以在这个仓库右上角直接使用 GitHub 的模板流程：
-
-1. 选择 **Use this template**。
-2. 选择 [**Create a new repository**](https://github.com/new?template_name=open-browser-use&template_owner=iFurySt)。
-
-也可以在新仓库或已有仓库里用 `harness-cli` 初始化：
+安装依赖：
 
 ```sh
-harness-cli init --language zh
+pnpm install
 ```
+
+启动 Electron 开发环境：
+
+```sh
+pnpm dev
+```
+
+构建和检查：
+
+```sh
+pnpm typecheck
+pnpm build
+pnpm test
+make check-docs
+```
+
+Browser Use IAB backend smoke：
+
+```sh
+pnpm dev
+node scripts/smoke-browser-use-rpc.mjs
+```
+
+当前 UI 骨架在 `apps/desktop/`，长期执行计划在
+`docs/exec-plans/active/2026-04-24-electron-iab-app.md`。
 
 ## 许可证
 
 [MIT](LICENSE)
-
-## 备注
-
-这套方法主要来自我们自己的持续实践和整理，同时也吸收了 OpenAI 在 [harness engineering 文章](https://openai.com/index/harness-engineering/) 中的一部分思路，最后汇总成了这个模板。
