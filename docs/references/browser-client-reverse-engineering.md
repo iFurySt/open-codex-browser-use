@@ -8,6 +8,7 @@
 - SHA-256: `20c5e21bc0c2f5532b6730a86a2556300fd8869b6335ff27ddac32ae33d48972`
 - Export: `setupAtlasRuntime`
 - Reproducible metadata: `docs/generated/browser-client-metadata.json`
+- Incremental wiki: `docs/wiki/browser-client/`
 - Extraction command:
 
 ```bash
