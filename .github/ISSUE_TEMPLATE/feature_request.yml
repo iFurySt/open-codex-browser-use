@@ -1,0 +1,30 @@
+name: 功能建议
+description: 提交模板仓库级能力或模板本身的改进建议。
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: 目标
+      description: 你希望它最终解决什么问题，带来什么结果？
+    validations:
+      required: true
+  - type: textarea
+    id: user_value
+    attributes:
+      label: 用户价值
+      description: 这件事为什么值得做？对使用模板的团队有什么价值？
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: 建议方案
+      description: 可以写你倾向的实现方式、限制条件或边界。
+  - type: textarea
+    id: context
+    attributes:
+      label: 相关背景
+      description: 可补充 spec、plan、已有方案或外部参考。

@@ -1,0 +1,30 @@
+name: 缺陷反馈
+description: 反馈模板仓库或默认流程中的问题。
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 出了什么问题？
+      description: 说明当前实际表现，以及你原本预期的行为。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现方式
+      description: 写清复现步骤、命令，或最小必要上下文。
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影响范围
+      description: 说明谁会受影响，严重程度如何。
+  - type: textarea
+    id: notes
+    attributes:
+      label: 其他补充
+      description: 可填写相关 plan、history、截图、日志或链接。

@@ -1,0 +1,281 @@
+{
+  "generatedBy": "extract-browser-client-metadata.mjs",
+  "generatedAt": "2026-04-24T02:36:58.588Z",
+  "input": "/Users/bytedance/.codex/plugins/cache/openai-bundled/browser-use/0.1.0-alpha1/scripts/browser-client.mjs",
+  "bytes": 817168,
+  "lines": 177,
+  "sha256": "20c5e21bc0c2f5532b6730a86a2556300fd8869b6335ff27ddac32ae33d48972",
+  "imports": [
+    "node:async_hooks",
+    "node:buffer",
+    "node:child_process",
+    "node:crypto",
+    "node:diagnostics_channel",
+    "node:fs",
+    "node:fs/promises",
+    "node:inspector",
+    "node:os",
+    "node:path",
+    "node:readline",
+    "node:stream",
+    "node:util",
+    "node:worker_threads",
+    "node:zlib",
+    "worker_threads"
+  ],
+  "exports": [
+    "LY as setupAtlasRuntime"
+  ],
+  "constants": {
+    "exportName": [
+      "LY as setupAtlasRuntime"
+    ],
+    "defaultBackend": "chrome",
+    "responseMetaKey": "codex/browserUse",
+    "siteStatusEndpoint": "https://chatgpt.com/backend-api/aura/site_status",
+    "nativePipeBase": "codex-browser-use",
+    "iabPipe": "codex-browser-use-iab",
+    "turnMetadataHeader": "x-codex-turn-metadata",
+    "playwrightInjectedGlobal": "__codexPlaywrightInjected",
+    "iabInputToken": "__codexIabInputTargetToken"
+  },
+  "commandHandlers": [
+    {
+      "symbol": "Dw",
+      "type": "cua_get_visible_screenshot"
+    },
+    {
+      "symbol": "kw",
+      "type": "cua_click"
+    },
+    {
+      "symbol": "Iw",
+      "type": "cua_double_click"
+    },
+    {
+      "symbol": "Fw",
+      "type": "cua_drag"
+    },
+    {
+      "symbol": "Bw",
+      "type": "cua_keypress"
+    },
+    {
+      "symbol": "Rw",
+      "type": "cua_move"
+    },
+    {
+      "symbol": "Nw",
+      "type": "cua_scroll"
+    },
+    {
+      "symbol": "Pw",
+      "type": "cua_type"
+    },
+    {
+      "symbol": "Lw",
+      "type": "browser_user_claim_tab"
+    },
+    {
+      "symbol": "Ow",
+      "type": "browser_user_open_tabs"
+    },
+    {
+      "symbol": "Mw",
+      "type": "dom_cua_keypress"
+    },
+    {
+      "symbol": "Uw",
+      "type": "close_tab"
+    },
+    {
+      "symbol": "qw",
+      "type": "create_tab"
+    },
+    {
+      "symbol": "jw",
+      "type": "finalize_tabs"
+    },
+    {
+      "symbol": "$w",
+      "type": "list_tabs"
+    },
+    {
+      "symbol": "Vw",
+      "type": "name_session"
+    },
+    {
+      "symbol": "Hw",
+      "type": "navigate_tab_back"
+    },
+    {
+      "symbol": "Ww",
+      "type": "navigate_tab_forward"
+    },
+    {
+      "symbol": "zw",
+      "type": "navigate_tab_reload"
+    },
+    {
+      "symbol": "Zw",
+      "type": "navigate_tab_url"
+    },
+    {
+      "symbol": "Jw",
+      "type": "playwright_dom_snapshot"
+    },
+    {
+      "symbol": "Qw",
+      "type": "playwright_file_chooser_set_files"
+    },
+    {
+      "symbol": "eA",
+      "type": "playwright_locator_click"
+    },
+    {
+      "symbol": "tA",
+      "type": "playwright_locator_count"
+    },
+    {
+      "symbol": "nA",
+      "type": "playwright_locator_dblclick"
+    },
+    {
+      "symbol": "rA",
+      "type": "playwright_locator_download_media"
+    },
+    {
+      "symbol": "oA",
+      "type": "playwright_locator_fill"
+    },
+    {
+      "symbol": "sA",
+      "type": "playwright_locator_get_attribute"
+    },
+    {
+      "symbol": "aA",
+      "type": "playwright_locator_inner_text"
+    },
+    {
+      "symbol": "uA",
+      "type": "playwright_locator_is_enabled"
+    },
+    {
+      "symbol": "lA",
+      "type": "playwright_locator_is_visible"
+    },
+    {
+      "symbol": "mA",
+      "type": "playwright_locator_press"
+    },
+    {
+      "symbol": "pA",
+      "type": "playwright_locator_select_option"
+    },
+    {
+      "symbol": "gA",
+      "type": "playwright_locator_set_checked"
+    },
+    {
+      "symbol": "_A",
+      "type": "playwright_locator_text_content"
+    },
+    {
+      "symbol": "yA",
+      "type": "playwright_locator_wait_for"
+    },
+    {
+      "symbol": "bA",
+      "type": "playwright_screenshot"
+    },
+    {
+      "symbol": "EA",
+      "type": "playwright_wait_for_file_chooser"
+    },
+    {
+      "symbol": "CA",
+      "type": "playwright_wait_for_load_state"
+    },
+    {
+      "symbol": "wA",
+      "type": "playwright_wait_for_timeout"
+    },
+    {
+      "symbol": "DA",
+      "type": "playwright_wait_for_url"
+    },
+    {
+      "symbol": "xA",
+      "type": "selected_tab"
+    },
+    {
+      "symbol": "qA",
+      "type": "tab_dev_logs"
+    }
+  ],
+  "commandStrings": [
+    "browser_user_claim_tab",
+    "browser_user_history",
+    "browser_user_open_tabs",
+    "close_tab",
+    "create_tab",
+    "cua_click",
+    "cua_double_click",
+    "cua_download_media",
+    "cua_drag",
+    "cua_get_visible_screenshot",
+    "cua_keypress",
+    "cua_move",
+    "cua_scroll",
+    "cua_type",
+    "dom_cua_click",
+    "dom_cua_double_click",
+    "dom_cua_download_media",
+    "dom_cua_get_visible_dom",
+    "dom_cua_keypress",
+    "dom_cua_scroll",
+    "dom_cua_type",
+    "finalize_tabs",
+    "list_tabs",
+    "name_session",
+    "navigate_tab_back",
+    "navigate_tab_forward",
+    "navigate_tab_reload",
+    "navigate_tab_url",
+    "playwright_dom_snapshot",
+    "playwright_download_path",
+    "playwright_element_info",
+    "playwright_element_screenshot",
+    "playwright_file_chooser_set_files",
+    "playwright_locator_click",
+    "playwright_locator_count",
+    "playwright_locator_dblclick",
+    "playwright_locator_download_media",
+    "playwright_locator_fill",
+    "playwright_locator_get_attribute",
+    "playwright_locator_inner_text",
+    "playwright_locator_is_enabled",
+    "playwright_locator_is_visible",
+    "playwright_locator_press",
+    "playwright_locator_select_option",
+    "playwright_locator_set_checked",
+    "playwright_locator_text_content",
+    "playwright_locator_wait_for",
+    "playwright_screenshot",
+    "playwright_wait_for_download",
+    "playwright_wait_for_file_chooser",
+    "playwright_wait_for_load_state",
+    "playwright_wait_for_timeout",
+    "playwright_wait_for_url",
+    "selected_tab",
+    "tab_clipboard_read",
+    "tab_clipboard_read_text",
+    "tab_clipboard_write",
+    "tab_clipboard_write_text",
+    "tab_content_export",
+    "tab_content_export_gsuite",
+    "tab_dev_logs",
+    "tab_id",
+    "tabs_content"
+  ]
+}

@@ -1,0 +1,61 @@
+name: 发布
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 要创建的 release tag，例如 v0.1.0
+        required: true
+      title:
+        description: 给人看的发布标题
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  package-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: 打包 release 制品
+        run: ./scripts/release-package.sh
+
+      - name: 生成 SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: spdx-json
+          output-file: dist/sbom.spdx.json
+          upload-artifact: false
+
+      - name: 上传 release 产物
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-assets
+          path: |
+            dist/repo-metadata.tgz
+            dist/release-manifest.json
+            dist/sbom.spdx.json
+
+      - name: 生成 build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: dist/repo-metadata.tgz
+
+      - name: 创建 GitHub Release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.title || inputs.tag }}
+          files: |
+            dist/repo-metadata.tgz
+            dist/release-manifest.json
+            dist/sbom.spdx.json
