@@ -58,6 +58,8 @@ function createMainWindow(): BrowserWindow {
     minHeight: 680,
     title: "Codio",
     backgroundColor: "#f6f7f9",
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
+    trafficLightPosition: process.platform === "darwin" ? { x: 16, y: 14 } : undefined,
     webPreferences: {
       preload: path.join(__dirname, "../preload/preload.cjs"),
       contextIsolation: true,

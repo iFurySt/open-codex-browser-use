@@ -763,13 +763,15 @@ function App(): JSX.Element {
           >
             <PanelLeft size={17} />
           </button>
-          <button className="new-chat-button" type="button" onClick={newThread}>
-            <Plus size={16} />
-            <span>New chat</span>
-          </button>
         </div>
 
         <div className="sidebar-section">
+          <div className="sidebar-section-top">
+            <button className="new-chat-button" type="button" onClick={newThread}>
+              <Plus size={16} />
+              <span>New chat</span>
+            </button>
+          </div>
           {threads.map((thread) => (
             <button
               className={`thread-row ${activeThreadId === thread.id ? "active" : ""}`}

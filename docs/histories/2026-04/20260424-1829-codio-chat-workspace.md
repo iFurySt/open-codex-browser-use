@@ -32,6 +32,9 @@
 - **[Codex Style Pass]**: 收窄左侧为纯会话 sidebar，补折叠入口、`New chat`
   顶部样式、activity 折叠块、消息复制、结论复制、禁用输入框 resize 以及
   类似 Codex.app 的模型强度下拉。
+- **[Window Chrome]**: macOS 窗口切到 `titleBarStyle = hiddenInset`，
+  renderer 顶部 header/tabs/toolbar 标记为 draggable region，去掉原生
+  顶部整条 title bar。
 
 ### 🧠 Design Intent (Why)
 

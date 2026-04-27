@@ -26,6 +26,10 @@ body,
   margin: 0;
 }
 
+body {
+  overflow: hidden;
+}
+
 button,
 input,
 textarea {
@@ -59,7 +63,7 @@ button {
 .sidebar {
   display: flex;
   flex-direction: column;
-  padding: 10px;
+  padding: 12px 10px 10px;
   border-right: 1px solid var(--border-soft);
   background: #f7f7f8;
 }
@@ -67,8 +71,10 @@ button {
 .sidebar-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+  justify-content: flex-start;
+  min-height: 36px;
+  margin-bottom: 10px;
+  -webkit-app-region: drag;
 }
 
 .thread-row {
@@ -96,11 +102,16 @@ button {
   flex: 0 0 auto;
 }
 
+.sidebar-section-top {
+  display: flex;
+  margin-bottom: 8px;
+}
+
 .new-chat-button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
+  width: 100%;
   min-width: 0;
   height: 36px;
   border: 0;
@@ -119,9 +130,12 @@ button {
 
 .app-shell.sidebar-collapsed .new-chat-button {
   justify-content: center;
-  flex: 0 0 36px;
   width: 36px;
   padding: 0;
+}
+
+.app-shell.sidebar-collapsed .sidebar-section-top {
+  justify-content: center;
 }
 
 .app-shell.sidebar-collapsed .new-chat-button span,
@@ -205,9 +219,10 @@ button {
   grid-template-columns: 32px minmax(0, 1fr) 32px 32px;
   align-items: center;
   gap: 6px;
-  height: 52px;
+  height: 56px;
   padding: 8px 14px 0;
   background: #ffffff;
+  -webkit-app-region: drag;
 }
 
 .thread-title {
@@ -610,6 +625,7 @@ textarea:disabled {
   border-bottom: 1px solid #eef0f2;
   color: #6b7280;
   background: #fbfbfc;
+  -webkit-app-region: drag;
 }
 
 .browser-tab {
@@ -627,6 +643,7 @@ textarea:disabled {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-app-region: no-drag;
 }
 
 .browser-tab.active {
@@ -639,10 +656,11 @@ textarea:disabled {
   grid-template-columns: 32px 32px 32px minmax(180px, 1fr) auto;
   align-items: center;
   gap: 6px;
-  height: 48px;
+  height: 50px;
   padding: 0 14px;
   border-bottom: 1px solid #e5e7eb;
   background: #ffffff;
+  -webkit-app-region: drag;
 }
 
 .address-form {
@@ -656,6 +674,7 @@ textarea:disabled {
   padding: 0 12px;
   color: #6b7280;
   background: #f5f6f7;
+  -webkit-app-region: no-drag;
 }
 
 .address-form:focus-within {
@@ -684,6 +703,7 @@ textarea:disabled {
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
+  -webkit-app-region: no-drag;
 }
 
 .browser-webview,
