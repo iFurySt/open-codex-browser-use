@@ -9,6 +9,9 @@
 - `release.yml`：手动触发的 release 流水线，用来打包仓库级制品、
   Chrome extension zip、生成 provenance，并创建 GitHub Release；按输入参数
   可把 extension 上传并提交到 Chrome Web Store。
+- `chrome-web-store-publish.yml`：手动触发的 Chrome Web Store 发布流水线，
+  从已有 GitHub Release 下载 extension zip，再上传并可选提交审核；用于
+  release 已经创建、只需要补跑商店发布的场景。
 
 ## 设计原则
 

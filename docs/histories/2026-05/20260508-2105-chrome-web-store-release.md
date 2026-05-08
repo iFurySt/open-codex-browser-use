@@ -47,6 +47,7 @@ upload and publish behavior.
 ### Files Modified
 
 - `.github/workflows/release.yml`
+- `.github/workflows/chrome-web-store-publish.yml`
 - `docs/CHROME_WEB_STORE_RELEASE.md`
 - `docs/CICD.md`
 - `docs/SUPPLY_CHAIN_SECURITY.md`
@@ -61,3 +62,11 @@ upload and publish behavior.
 - `scripts/package-chrome-extension.sh`
 - `scripts/publish-chrome-web-store.mjs`
 - `scripts/release-package.sh`
+
+### Follow-up Update
+
+- Added a separate Chrome Web Store publish workflow that can download an
+  existing GitHub Release extension zip and submit it to Chrome Web Store
+  without recreating the GitHub Release. This handles the case where the release
+  asset already exists but Chrome Web Store secrets were not configured at the
+  time of release.

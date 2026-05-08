@@ -95,6 +95,28 @@ gh secret set CWS_EXTENSION_ID
 审核通过后再手动发布，选择 `STAGED_PUBLISH`。`chrome_deploy_percentage`
 留空时使用 Developer Dashboard 当前设置。
 
+## 从已有 GitHub Release 补发商店
+
+如果 GitHub Release 已经创建完成，只需要把其中的插件 zip 上传到 Chrome
+Web Store，使用 `.github/workflows/chrome-web-store-publish.yml`。这个
+workflow 不会重新创建 GitHub Release，适合 `v0.1.2` 这类 release asset
+已经存在、但当时还没配置 Chrome Web Store secrets 的情况。
+
+手动触发时传入：
+
+```text
+release_tag=v0.1.2
+asset_name=
+submit=true
+publish_type=DEFAULT_PUBLISH
+deploy_percentage=
+skip_review=false
+```
+
+`asset_name` 留空时会自动匹配
+`open-browser-use-chrome-extension-*.zip`。如果同一个 release 上存在多个匹配
+zip，可以显式填写完整 asset 文件名。
+
 ## 官方参考
 
 - Chrome Web Store API 使用指南：

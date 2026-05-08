@@ -1,0 +1,135 @@
+name: Chrome Web Store 发布
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 包含 Chrome extension zip 的 GitHub Release tag，例如 v0.1.2
+        required: true
+      asset_name:
+        description: 可选 release asset 文件名；留空时自动匹配 open-browser-use-chrome-extension-*.zip
+        required: false
+        default: ""
+      submit:
+        description: 上传成功后是否提交 Chrome Web Store 审核
+        required: false
+        type: boolean
+        default: true
+      publish_type:
+        description: Chrome Web Store publishType
+        required: false
+        type: choice
+        options:
+          - DEFAULT_PUBLISH
+          - STAGED_PUBLISH
+        default: DEFAULT_PUBLISH
+      deploy_percentage:
+        description: 可选灰度比例，留空则使用开发者后台当前设置
+        required: false
+        default: ""
+      skip_review:
+        description: 是否请求跳过审核，只有符合条件时 Chrome Web Store 才会接受
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: 校验 Chrome Web Store secrets
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+        run: |
+          missing=()
+          for name in \
+            CWS_CLIENT_ID \
+            CWS_CLIENT_SECRET \
+            CWS_REFRESH_TOKEN \
+            CWS_PUBLISHER_ID \
+            CWS_EXTENSION_ID
+          do
+            if [ -z "${!name}" ]; then
+              missing+=("${name}")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required repository secrets: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: 下载 Chrome extension release asset
+        id: asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ASSET_NAME: ${{ inputs.asset_name }}
+        run: |
+          mkdir -p dist/chrome-extension
+          if [ -n "${ASSET_NAME}" ]; then
+            gh release download "${RELEASE_TAG}" \
+              --pattern "${ASSET_NAME}" \
+              --dir dist/chrome-extension
+          else
+            gh release download "${RELEASE_TAG}" \
+              --pattern 'open-browser-use-chrome-extension-*.zip' \
+              --dir dist/chrome-extension
+          fi
+
+          zip_count="$(find dist/chrome-extension -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')"
+          if [ "${zip_count}" != "1" ]; then
+            echo "Expected exactly one Chrome extension zip, found ${zip_count}" >&2
+            find dist/chrome-extension -maxdepth 1 -type f -print >&2
+            exit 1
+          fi
+
+          chrome_extension_zip="$(find dist/chrome-extension -maxdepth 1 -type f -name '*.zip' -print -quit)"
+          echo "chrome_extension_zip=${chrome_extension_zip}" >> "${GITHUB_OUTPUT}"
+
+      - name: 上传到 Chrome Web Store
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          CHROME_EXTENSION_ZIP: ${{ steps.asset.outputs.chrome_extension_zip }}
+          CHROME_SUBMIT: ${{ inputs.submit }}
+          CHROME_PUBLISH_TYPE: ${{ inputs.publish_type }}
+          CHROME_DEPLOY_PERCENTAGE: ${{ inputs.deploy_percentage }}
+          CHROME_SKIP_REVIEW: ${{ inputs.skip_review }}
+        run: |
+          args=(
+            --zip "${CHROME_EXTENSION_ZIP}"
+            --output dist/chrome-extension/chrome-web-store-result.json
+            --publish-type "${CHROME_PUBLISH_TYPE}"
+          )
+          if [ "${CHROME_SUBMIT}" = "true" ]; then
+            args=(--submit "${args[@]}")
+          fi
+          if [ -n "${CHROME_DEPLOY_PERCENTAGE}" ]; then
+            args+=(--deploy-percentage "${CHROME_DEPLOY_PERCENTAGE}")
+          fi
+          if [ "${CHROME_SKIP_REVIEW}" = "true" ]; then
+            args+=(--skip-review)
+          fi
+          ./scripts/publish-chrome-web-store.mjs "${args[@]}"
+
+      - name: 上传 Chrome Web Store API 结果
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chrome-web-store-result
+          path: dist/chrome-extension/chrome-web-store-result.json
+          if-no-files-found: ignore
