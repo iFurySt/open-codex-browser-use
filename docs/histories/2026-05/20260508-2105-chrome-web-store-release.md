@@ -49,6 +49,7 @@ upload and publish behavior.
 - `.github/workflows/release.yml`
 - `.github/workflows/chrome-web-store-publish.yml`
 - `docs/CHROME_WEB_STORE_RELEASE.md`
+- `docs/CHROME_WEB_STORE_LISTING.md`
 - `docs/CICD.md`
 - `docs/SUPPLY_CHAIN_SECURITY.md`
 - `docs/releases/feature-release-notes.md`
@@ -78,3 +79,6 @@ upload and publish behavior.
   manifest, toolbar action, package zip, and CI packaging checks.
 - Bumped Open Browser Use versions from `0.1.2` to `0.1.3` so the next release
   asset contains the icon-ready Chrome extension package.
+- Added a Chrome Web Store listing and privacy practices draft based on the
+  current manifest permissions and native host boundary, so the Dashboard setup
+  is reproducible instead of only described in chat.
