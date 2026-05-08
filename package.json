@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "pnpm --filter @codio/desktop dev",
     "build": "pnpm -r --if-present build",
+    "package:chrome-extension": "./scripts/package-chrome-extension.sh",
+    "publish:chrome-web-store": "node scripts/publish-chrome-web-store.mjs",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "pnpm -r --if-present lint",
     "test": "pnpm -r --if-present test",
