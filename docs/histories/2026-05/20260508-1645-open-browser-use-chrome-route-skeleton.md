@@ -232,3 +232,23 @@ while satisfying Chrome's native messaging name rules.
 Chrome does not allow extension script injection into `about:blank`. Agent tabs
 are created on `about:blank` before CDP navigation, so tab creation must not
 fail just because the cursor overlay is not yet injectable.
+
+## [2026-05-08 19:35] | Update: fix executeCdp target tab validation
+
+### 🛠 Changes Overview
+
+**Scope:** `apps/chrome-extension`
+
+**Key Actions:**
+
+- Fixed `executeCdp` session-tab validation to read `target.tabId` instead of
+  requiring a duplicate top-level `tabId`.
+- Verified the real Chrome route by opening a tab, navigating to Google search,
+  reading `document.title` through CDP, querying Chrome history, and finalizing
+  session tabs.
+
+### 🧠 Design Intent (Why)
+
+Browser Use style CDP calls carry the Chrome tab id in `params.target.tabId`.
+The service worker should validate that target shape directly so CLI and SDK
+callers can use the same protocol payload.

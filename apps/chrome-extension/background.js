@@ -391,7 +391,7 @@ class BrowserBackend {
     const target = params.target && typeof params.target === "object" ? params.target : {};
     const tabId = target.tabId;
     if (typeof tabId === "number") {
-      await this.requireSessionTab(params, "executeCdp");
+      await this.requireSessionTab({ ...params, tabId }, "executeCdp");
       if (!this.attachedTabs.has(tabId)) {
         throw new Error("Debugger unattached");
       }
