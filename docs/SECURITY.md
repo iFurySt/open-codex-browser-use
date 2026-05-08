@@ -35,7 +35,7 @@
   socket 目标路径默认位于 `/tmp/open-browser-use/`，active socket registry
   写入同目录的 `active.json` 并使用 `0600` 权限。
 - Chrome native messaging manifest 使用固定 host name
-  `com.ifuryst.open-computer-use.extension`，由 Chrome 的
+  `com.ifuryst.open_browser_use.extension`，由 Chrome 的
   `allowed_origins` 限制可启动 extension 来源。
 - MV3 extension 使用 `chrome.debugger`、`tabs`、`tabGroups`、`history` 和
   `downloads` 等高权限 API；真实安装前必须让用户明确知道它会操作真实

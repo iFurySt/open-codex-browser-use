@@ -137,3 +137,79 @@ or future smoke tests.
 The MV3 service worker can suspend at any time. Persisting the logical active
 tab keeps `getTabs` stable after restart instead of falling back to whichever
 Chrome tab happens to be active in a window.
+
+## [2026-05-08 18:35] | Update: accept Chrome native messaging origin argv
+
+### 🛠 Changes Overview
+
+**Scope:** `cmd/open-browser-use`, `docs`
+
+**Key Actions:**
+
+- Treated `chrome-extension://...` argv values as Chrome native messaging
+  launch mode so the binary starts the stdio host instead of failing as an
+  unknown CLI subcommand.
+- Added a focused Go test for native messaging launch argument detection.
+- Updated architecture docs to record the Chrome launch behavior.
+
+### 🧠 Design Intent (Why)
+
+Chrome can pass the caller extension origin as an argument when launching a
+native messaging host. The CLI must accept that launch shape for real Chrome
+installation smoke to work.
+
+## [2026-05-08 18:45] | Update: use short fixed socket root
+
+### 🛠 Changes Overview
+
+**Scope:** `cmd/open-browser-use`, `internal/host`
+
+**Key Actions:**
+
+- Changed the default socket root from platform temp directories to fixed
+  `/tmp/open-browser-use`.
+- Updated CLI defaults to use the host package's default socket root.
+
+### 🧠 Design Intent (Why)
+
+macOS temp directories can be long enough to make Unix socket bind fail once a
+UUID filename is appended. The fixed `/tmp/open-browser-use/<uuid>.sock` path
+matches the intended contract and stays below socket path limits.
+
+## [2026-05-08 18:55] | Update: make popup wake native host status
+
+### 🛠 Changes Overview
+
+**Scope:** `apps/chrome-extension`
+
+**Key Actions:**
+
+- Changed the popup status check from storage-only reads to
+  `chrome.runtime.sendMessage({ type: "GET_NATIVE_HOST_STATUS" })`.
+
+### 🧠 Design Intent (Why)
+
+MV3 service workers are event-driven. Sending a runtime message from the popup
+gives users and smoke tests a deterministic way to wake the service worker and
+trigger native host connection logic.
+
+## [2026-05-08 19:05] | Update: use Chrome-compatible native host name
+
+### 🛠 Changes Overview
+
+**Scope:** `apps/chrome-extension`, `internal/host`, `cmd/open-browser-use`,
+`docs`
+
+**Key Actions:**
+
+- Changed the real Chrome native messaging host name to
+  `com.ifuryst.open_browser_use.extension`.
+- Added a Go test that asserts the host name uses Chrome-compatible
+  characters.
+- Updated architecture, security, and execution plan docs.
+
+### 🧠 Design Intent (Why)
+
+Chrome rejects native messaging host names containing hyphens before it even
+looks up the manifest. The underscore host name preserves the project identity
+while satisfying Chrome's native messaging name rules.

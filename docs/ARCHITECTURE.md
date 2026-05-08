@@ -108,8 +108,12 @@ upper-layer runtime / SDK / CLI
 Chrome native messaging host name 固定为：
 
 ```text
-com.ifuryst.open-computer-use.extension
+com.ifuryst.open_browser_use.extension
 ```
+
+Chrome native messaging host name 只能使用小写字母、数字、underscore 和
+dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
+`chrome.runtime.connectNative` 直接拒绝。
 
 当前 M1 骨架已经提供：
 
@@ -118,6 +122,8 @@ com.ifuryst.open-computer-use.extension
   socket 的中继；默认 socket 路径是
   `/tmp/open-browser-use/<uuid>.sock`，并写入
   `/tmp/open-browser-use/active.json` 供 CLI/SDK 自动发现当前活跃 socket。
+  Chrome native messaging 以 `chrome-extension://...` origin 参数启动二进制时，
+  CLI 会自动进入 host mode。
 - `open-browser-use manifest`：输出 Chrome native messaging host manifest。
 - `open-browser-use install-manifest`：把 native messaging host manifest
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。

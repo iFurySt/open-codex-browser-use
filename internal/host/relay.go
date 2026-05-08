@@ -19,7 +19,8 @@ import (
 	"github.com/ifuryst/open-browser-use/internal/wire"
 )
 
-const NativeHostName = "com.ifuryst.open-computer-use.extension"
+const NativeHostName = "com.ifuryst.open_browser_use.extension"
+const DefaultSocketDir = "/tmp/open-browser-use"
 
 type Config struct {
 	SocketDir  string
@@ -298,7 +299,7 @@ func socketDir(configured string) string {
 	if configured != "" {
 		return configured
 	}
-	return filepath.Join(os.TempDir(), "open-browser-use")
+	return DefaultSocketDir
 }
 
 func ActiveSocketRecordPath(configuredDir string) string {

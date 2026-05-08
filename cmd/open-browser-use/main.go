@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/ifuryst/open-browser-use/internal/host"
@@ -28,6 +29,9 @@ func main() {
 func run(args []string) error {
 	if len(args) == 0 {
 		return runHost(args)
+	}
+	if isNativeMessagingLaunch(args[0]) {
+		return runHost(nil)
 	}
 	switch args[0] {
 	case "host":
@@ -57,9 +61,13 @@ func run(args []string) error {
 	}
 }
 
+func isNativeMessagingLaunch(arg string) bool {
+	return strings.HasPrefix(arg, "chrome-extension://")
+}
+
 func runHost(args []string) error {
 	flags := flag.NewFlagSet("host", flag.ContinueOnError)
-	socketDir := flags.String("socket-dir", filepath.Join(os.TempDir(), "open-browser-use"), "directory for SDK Unix sockets")
+	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory for SDK Unix sockets")
 	socketPath := flags.String("socket-path", "", "explicit SDK Unix socket path")
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -130,7 +138,7 @@ func runInstallManifest(args []string) error {
 func runCall(args []string) error {
 	flags := flag.NewFlagSet("call", flag.ContinueOnError)
 	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", filepath.Join(os.TempDir(), "open-browser-use"), "directory containing active socket registry")
+	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
 	method := flags.String("method", "", "JSON-RPC method")
 	params := flags.String("params", "{}", "JSON object params")
 	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
@@ -156,7 +164,7 @@ func runCall(args []string) error {
 func runOpenTab(args []string) error {
 	flags := flag.NewFlagSet("open-tab", flag.ContinueOnError)
 	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", filepath.Join(os.TempDir(), "open-browser-use"), "directory containing active socket registry")
+	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
 	url := flags.String("url", "", "optional URL to navigate after tab creation")
 	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
 	if err := flags.Parse(args); err != nil {
@@ -192,7 +200,7 @@ func runOpenTab(args []string) error {
 func runNavigate(args []string) error {
 	flags := flag.NewFlagSet("navigate", flag.ContinueOnError)
 	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", filepath.Join(os.TempDir(), "open-browser-use"), "directory containing active socket registry")
+	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
 	tabID := flags.Int("tab-id", 0, "tab id to navigate")
 	url := flags.String("url", "", "URL to navigate to")
 	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")

@@ -16,7 +16,7 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
   under `internal/`.
 - Unix socket bridge rooted at `/tmp/open-browser-use/<uuid>.sock`.
 - Chrome native messaging host name:
-  `com.ifuryst.open-computer-use.extension`.
+  `com.ifuryst.open_browser_use.extension`.
 - JavaScript/TypeScript SDK in `packages/open-browser-use-js/`.
 - Python SDK in `packages/open-browser-use-python/`.
 - Repository docs and histories updated with each milestone.
