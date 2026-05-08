@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Open Browser Use",
+  "description": "Open Browser Use Chrome automation extension.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Open Browser Use",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self';"
+  },
+  "host_permissions": ["<all_urls>"],
+  "permissions": [
+    "alarms",
+    "debugger",
+    "downloads",
+    "downloads.ui",
+    "history",
+    "nativeMessaging",
+    "scripting",
+    "storage",
+    "tabGroups",
+    "tabs"
+  ],
+  "web_accessible_resources": [
+    {
+      "matches": ["<all_urls>"],
+      "resources": ["cursor.png"]
+    }
+  ]
+}

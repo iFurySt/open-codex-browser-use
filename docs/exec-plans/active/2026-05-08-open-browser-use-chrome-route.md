@@ -1,0 +1,75 @@
+# Open Browser Use Chrome Route
+
+## Goal
+
+Build an open implementation of the Browser Use Chrome route under the project
+name **Open Browser Use**.
+
+The first target is a locally installable MV3 Chrome extension, a Go native
+messaging host/CLI named `open-browser-use` with `obu` as the intended alias,
+and SDKs that let upper-layer runtimes call the browser backend directly.
+
+## Deliverables
+
+- MV3 Chrome extension source in `apps/chrome-extension/`.
+- Go native host and CLI in `cmd/open-browser-use/`, with reusable packages
+  under `internal/`.
+- Unix socket bridge rooted at `/tmp/open-browser-use/<uuid>.sock`.
+- Chrome native messaging host name:
+  `com.ifuryst.open-computer-use.extension`.
+- JavaScript/TypeScript SDK in `packages/open-browser-use-js/`.
+- Python SDK in `packages/open-browser-use-python/`.
+- Repository docs and histories updated with each milestone.
+
+## Non-Goals
+
+- Do not copy or reuse Codex's minified extension implementation.
+- Do not depend on Codex `node_repl` trust injection or any closed native pipe
+  bridge.
+- Do not add runtime policy restrictions to the SDKs. Policy is left to the
+  upper-layer application.
+
+## Milestones
+
+### M1: Protocol Skeleton
+
+- Add the extension/host/SDK directories.
+- Implement native-message and socket framing.
+- Implement the Go host relay between Chrome Native Messaging stdio and local
+  Unix socket clients.
+- Implement the extension's core request handlers in readable source.
+- Add JS and Python SDK clients for JSON-RPC over the local socket.
+- Add unit-level validation for framing and SDK basics.
+
+### M2: Browser Capability Parity
+
+- Harden tab group persistence across MV3 service worker restarts.
+- Complete downloads, file chooser, cursor overlay, and CDP event forwarding.
+- Add CLI subcommands for common SDK operations.
+- Add integration tests with a fake native host/extension peer.
+
+### M3: Real Chrome Install And Smoke
+
+- Generate or document the native host manifest installation path.
+- Load the unpacked extension in Chrome.
+- Verify opening a tab, navigation, screenshot/CDP, history, user tab claim,
+  and finalization against a real Chrome profile.
+
+## Verification Plan
+
+- `go test ./...`
+- `pnpm --filter @open-browser-use/sdk-js test`
+- Python smoke using `python -m unittest`.
+- `node --check apps/chrome-extension/background.js`
+- Real Chrome unpacked extension smoke before declaring the goal complete.
+
+## Risks
+
+- MV3 service workers can suspend, so session state must be persisted enough to
+  recover tab groups and debugger state.
+- Chrome `debugger` permission is powerful and can conflict with DevTools or
+  other debuggers.
+- Native messaging stdout must contain only framed JSON messages; logs must go
+  to stderr.
+- Multiple SDK clients can share one extension host, so host-side request ID
+  remapping is required.

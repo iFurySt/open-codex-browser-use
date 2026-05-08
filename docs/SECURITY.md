@@ -25,9 +25,25 @@
 - 首版 IAB capabilities 明确声明 downloads、file uploads、media downloads
   为不支持。
 
+## Open Browser Use Chrome Route 安全边界
+
+- Chrome route 首版面向开源 runtime/SDK，不复刻 Codex `node_repl` 的
+  trusted native pipe bridge。
+- JS/Python SDK 默认无站点限制、无 command allowlist、无 user approval；
+  这是有意的产品边界，调用方需要自行决定是否加策略。
+- Go native host 当前创建 Unix socket 目录和 socket 时使用当前用户权限，
+  socket 目标路径默认位于 `/tmp/open-browser-use/`。
+- Chrome native messaging manifest 使用固定 host name
+  `com.ifuryst.open-computer-use.extension`，由 Chrome 的
+  `allowed_origins` 限制可启动 extension 来源。
+- MV3 extension 使用 `chrome.debugger`、`tabs`、`tabGroups`、`history` 和
+  `downloads` 等高权限 API；真实安装前必须让用户明确知道它会操作真实
+  Chrome profile。
+
 仍需补强：
 
 - 本地 socket token/peer 授权。
 - 细粒度 webview permission request 白名单。
 - 跨 turn route 校验。
 - 失败路径安全测试。
+- Chrome route native host 的 client token、peer 校验和审计日志。
