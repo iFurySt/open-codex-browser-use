@@ -83,6 +83,26 @@ gh secret set CWS_PUBLISHER_ID
 gh secret set CWS_EXTENSION_ID
 ```
 
+`CWS_REFRESH_TOKEN` 可以用本地 OAuth helper 生成。先在 Google Cloud 中为同一
+项目启用 Chrome Web Store API，创建 OAuth client，并确保 loopback redirect
+URI 可用：
+
+```text
+http://127.0.0.1:53682/oauth2callback
+```
+
+然后运行：
+
+```bash
+CWS_CLIENT_ID=<oauth-client-id> \
+CWS_CLIENT_SECRET=<oauth-client-secret> \
+pnpm chrome-web-store:oauth
+```
+
+脚本会打印授权 URL，使用 Chrome Web Store 发布者账号完成授权后，会在终端
+输出 `CWS_REFRESH_TOKEN`。不要把该值提交到仓库；用 `gh secret set
+CWS_REFRESH_TOKEN` 写入 GitHub repository secret。
+
 触发 release workflow 时，把 `publish_chrome_web_store` 设为 `true`，workflow
 会：
 
