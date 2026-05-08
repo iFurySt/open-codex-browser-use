@@ -296,3 +296,24 @@ scoped to actual browser-control activity instead of stale group metadata.
 The project promises `open-browser-use` as the binary and `obu` as the short
 operator-facing alias. The extra smoke covers Chrome route behaviors that are
 not exercised by basic navigation alone.
+
+## [2026-05-08 20:15] | Update: migrate CLI to Cobra
+
+### 🛠 Changes Overview
+
+**Scope:** `cmd/open-browser-use`, `go.mod`, `docs`
+
+**Key Actions:**
+
+- Replaced the hand-written subcommand switch and standard-library `flag`
+  parsing with a Cobra command tree.
+- Preserved the native messaging launch path: no-arg and
+  `chrome-extension://...` launches still enter host mode directly.
+- Added Cobra-level tests for `version`, `-v`, and unknown command handling.
+- Rebuilt the local `open-browser-use` binary and verified `obu version`,
+  `open-browser-use -v`, `--help`, and `manifest` smoke commands.
+
+### 🧠 Design Intent (Why)
+
+Cobra gives the CLI a maintainable command structure as subcommands grow, while
+the explicit native messaging bypass keeps Chrome startup behavior stable.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/ifuryst/open-browser-use/internal/host"
 	"github.com/ifuryst/open-browser-use/internal/wire"
+	"github.com/spf13/cobra"
 )
 
 const version = "0.1.0"
@@ -28,360 +28,442 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return runHost(args)
+		return runHost(host.DefaultSocketDir, "")
 	}
 	if isNativeMessagingLaunch(args[0]) {
-		return runHost(nil)
+		return runHost(host.DefaultSocketDir, "")
 	}
-	switch args[0] {
-	case "host":
-		return runHost(args[1:])
-	case "manifest":
-		return runManifest(args[1:])
-	case "install-manifest":
-		return runInstallManifest(args[1:])
-	case "call":
-		return runCall(args[1:])
-	case "open-tab":
-		return runOpenTab(args[1:])
-	case "navigate":
-		return runNavigate(args[1:])
-	case "user-tabs":
-		return runCall(append([]string{"--method", "getUserTabs"}, args[1:]...))
-	case "history":
-		return runHistory(args[1:])
-	case "claim-tab":
-		return runClaimTab(args[1:])
-	case "finalize-tabs":
-		return runFinalizeTabs(args[1:])
-	case "name-session":
-		return runNameSession(args[1:])
-	case "cdp":
-		return runCdp(args[1:])
-	case "move-mouse":
-		return runMoveMouse(args[1:])
-	case "turn-ended":
-		return runCall(append([]string{"--method", "turnEnded"}, args[1:]...))
-	case "info":
-		return runCall(append([]string{"--method", "getInfo"}, args[1:]...))
-	case "tabs":
-		return runCall(append([]string{"--method", "getTabs"}, args[1:]...))
-	case "ping":
-		return runCall(append([]string{"--method", "ping"}, args[1:]...))
-	case "version", "--version", "-v":
-		fmt.Println(version)
-		return nil
-	case "help", "--help", "-h":
-		printHelp()
-		return nil
-	default:
-		return fmt.Errorf("unknown subcommand %q", args[0])
-	}
+	cmd := newRootCommand()
+	cmd.SetArgs(args)
+	return cmd.Execute()
 }
 
 func isNativeMessagingLaunch(arg string) bool {
 	return strings.HasPrefix(arg, "chrome-extension://")
 }
 
-func runHost(args []string) error {
-	flags := flag.NewFlagSet("host", flag.ContinueOnError)
-	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory for SDK Unix sockets")
-	socketPath := flags.String("socket-path", "", "explicit SDK Unix socket path")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newRootCommand() *cobra.Command {
+	var showVersion bool
+	root := &cobra.Command{
+		Use:           "open-browser-use",
+		Short:         "Open Browser Use native host and CLI",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if showVersion {
+				fmt.Fprintln(cmd.OutOrStdout(), version)
+				return nil
+			}
+			return cmd.Help()
+		},
 	}
+	root.Flags().BoolVarP(&showVersion, "version", "v", false, "print version")
+	root.AddCommand(
+		newHostCommand(),
+		newManifestCommand(),
+		newInstallManifestCommand(),
+		newCallCommand(),
+		newOpenTabCommand(),
+		newNavigateCommand(),
+		newSimpleRPCCommand("ping", "ping", "Ping the browser backend"),
+		newSimpleRPCCommand("info", "getInfo", "Print browser backend info"),
+		newSimpleRPCCommand("tabs", "getTabs", "List session tabs"),
+		newSimpleRPCCommand("user-tabs", "getUserTabs", "List user Chrome tabs"),
+		newHistoryCommand(),
+		newClaimTabCommand(),
+		newFinalizeTabsCommand(),
+		newNameSessionCommand(),
+		newCdpCommand(),
+		newMoveMouseCommand(),
+		newSimpleRPCCommand("turn-ended", "turnEnded", "End the current browser turn"),
+		newVersionCommand(),
+	)
+	return root
+}
+
+func newHostCommand() *cobra.Command {
+	var socketDir string
+	var socketPath string
+	cmd := &cobra.Command{
+		Use:   "host",
+		Short: "Run the native messaging host relay",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runHost(socketDir, socketPath)
+		},
+	}
+	cmd.Flags().StringVar(&socketDir, "socket-dir", host.DefaultSocketDir, "directory for SDK Unix sockets")
+	cmd.Flags().StringVar(&socketPath, "socket-path", "", "explicit SDK Unix socket path")
+	return cmd
+}
+
+func runHost(socketDir string, socketPath string) error {
 	relay := host.NewRelay(host.Config{
-		SocketDir:  *socketDir,
-		SocketPath: *socketPath,
+		SocketDir:  socketDir,
+		SocketPath: socketPath,
 	}, os.Stdin, os.Stdout)
 	return relay.Serve(context.Background())
 }
 
-func runManifest(args []string) error {
-	flags := flag.NewFlagSet("manifest", flag.ContinueOnError)
-	extensionID := flags.String("extension-id", "", "Chrome extension id for allowed_origins")
-	binaryPath := flags.String("path", "", "absolute path to open-browser-use binary")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newManifestCommand() *cobra.Command {
+	var extensionID string
+	var binaryPath string
+	cmd := &cobra.Command{
+		Use:   "manifest",
+		Short: "Print a Chrome native messaging host manifest",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if extensionID == "" {
+				return errors.New("manifest requires --extension-id")
+			}
+			manifest, err := nativeManifest(extensionID, binaryPath)
+			if err != nil {
+				return err
+			}
+			return writeJSON(manifest)
+		},
 	}
-	if *extensionID == "" {
-		return errors.New("manifest requires --extension-id")
-	}
-	manifest, err := nativeManifest(*extensionID, *binaryPath)
-	if err != nil {
-		return err
-	}
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(manifest)
+	cmd.Flags().StringVar(&extensionID, "extension-id", "", "Chrome extension id for allowed_origins")
+	cmd.Flags().StringVar(&binaryPath, "path", "", "absolute path to open-browser-use binary")
+	return cmd
 }
 
-func runInstallManifest(args []string) error {
-	flags := flag.NewFlagSet("install-manifest", flag.ContinueOnError)
-	extensionID := flags.String("extension-id", "", "Chrome extension id for allowed_origins")
-	binaryPath := flags.String("path", "", "absolute path to open-browser-use binary")
-	outputPath := flags.String("output", "", "native host manifest output path")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newInstallManifestCommand() *cobra.Command {
+	var extensionID string
+	var binaryPath string
+	var outputPath string
+	cmd := &cobra.Command{
+		Use:   "install-manifest",
+		Short: "Install the Chrome native messaging host manifest",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if extensionID == "" {
+				return errors.New("install-manifest requires --extension-id")
+			}
+			path, err := installNativeManifest(extensionID, binaryPath, outputPath)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), path)
+			return nil
+		},
 	}
-	if *extensionID == "" {
-		return errors.New("install-manifest requires --extension-id")
-	}
-	manifest, err := nativeManifest(*extensionID, *binaryPath)
+	cmd.Flags().StringVar(&extensionID, "extension-id", "", "Chrome extension id for allowed_origins")
+	cmd.Flags().StringVar(&binaryPath, "path", "", "absolute path to open-browser-use binary")
+	cmd.Flags().StringVar(&outputPath, "output", "", "native host manifest output path")
+	return cmd
+}
+
+func installNativeManifest(extensionID string, binaryPath string, outputPath string) (string, error) {
+	manifest, err := nativeManifest(extensionID, binaryPath)
 	if err != nil {
-		return err
+		return "", err
 	}
-	path := *outputPath
+	path := outputPath
 	if path == "" {
-		var err error
 		path, err = defaultNativeHostManifestPath()
 		if err != nil {
-			return err
+			return "", err
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
+		return "", err
 	}
 	payload, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
-		return err
+		return "", err
 	}
 	if err := os.WriteFile(path, append(payload, '\n'), 0o600); err != nil {
-		return err
+		return "", err
 	}
-	fmt.Println(path)
-	return nil
+	return path, nil
 }
 
-func runCall(args []string) error {
-	flags := flag.NewFlagSet("call", flag.ContinueOnError)
-	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
-	method := flags.String("method", "", "JSON-RPC method")
-	params := flags.String("params", "{}", "JSON object params")
-	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
-	if err := flags.Parse(args); err != nil {
-		return err
-	}
-	if *method == "" {
-		return errors.New("call requires --method")
-	}
-	var paramValue map[string]any
-	if err := json.Unmarshal([]byte(*params), &paramValue); err != nil {
-		return err
-	}
-	response, err := invoke(*socketPath, *socketDir, *method, paramValue, *timeout)
-	if err != nil {
-		return err
-	}
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(response)
+type socketOptions struct {
+	socketPath string
+	socketDir  string
+	timeout    time.Duration
 }
 
-func runHistory(args []string) error {
-	flags := flag.NewFlagSet("history", flag.ContinueOnError)
-	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
-	query := flags.String("query", "", "history search query")
-	limit := flags.Int("limit", 100, "maximum result count")
-	from := flags.String("from", "", "optional ISO start date")
-	to := flags.String("to", "", "optional ISO end date")
-	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
-	if err := flags.Parse(args); err != nil {
-		return err
-	}
-	params := map[string]any{"query": *query, "limit": *limit}
-	if *from != "" {
-		params["from"] = *from
-	}
-	if *to != "" {
-		params["to"] = *to
-	}
-	response, err := invoke(*socketPath, *socketDir, "getUserHistory", params, *timeout)
-	if err != nil {
-		return err
-	}
-	return writeJSON(response)
+func addSocketFlags(cmd *cobra.Command, options *socketOptions) {
+	cmd.Flags().StringVar(&options.socketPath, "socket", "", "open-browser-use Unix socket path")
+	cmd.Flags().StringVar(&options.socketDir, "socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
+	cmd.Flags().DurationVar(&options.timeout, "timeout", 10*time.Second, "request timeout")
 }
 
-func runClaimTab(args []string) error {
-	flags := flag.NewFlagSet("claim-tab", flag.ContinueOnError)
-	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
-	tabID := flags.Int("tab-id", 0, "Chrome tab id to claim")
-	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newCallCommand() *cobra.Command {
+	var options socketOptions
+	var method string
+	var params string
+	cmd := &cobra.Command{
+		Use:   "call",
+		Short: "Send an unrestricted JSON-RPC request",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if method == "" {
+				return errors.New("call requires --method")
+			}
+			var paramValue map[string]any
+			if err := json.Unmarshal([]byte(params), &paramValue); err != nil {
+				return err
+			}
+			return invokeAndWrite(options, method, paramValue)
+		},
 	}
-	if *tabID <= 0 {
-		return errors.New("claim-tab requires --tab-id")
-	}
-	response, err := invoke(*socketPath, *socketDir, "claimUserTab", map[string]any{"tabId": *tabID}, *timeout)
-	if err != nil {
-		return err
-	}
-	return writeJSON(response)
+	addSocketFlags(cmd, &options)
+	cmd.Flags().StringVar(&method, "method", "", "JSON-RPC method")
+	cmd.Flags().StringVar(&params, "params", "{}", "JSON object params")
+	return cmd
 }
 
-func runFinalizeTabs(args []string) error {
-	flags := flag.NewFlagSet("finalize-tabs", flag.ContinueOnError)
-	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
-	keepJSON := flags.String("keep", "[]", `tabs to keep, e.g. '[{"tabId":123,"status":"handoff"}]'`)
-	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newSimpleRPCCommand(use string, method string, short string) *cobra.Command {
+	var options socketOptions
+	cmd := &cobra.Command{
+		Use:   use,
+		Short: short,
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return invokeAndWrite(options, method, map[string]any{})
+		},
 	}
-	var keep []any
-	if err := json.Unmarshal([]byte(*keepJSON), &keep); err != nil {
-		return fmt.Errorf("finalize-tabs --keep must be a JSON array: %w", err)
-	}
-	response, err := invoke(*socketPath, *socketDir, "finalizeTabs", map[string]any{"keep": keep}, *timeout)
-	if err != nil {
-		return err
-	}
-	return writeJSON(response)
+	addSocketFlags(cmd, &options)
+	return cmd
 }
 
-func runNameSession(args []string) error {
-	flags := flag.NewFlagSet("name-session", flag.ContinueOnError)
-	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
-	name := flags.String("name", "", "session group title")
-	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newHistoryCommand() *cobra.Command {
+	var options socketOptions
+	var query string
+	var limit int
+	var from string
+	var to string
+	cmd := &cobra.Command{
+		Use:   "history",
+		Short: "Search Chrome history",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			params := map[string]any{"query": query, "limit": limit}
+			if from != "" {
+				params["from"] = from
+			}
+			if to != "" {
+				params["to"] = to
+			}
+			return invokeAndWrite(options, "getUserHistory", params)
+		},
 	}
-	if *name == "" {
-		return errors.New("name-session requires --name")
-	}
-	response, err := invoke(*socketPath, *socketDir, "nameSession", map[string]any{"name": *name}, *timeout)
-	if err != nil {
-		return err
-	}
-	return writeJSON(response)
+	addSocketFlags(cmd, &options)
+	cmd.Flags().StringVar(&query, "query", "", "history search query")
+	cmd.Flags().IntVar(&limit, "limit", 100, "maximum result count")
+	cmd.Flags().StringVar(&from, "from", "", "optional ISO start date")
+	cmd.Flags().StringVar(&to, "to", "", "optional ISO end date")
+	return cmd
 }
 
-func runCdp(args []string) error {
-	flags := flag.NewFlagSet("cdp", flag.ContinueOnError)
-	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
-	tabID := flags.Int("tab-id", 0, "optional tab id target")
-	method := flags.String("method", "", "Chrome DevTools Protocol method")
-	commandParamsJSON := flags.String("params", "{}", "Chrome DevTools Protocol command params")
-	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newClaimTabCommand() *cobra.Command {
+	var options socketOptions
+	var tabID int
+	cmd := &cobra.Command{
+		Use:   "claim-tab",
+		Short: "Claim an existing Chrome tab",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if tabID <= 0 {
+				return errors.New("claim-tab requires --tab-id")
+			}
+			return invokeAndWrite(options, "claimUserTab", map[string]any{"tabId": tabID})
+		},
 	}
-	if *method == "" {
-		return errors.New("cdp requires --method")
-	}
-	var commandParams map[string]any
-	if err := json.Unmarshal([]byte(*commandParamsJSON), &commandParams); err != nil {
-		return fmt.Errorf("cdp --params must be a JSON object: %w", err)
-	}
-	target := map[string]any{}
-	if *tabID > 0 {
-		target["tabId"] = *tabID
-		_, _ = invoke(*socketPath, *socketDir, "attach", map[string]any{"tabId": *tabID}, *timeout)
-	}
-	response, err := invoke(*socketPath, *socketDir, "executeCdp", map[string]any{
-		"target":        target,
-		"method":        *method,
-		"commandParams": commandParams,
-	}, *timeout)
-	if err != nil {
-		return err
-	}
-	return writeJSON(response)
+	addSocketFlags(cmd, &options)
+	cmd.Flags().IntVar(&tabID, "tab-id", 0, "Chrome tab id to claim")
+	return cmd
 }
 
-func runMoveMouse(args []string) error {
-	flags := flag.NewFlagSet("move-mouse", flag.ContinueOnError)
-	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
-	tabID := flags.Int("tab-id", 0, "tab id to move the cursor in")
-	x := flags.Float64("x", 0, "viewport x coordinate")
-	y := flags.Float64("y", 0, "viewport y coordinate")
-	wait := flags.Bool("wait", true, "wait for cursor arrival acknowledgement")
-	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newFinalizeTabsCommand() *cobra.Command {
+	var options socketOptions
+	var keepJSON string
+	cmd := &cobra.Command{
+		Use:   "finalize-tabs",
+		Short: "Finalize session tabs",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			var keep []any
+			if err := json.Unmarshal([]byte(keepJSON), &keep); err != nil {
+				return fmt.Errorf("finalize-tabs --keep must be a JSON array: %w", err)
+			}
+			return invokeAndWrite(options, "finalizeTabs", map[string]any{"keep": keep})
+		},
 	}
-	if *tabID <= 0 {
-		return errors.New("move-mouse requires --tab-id")
-	}
-	response, err := invoke(*socketPath, *socketDir, "moveMouse", map[string]any{
-		"tabId":          *tabID,
-		"x":              *x,
-		"y":              *y,
-		"waitForArrival": *wait,
-	}, *timeout)
-	if err != nil {
-		return err
-	}
-	return writeJSON(response)
+	addSocketFlags(cmd, &options)
+	cmd.Flags().StringVar(&keepJSON, "keep", "[]", `tabs to keep, e.g. '[{"tabId":123,"status":"handoff"}]'`)
+	return cmd
 }
 
-func runOpenTab(args []string) error {
-	flags := flag.NewFlagSet("open-tab", flag.ContinueOnError)
-	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
-	url := flags.String("url", "", "optional URL to navigate after tab creation")
-	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newNameSessionCommand() *cobra.Command {
+	var options socketOptions
+	var name string
+	cmd := &cobra.Command{
+		Use:   "name-session",
+		Short: "Set the session tab group name",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if name == "" {
+				return errors.New("name-session requires --name")
+			}
+			return invokeAndWrite(options, "nameSession", map[string]any{"name": name})
+		},
 	}
-	tabResponse, err := invoke(*socketPath, *socketDir, "createTab", map[string]any{}, *timeout)
-	if err != nil {
-		return err
-	}
-	result, _ := tabResponse["result"].(map[string]any)
-	tabID, ok := numberAsInt(result["id"])
-	if !ok {
-		return errors.New("createTab response did not include numeric tab id")
-	}
-	output := map[string]any{"tab": result}
-	if *url != "" {
-		_, _ = invoke(*socketPath, *socketDir, "attach", map[string]any{"tabId": tabID}, *timeout)
-		navigateResponse, err := invoke(*socketPath, *socketDir, "executeCdp", map[string]any{
-			"target":        map[string]any{"tabId": tabID},
-			"method":        "Page.navigate",
-			"commandParams": map[string]any{"url": *url},
-		}, *timeout)
-		if err != nil {
-			return err
-		}
-		output["navigate"] = navigateResponse["result"]
-	}
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(output)
+	addSocketFlags(cmd, &options)
+	cmd.Flags().StringVar(&name, "name", "", "session group title")
+	return cmd
 }
 
-func runNavigate(args []string) error {
-	flags := flag.NewFlagSet("navigate", flag.ContinueOnError)
-	socketPath := flags.String("socket", "", "open-browser-use Unix socket path")
-	socketDir := flags.String("socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
-	tabID := flags.Int("tab-id", 0, "tab id to navigate")
-	url := flags.String("url", "", "URL to navigate to")
-	timeout := flags.Duration("timeout", 10*time.Second, "request timeout")
-	if err := flags.Parse(args); err != nil {
-		return err
+func newCdpCommand() *cobra.Command {
+	var options socketOptions
+	var tabID int
+	var method string
+	var commandParamsJSON string
+	cmd := &cobra.Command{
+		Use:   "cdp",
+		Short: "Run a Chrome DevTools Protocol command",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if method == "" {
+				return errors.New("cdp requires --method")
+			}
+			var commandParams map[string]any
+			if err := json.Unmarshal([]byte(commandParamsJSON), &commandParams); err != nil {
+				return fmt.Errorf("cdp --params must be a JSON object: %w", err)
+			}
+			target := map[string]any{}
+			if tabID > 0 {
+				target["tabId"] = tabID
+				_, _ = invoke(options.socketPath, options.socketDir, "attach", map[string]any{"tabId": tabID}, options.timeout)
+			}
+			return invokeAndWrite(options, "executeCdp", map[string]any{
+				"target":        target,
+				"method":        method,
+				"commandParams": commandParams,
+			})
+		},
 	}
-	if *tabID <= 0 {
-		return errors.New("navigate requires --tab-id")
+	addSocketFlags(cmd, &options)
+	cmd.Flags().IntVar(&tabID, "tab-id", 0, "optional tab id target")
+	cmd.Flags().StringVar(&method, "method", "", "Chrome DevTools Protocol method")
+	cmd.Flags().StringVar(&commandParamsJSON, "params", "{}", "Chrome DevTools Protocol command params")
+	return cmd
+}
+
+func newMoveMouseCommand() *cobra.Command {
+	var options socketOptions
+	var tabID int
+	var x float64
+	var y float64
+	var wait bool
+	cmd := &cobra.Command{
+		Use:   "move-mouse",
+		Short: "Move the browser cursor overlay",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if tabID <= 0 {
+				return errors.New("move-mouse requires --tab-id")
+			}
+			return invokeAndWrite(options, "moveMouse", map[string]any{
+				"tabId":          tabID,
+				"x":              x,
+				"y":              y,
+				"waitForArrival": wait,
+			})
+		},
 	}
-	if *url == "" {
-		return errors.New("navigate requires --url")
+	addSocketFlags(cmd, &options)
+	cmd.Flags().IntVar(&tabID, "tab-id", 0, "tab id to move the cursor in")
+	cmd.Flags().Float64Var(&x, "x", 0, "viewport x coordinate")
+	cmd.Flags().Float64Var(&y, "y", 0, "viewport y coordinate")
+	cmd.Flags().BoolVar(&wait, "wait", true, "wait for cursor arrival acknowledgement")
+	return cmd
+}
+
+func newOpenTabCommand() *cobra.Command {
+	var options socketOptions
+	var url string
+	cmd := &cobra.Command{
+		Use:   "open-tab",
+		Short: "Open a new browser session tab",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			tabResponse, err := invoke(options.socketPath, options.socketDir, "createTab", map[string]any{}, options.timeout)
+			if err != nil {
+				return err
+			}
+			result, _ := tabResponse["result"].(map[string]any)
+			tabID, ok := numberAsInt(result["id"])
+			if !ok {
+				return errors.New("createTab response did not include numeric tab id")
+			}
+			output := map[string]any{"tab": result}
+			if url != "" {
+				_, _ = invoke(options.socketPath, options.socketDir, "attach", map[string]any{"tabId": tabID}, options.timeout)
+				navigateResponse, err := invoke(options.socketPath, options.socketDir, "executeCdp", map[string]any{
+					"target":        map[string]any{"tabId": tabID},
+					"method":        "Page.navigate",
+					"commandParams": map[string]any{"url": url},
+				}, options.timeout)
+				if err != nil {
+					return err
+				}
+				output["navigate"] = navigateResponse["result"]
+			}
+			return writeJSON(output)
+		},
 	}
-	_, _ = invoke(*socketPath, *socketDir, "attach", map[string]any{"tabId": *tabID}, *timeout)
-	response, err := invoke(*socketPath, *socketDir, "executeCdp", map[string]any{
-		"target":        map[string]any{"tabId": *tabID},
-		"method":        "Page.navigate",
-		"commandParams": map[string]any{"url": *url},
-	}, *timeout)
+	addSocketFlags(cmd, &options)
+	cmd.Flags().StringVar(&url, "url", "", "optional URL to navigate after tab creation")
+	return cmd
+}
+
+func newNavigateCommand() *cobra.Command {
+	var options socketOptions
+	var tabID int
+	var url string
+	cmd := &cobra.Command{
+		Use:   "navigate",
+		Short: "Navigate a browser session tab",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if tabID <= 0 {
+				return errors.New("navigate requires --tab-id")
+			}
+			if url == "" {
+				return errors.New("navigate requires --url")
+			}
+			_, _ = invoke(options.socketPath, options.socketDir, "attach", map[string]any{"tabId": tabID}, options.timeout)
+			return invokeAndWrite(options, "executeCdp", map[string]any{
+				"target":        map[string]any{"tabId": tabID},
+				"method":        "Page.navigate",
+				"commandParams": map[string]any{"url": url},
+			})
+		},
+	}
+	addSocketFlags(cmd, &options)
+	cmd.Flags().IntVar(&tabID, "tab-id", 0, "tab id to navigate")
+	cmd.Flags().StringVar(&url, "url", "", "URL to navigate to")
+	return cmd
+}
+
+func newVersionCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print version",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			fmt.Fprintln(cmd.OutOrStdout(), version)
+			return nil
+		},
+	}
+}
+
+func invokeAndWrite(options socketOptions, method string, params map[string]any) error {
+	response, err := invoke(options.socketPath, options.socketDir, method, params, options.timeout)
 	if err != nil {
 		return err
 	}
@@ -486,30 +568,4 @@ func numberAsInt(value any) (int, bool) {
 		}
 	}
 	return 0, false
-}
-
-func printHelp() {
-	fmt.Println(`open-browser-use (obu)
-
-Usage:
-  open-browser-use host [--socket-dir /tmp/open-browser-use]
-  open-browser-use manifest --extension-id <id> [--path /abs/open-browser-use]
-  open-browser-use install-manifest --extension-id <id> [--path /abs/open-browser-use]
-  open-browser-use call [--socket <path>] --method <method> [--params '{}']
-  open-browser-use info [--socket <path>]
-  open-browser-use tabs [--socket <path>]
-  open-browser-use user-tabs [--socket <path>]
-  open-browser-use history [--query text] [--limit 100] [--from ISO] [--to ISO]
-  open-browser-use open-tab [--socket <path>] [--url https://example.com]
-  open-browser-use navigate [--socket <path>] --tab-id <id> --url https://example.com
-  open-browser-use claim-tab [--socket <path>] --tab-id <id>
-  open-browser-use finalize-tabs [--socket <path>] [--keep '[{"tabId":1,"status":"handoff"}]']
-  open-browser-use name-session [--socket <path>] --name "Task name"
-  open-browser-use cdp [--socket <path>] [--tab-id <id>] --method Runtime.evaluate [--params '{}']
-  open-browser-use move-mouse [--socket <path>] --tab-id <id> --x 100 --y 200 [--wait=false]
-  open-browser-use turn-ended [--socket <path>]
-  open-browser-use version
-
-When Chrome launches this binary as a native messaging host, invoke it without
-arguments or with "host".`)
 }

@@ -130,6 +130,8 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。
 - 本地安装后可以把 `obu` 指向同一个二进制，例如
   `ln -sfn ~/.local/bin/open-browser-use ~/.local/bin/obu`。
+- CLI 命令层使用 Cobra 实现；无参数或 Chrome native messaging
+  `chrome-extension://...` origin 参数启动时仍绕过 Cobra，直接进入 host mode。
 - `open-browser-use call`：unrestricted JSON-RPC 入口，允许上层应用发送
   任意 method/params；未显式传入 `--socket` 时会读取 active socket registry。
 - CLI 便捷子命令覆盖当前 SDK 核心能力：`ping`、`info`、`tabs`、
