@@ -213,3 +213,22 @@ trigger native host connection logic.
 Chrome rejects native messaging host names containing hyphens before it even
 looks up the manifest. The underscore host name preserves the project identity
 while satisfying Chrome's native messaging name rules.
+
+## [2026-05-08 19:20] | Update: tolerate unscriptable startup tabs
+
+### 🛠 Changes Overview
+
+**Scope:** `apps/chrome-extension`
+
+**Key Actions:**
+
+- Made cursor content-script injection best-effort during tab creation and
+  claiming.
+- Kept `moveMouse` strict: it still fails if the cursor script cannot be
+  injected into the target page.
+
+### 🧠 Design Intent (Why)
+
+Chrome does not allow extension script injection into `about:blank`. Agent tabs
+are created on `about:blank` before CDP navigation, so tab creation must not
+fail just because the cursor overlay is not yet injectable.

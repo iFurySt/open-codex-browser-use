@@ -412,12 +412,16 @@ class BrowserBackend {
   }
 
   async moveMouse(params) {
+    const session = await this.requireSession(params);
     await this.requireSessionTab(params, "moveMouse");
     const tabId = requireTabId(params, "moveMouse");
     if (!Number.isFinite(params.x) || !Number.isFinite(params.y)) {
       throw new Error("moveMouse requires finite x and y");
     }
-    await this.ensureCursorContentScript(params.session_id, tabId);
+    const cursorReady = await this.ensureCursorContentScript(session.sessionId, tabId);
+    if (!cursorReady) {
+      throw new Error(`Cannot inject cursor content script into tab ${tabId}`);
+    }
     const moveSequence = this.nextCursorMoveSequence;
     this.nextCursorMoveSequence += 1;
     const arrivalWaiter =
@@ -682,13 +686,18 @@ class BrowserBackend {
     try {
       const response = await chrome.tabs.sendMessage(tabId, { type: "OPEN_BROWSER_USE_PING" });
       if (response?.ok) {
-        return;
+        return true;
       }
     } catch {}
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ["content-cursor.js"]
-    });
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ["content-cursor.js"]
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 
