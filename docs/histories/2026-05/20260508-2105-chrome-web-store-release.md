@@ -59,6 +59,7 @@ upload and publish behavior.
 - `pnpm-lock.yaml`
 - `package.json`
 - `scripts/ci.sh`
+- `scripts/chrome-web-store-oauth.mjs`
 - `scripts/package-chrome-extension.sh`
 - `scripts/publish-chrome-web-store.mjs`
 - `scripts/release-package.sh`
@@ -70,3 +71,5 @@ upload and publish behavior.
   without recreating the GitHub Release. This handles the case where the release
   asset already exists but Chrome Web Store secrets were not configured at the
   time of release.
+- Added a local OAuth helper for generating the Chrome Web Store API refresh
+  token with a loopback callback, keeping the token out of repository files.

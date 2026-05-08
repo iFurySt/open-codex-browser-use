@@ -8,6 +8,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 "${repo_root}/scripts/check-repo-hygiene.sh"
 "${repo_root}/scripts/check-action-pinning.sh"
 "${repo_root}/scripts/package-chrome-extension.sh" >/dev/null
+node --check "${repo_root}/scripts/chrome-web-store-oauth.mjs"
 node --check "${repo_root}/scripts/publish-chrome-web-store.mjs"
 
 while IFS= read -r file; do
