@@ -9,6 +9,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const root = ensureCursorRoot();
     root.style.transform = `translate(${Number(message.x) || 0}px, ${Number(message.y) || 0}px)`;
     root.style.opacity = message.visible === false ? "0" : "1";
+    notifyCursorArrived(message);
     sendResponse({ ok: true });
     return true;
   }
@@ -35,4 +36,24 @@ function ensureCursorRoot() {
   root.style.transition = "transform 120ms ease, opacity 80ms ease";
   document.documentElement.appendChild(root);
   return root;
+}
+
+function notifyCursorArrived(message) {
+  if (
+    typeof message.sessionId !== "string" ||
+    typeof message.turnId !== "string" ||
+    !Number.isInteger(message.moveSequence)
+  ) {
+    return;
+  }
+  requestAnimationFrame(() => {
+    chrome.runtime
+      .sendMessage({
+        type: "OPEN_BROWSER_USE_CURSOR_ARRIVED",
+        sessionId: message.sessionId,
+        turnId: message.turnId,
+        moveSequence: message.moveSequence
+      })
+      .catch(() => {});
+  });
 }

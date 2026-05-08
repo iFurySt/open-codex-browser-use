@@ -80,3 +80,6 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
   architecture/security docs, and unit-level framing/relay/SDK validation.
 - 2026-05-08: M2 CLI discovery started with active socket registry,
   `install-manifest`, `open-tab`, and `navigate` commands.
+- 2026-05-08: M2 browser event parity advanced with CDP event forwarding,
+  download change forwarding, cursor arrival acknowledgement, and broader
+  JS/Python SDK method wrappers.

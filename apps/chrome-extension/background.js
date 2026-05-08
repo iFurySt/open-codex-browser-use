@@ -4,6 +4,7 @@ const SESSION_STATE_KEY = "OPEN_BROWSER_USE_SESSION_STATE";
 const RECONNECT_ALARM_NAME = "open-browser-use-native-reconnect";
 const HEARTBEAT_ALARM_NAME = "open-browser-use-heartbeat";
 const DEFAULT_CDP_TIMEOUT_MS = 10_000;
+const CURSOR_ARRIVAL_TIMEOUT_MS = 1_000;
 const MAX_USER_TABS = 1000;
 
 class JsonRpcPeer {
@@ -54,6 +55,12 @@ class NativeTransport {
     this.port = null;
     this.messageCallback = null;
     this.reconnectAttempt = 0;
+    this.status = {
+      hostName: this.hostName,
+      lastChecked: Date.now(),
+      reconnectAttempt: this.reconnectAttempt,
+      state: "disconnected"
+    };
     this.connect();
     chrome.alarms.onAlarm.addListener((alarm) => {
       if (alarm.name === RECONNECT_ALARM_NAME && !this.port) {
@@ -108,16 +115,21 @@ class NativeTransport {
   }
 
   setStatus(status) {
+    this.status = {
+      hostName: this.hostName,
+      lastChecked: Date.now(),
+      reconnectAttempt: this.reconnectAttempt,
+      ...status
+    };
     chrome.storage.local
       .set({
-        [NATIVE_HOST_STATUS_KEY]: {
-          hostName: this.hostName,
-          lastChecked: Date.now(),
-          reconnectAttempt: this.reconnectAttempt,
-          ...status
-        }
+        [NATIVE_HOST_STATUS_KEY]: this.status
       })
       .catch(() => {});
+  }
+
+  getStatus() {
+    return this.status;
   }
 }
 
@@ -181,6 +193,11 @@ class BrowserBackend {
     this.store = new SessionStore();
     this.attachedTabs = new Set();
     this.activeTabsBySession = new Map();
+    this.downloadFilenamesById = new Map();
+    this.downloadUrlsById = new Map();
+    this.downloadChangeListeners = new Set();
+    this.cursorArrivalWaitersByKey = new Map();
+    this.nextCursorMoveSequence = 1;
     chrome.debugger.onDetach.addListener((source) => {
       if (typeof source.tabId === "number") {
         this.attachedTabs.delete(source.tabId);
@@ -400,14 +417,27 @@ class BrowserBackend {
       throw new Error("moveMouse requires finite x and y");
     }
     await this.ensureCursorContentScript(params.session_id, tabId);
-    await chrome.tabs.sendMessage(tabId, {
-      type: "OPEN_BROWSER_USE_CURSOR",
-      sessionId: params.session_id,
-      turnId: params.turn_id,
-      x: params.x,
-      y: params.y,
-      visible: true
-    });
+    const moveSequence = this.nextCursorMoveSequence;
+    this.nextCursorMoveSequence += 1;
+    const arrivalWaiter =
+      params.waitForArrival === false
+        ? null
+        : this.createCursorArrivalWaiter(params.session_id, params.turn_id, moveSequence);
+    try {
+      await chrome.tabs.sendMessage(tabId, {
+        type: "OPEN_BROWSER_USE_CURSOR",
+        sessionId: params.session_id,
+        turnId: params.turn_id,
+        moveSequence,
+        x: params.x,
+        y: params.y,
+        visible: true
+      });
+      await arrivalWaiter?.promise;
+    } catch (error) {
+      arrivalWaiter?.cancel();
+      throw error;
+    }
   }
 
   async turnEnded(params) {
@@ -418,6 +448,115 @@ class BrowserBackend {
 
   async executeUnhandledCommand(params) {
     throw new Error(`Open Browser Use Chrome does not support command "${params.type}"`);
+  }
+
+  addDownloadChangeListener(listener) {
+    this.downloadChangeListeners.add(listener);
+    return () => this.downloadChangeListeners.delete(listener);
+  }
+
+  handleDownloadCreated(item) {
+    if (!this.isBrowserControlActive() || !Number.isInteger(item?.id)) {
+      return;
+    }
+    const filename = typeof item.filename === "string" ? item.filename : "";
+    const url =
+      typeof item.finalUrl === "string" ? item.finalUrl : typeof item.url === "string" ? item.url : "";
+    this.downloadFilenamesById.set(item.id, filename);
+    this.downloadUrlsById.set(item.id, url);
+    this.emitDownloadChange({
+      id: String(item.id),
+      filename,
+      url,
+      status: "started"
+    });
+  }
+
+  handleDownloadChanged(delta) {
+    if (!Number.isInteger(delta?.id)) {
+      return;
+    }
+    const filename =
+      typeof delta.filename?.current === "string"
+        ? delta.filename.current
+        : this.downloadFilenamesById.get(delta.id);
+    const url = this.downloadUrlsById.get(delta.id);
+    if (typeof filename !== "string" || typeof url !== "string") {
+      return;
+    }
+    this.downloadFilenamesById.set(delta.id, filename);
+    const status = downloadStatus(delta);
+    if (!status) {
+      return;
+    }
+    this.emitDownloadChange({
+      id: String(delta.id),
+      filename,
+      url,
+      status
+    });
+    if (status === "complete" || status === "failed" || status === "canceled") {
+      this.downloadFilenamesById.delete(delta.id);
+      this.downloadUrlsById.delete(delta.id);
+    }
+  }
+
+  notifyCursorArrived(params) {
+    const moveSequence = params?.moveSequence;
+    if (!Number.isInteger(moveSequence)) {
+      return false;
+    }
+    const waiter = this.cursorArrivalWaitersByKey.get(cursorArrivalKey(params.sessionId, params.turnId, moveSequence));
+    waiter?.();
+    return Boolean(waiter);
+  }
+
+  readCursorOverlayState(tabId) {
+    for (const [sessionId, activeTabId] of this.activeTabsBySession) {
+      if (activeTabId === tabId) {
+        return {
+          cursor: null,
+          isVisible: true,
+          sessionId,
+          turnId: null
+        };
+      }
+    }
+    return {
+      cursor: null,
+      isVisible: false,
+      sessionId: null,
+      turnId: null
+    };
+  }
+
+  isBrowserControlActive() {
+    return this.activeTabsBySession.size > 0;
+  }
+
+  createCursorArrivalWaiter(sessionId, turnId, moveSequence) {
+    const key = cursorArrivalKey(sessionId, turnId, moveSequence);
+    let timeoutId;
+    let resolvePromise;
+    const resolve = () => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+      this.cursorArrivalWaitersByKey.delete(key);
+      resolvePromise?.();
+    };
+    const promise = new Promise((resolveInner) => {
+      resolvePromise = resolveInner;
+      timeoutId = setTimeout(resolve, CURSOR_ARRIVAL_TIMEOUT_MS);
+      this.cursorArrivalWaitersByKey.set(key, resolve);
+    });
+    return { promise, cancel: resolve };
+  }
+
+  emitDownloadChange(change) {
+    for (const listener of this.downloadChangeListeners) {
+      listener(change);
+    }
   }
 
   async ensureSessionGroup(sessionId, tabId, origin) {
@@ -640,6 +779,23 @@ function parseDate(value, field) {
   return timestamp;
 }
 
+function downloadStatus(delta) {
+  switch (delta.state?.current) {
+    case "complete":
+      return "complete";
+    case "interrupted":
+      return delta.error?.current === "USER_CANCELED" ? "canceled" : "failed";
+    case "in_progress":
+      return "in_progress";
+    default:
+      return undefined;
+  }
+}
+
+function cursorArrivalKey(sessionId, turnId, moveSequence) {
+  return `${sessionId}:${turnId}:${moveSequence}`;
+}
+
 async function withTimeout(timeoutMs, fn) {
   let timeout;
   try {
@@ -660,7 +816,7 @@ function startHeartbeat(peer, backend) {
   chrome.alarms.create(HEARTBEAT_ALARM_NAME, { periodInMinutes: 0.5 }).catch(() => {});
   chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === HEARTBEAT_ALARM_NAME) {
-      peer.sendNotification("heartbeat", { at: new Date().toISOString() });
+      safeSendNotification(peer, "heartbeat", { at: new Date().toISOString() });
       void backend.getInfo().catch(() => {});
     }
   });
@@ -676,4 +832,39 @@ chrome.runtime.onInstalled.addListener(async () => {
 const backend = new BrowserBackend();
 const transport = new NativeTransport(NATIVE_HOST_NAME);
 const peer = new JsonRpcPeer(transport, backend);
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "GET_NATIVE_HOST_STATUS") {
+    const status = transport.getStatus();
+    sendResponse({ ok: status.state === "connected", status, error: status.error });
+    return true;
+  }
+  if (message?.type === "GET_OPEN_BROWSER_USE_CURSOR_STATE") {
+    const tabId = typeof sender.tab?.id === "number" ? sender.tab.id : -1;
+    sendResponse({ ok: true, state: backend.readCursorOverlayState(tabId) });
+    return true;
+  }
+  if (message?.type === "OPEN_BROWSER_USE_CURSOR_ARRIVED") {
+    sendResponse({ ok: backend.notifyCursorArrived(message) });
+    return true;
+  }
+  return false;
+});
+chrome.debugger.onEvent.addListener((source, method, params) => {
+  safeSendNotification(peer, "onCDPEvent", { source, method, params });
+});
+backend.addDownloadChangeListener((change) => {
+  safeSendNotification(peer, "onDownloadChange", change);
+});
+chrome.downloads.onCreated.addListener((item) => {
+  backend.handleDownloadCreated(item);
+});
+chrome.downloads.onChanged.addListener((delta) => {
+  backend.handleDownloadChanged(delta);
+});
 startHeartbeat(peer, backend);
+
+function safeSendNotification(peer, method, params) {
+  try {
+    peer.sendNotification(method, params);
+  } catch {}
+}

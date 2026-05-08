@@ -24,6 +24,13 @@ type PendingRequest = {
   timeout: NodeJS.Timeout;
 };
 
+export type OpenBrowserUseNotification = {
+  method: string;
+  params?: JsonValue;
+};
+
+export type NotificationHandler = (notification: OpenBrowserUseNotification) => void;
+
 const headerBytes = 4;
 
 export class OpenBrowserUseClient {
@@ -35,6 +42,7 @@ export class OpenBrowserUseClient {
   #pendingData = Buffer.alloc(0);
   #nextId = 1;
   #pending = new Map<string, PendingRequest>();
+  #notificationHandlers = new Set<NotificationHandler>();
 
   constructor(options: OpenBrowserUseClientOptions) {
     this.socketPath = options.socketPath;
@@ -62,6 +70,13 @@ export class OpenBrowserUseClient {
   close(): void {
     this.#socket?.end();
     this.#socket = null;
+  }
+
+  onNotification(handler: NotificationHandler): () => void {
+    this.#notificationHandlers.add(handler);
+    return () => {
+      this.#notificationHandlers.delete(handler);
+    };
   }
 
   async request(method: string, params: BrowserUseRequestParams = {}): Promise<JsonValue> {
@@ -106,6 +121,26 @@ export class OpenBrowserUseClient {
     return this.request("getTabs");
   }
 
+  getUserTabs(): Promise<JsonValue> {
+    return this.request("getUserTabs");
+  }
+
+  getUserHistory(params: BrowserUseRequestParams = {}): Promise<JsonValue> {
+    return this.request("getUserHistory", params);
+  }
+
+  claimUserTab(tabId: number): Promise<JsonValue> {
+    return this.request("claimUserTab", { tabId });
+  }
+
+  finalizeTabs(keep: JsonValue[]): Promise<JsonValue> {
+    return this.request("finalizeTabs", { keep });
+  }
+
+  nameSession(name: string): Promise<JsonValue> {
+    return this.request("nameSession", { name });
+  }
+
   attach(tabId: number): Promise<JsonValue> {
     return this.request("attach", { tabId });
   }
@@ -120,6 +155,14 @@ export class OpenBrowserUseClient {
       method,
       commandParams
     });
+  }
+
+  moveMouse(tabId: number, x: number, y: number, waitForArrival = true): Promise<JsonValue> {
+    return this.request("moveMouse", { tabId, x, y, waitForArrival });
+  }
+
+  turnEnded(): Promise<JsonValue> {
+    return this.request("turnEnded");
   }
 
   #handleData(chunk: Buffer): void {
@@ -144,6 +187,16 @@ export class OpenBrowserUseClient {
       return;
     }
     const id = typeof message.id === "string" || typeof message.id === "number" ? String(message.id) : null;
+    if (!id && typeof message.method === "string") {
+      const notification = {
+        method: message.method,
+        params: message.params
+      };
+      for (const handler of this.#notificationHandlers) {
+        handler(notification);
+      }
+      return;
+    }
     if (!id) {
       return;
     }

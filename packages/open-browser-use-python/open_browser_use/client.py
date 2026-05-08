@@ -73,6 +73,21 @@ class OpenBrowserUseClient:
     def get_tabs(self) -> Any:
         return self.request("getTabs")
 
+    def get_user_tabs(self) -> Any:
+        return self.request("getUserTabs")
+
+    def get_user_history(self, **params: Any) -> Any:
+        return self.request("getUserHistory", params)
+
+    def claim_user_tab(self, tab_id: int) -> Any:
+        return self.request("claimUserTab", {"tabId": tab_id})
+
+    def finalize_tabs(self, keep: list[JsonObject]) -> Any:
+        return self.request("finalizeTabs", {"keep": keep})
+
+    def name_session(self, name: str) -> Any:
+        return self.request("nameSession", {"name": name})
+
     def attach(self, tab_id: int) -> Any:
         return self.request("attach", {"tabId": tab_id})
 
@@ -88,6 +103,20 @@ class OpenBrowserUseClient:
                 "commandParams": command_params or {},
             },
         )
+
+    def move_mouse(self, tab_id: int, x: float, y: float, wait_for_arrival: bool = True) -> Any:
+        return self.request(
+            "moveMouse",
+            {
+                "tabId": tab_id,
+                "x": x,
+                "y": y,
+                "waitForArrival": wait_for_arrival,
+            },
+        )
+
+    def turn_ended(self) -> Any:
+        return self.request("turnEnded")
 
 
 def encode_frame(value: JsonObject) -> bytes:

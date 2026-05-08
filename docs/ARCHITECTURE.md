@@ -126,7 +126,13 @@ com.ifuryst.open-computer-use.extension
   `getUserTabs`、`getUserHistory`、`claimUserTab`、`finalizeTabs`、
   `nameSession`、`attach`、`detach`、`executeCdp`、`moveMouse`、
   `turnEnded`。
+- MV3 extension event forwarding：`chrome.debugger.onEvent` 转发为
+  `onCDPEvent`，`chrome.downloads` 创建/变更转发为 `onDownloadChange`，
+  cursor content script 会回报 cursor arrival 以支持 `moveMouse`
+  等待落点。
 - JS 和 Python SDK：直接连接 Unix socket 发送 Browser Use JSON-RPC。
+  JS SDK 支持订阅 native socket 上的 JSON-RPC notification；两个 SDK 都
+  提供核心 Browser Use method wrappers，也保留 unrestricted `request`。
 
 当前 SDK 不内置 Codex 风格的站点限制、turn policy 或二次确认。上层应用
 可以自由调用；生产集成如果需要安全策略，应在上层 runtime 或 host 前置网关

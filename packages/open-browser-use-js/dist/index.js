@@ -10,6 +10,7 @@ export class OpenBrowserUseClient {
     #pendingData = Buffer.alloc(0);
     #nextId = 1;
     #pending = new Map();
+    #notificationHandlers = new Set();
     constructor(options) {
         this.socketPath = options.socketPath;
         this.sessionId = options.sessionId ?? "open-browser-use-js";
@@ -34,6 +35,12 @@ export class OpenBrowserUseClient {
     close() {
         this.#socket?.end();
         this.#socket = null;
+    }
+    onNotification(handler) {
+        this.#notificationHandlers.add(handler);
+        return () => {
+            this.#notificationHandlers.delete(handler);
+        };
     }
     async request(method, params = {}) {
         await this.connect();
@@ -73,6 +80,21 @@ export class OpenBrowserUseClient {
     getTabs() {
         return this.request("getTabs");
     }
+    getUserTabs() {
+        return this.request("getUserTabs");
+    }
+    getUserHistory(params = {}) {
+        return this.request("getUserHistory", params);
+    }
+    claimUserTab(tabId) {
+        return this.request("claimUserTab", { tabId });
+    }
+    finalizeTabs(keep) {
+        return this.request("finalizeTabs", { keep });
+    }
+    nameSession(name) {
+        return this.request("nameSession", { name });
+    }
     attach(tabId) {
         return this.request("attach", { tabId });
     }
@@ -85,6 +107,12 @@ export class OpenBrowserUseClient {
             method,
             commandParams
         });
+    }
+    moveMouse(tabId, x, y, waitForArrival = true) {
+        return this.request("moveMouse", { tabId, x, y, waitForArrival });
+    }
+    turnEnded() {
+        return this.request("turnEnded");
     }
     #handleData(chunk) {
         this.#pendingData = Buffer.concat([this.#pendingData, chunk]);
@@ -106,6 +134,16 @@ export class OpenBrowserUseClient {
             return;
         }
         const id = typeof message.id === "string" || typeof message.id === "number" ? String(message.id) : null;
+        if (!id && typeof message.method === "string") {
+            const notification = {
+                method: message.method,
+                params: message.params
+            };
+            for (const handler of this.#notificationHandlers) {
+                handler(notification);
+            }
+            return;
+        }
         if (!id) {
             return;
         }

@@ -73,3 +73,26 @@ runtime injection.
 The Chrome route needs to be usable by local SDKs and scripts without copying
 ephemeral socket paths by hand. The registry keeps discovery explicit and
 local-user scoped while preserving direct `--socket` override support.
+
+## [2026-05-08 17:45] | Update: add browser event forwarding and SDK wrappers
+
+### 🛠 Changes Overview
+
+**Scope:** `apps/chrome-extension`, `packages/open-browser-use-*`, `docs`
+
+**Key Actions:**
+
+- Added MV3 forwarding for `chrome.debugger.onEvent` as `onCDPEvent`.
+- Added MV3 forwarding for `chrome.downloads` lifecycle changes as
+  `onDownloadChange`.
+- Added cursor arrival acknowledgement from the content script so `moveMouse`
+  can wait for cursor delivery when requested.
+- Added JS SDK JSON-RPC notification subscription support.
+- Added higher-level JS/Python SDK wrappers for user tabs, history, claiming
+  tabs, finalization, session naming, mouse movement, and turn cleanup.
+
+### 🧠 Design Intent (Why)
+
+The browser backend needs to expose both request/response commands and
+asynchronous browser events. This keeps the open route closer to the observed
+Codex Chrome extension behavior while preserving readable, maintainable source.
