@@ -164,6 +164,7 @@ class SessionStore {
     const created = {
       chromeGroupId: null,
       title: `Open Browser Use ${sessionId.slice(0, 8)}`,
+      activeTabId: null,
       tabOrigins: {}
     };
     this.state.sessions[sessionId] = created;
@@ -231,7 +232,7 @@ class BrowserBackend {
     const session = await this.requireSession(params);
     const chromeTab = await createBackgroundTab();
     await this.ensureSessionGroup(session.sessionId, chromeTab.id, "agent");
-    this.activeTabsBySession.set(session.sessionId, chromeTab.id);
+    await this.setSessionActiveTab(session.sessionId, chromeTab.id);
     await this.ensureCursorContentScript(session.sessionId, chromeTab.id);
     return { ...toBrowserTab(chromeTab), active: true };
   }
@@ -239,7 +240,7 @@ class BrowserBackend {
   async getTabs(params) {
     const session = await this.requireSession(params);
     const tabs = await this.getSessionTabs(session.sessionId);
-    return this.withLogicalActive(session.sessionId, tabs.map(toBrowserTab));
+    return await this.withLogicalActive(session.sessionId, tabs.map(toBrowserTab));
   }
 
   async getUserTabs(params) {
@@ -297,7 +298,7 @@ class BrowserBackend {
     }
     await this.ensureSessionGroup(session.sessionId, tab.id, "user");
     await this.ensureCursorContentScript(session.sessionId, tab.id);
-    this.activeTabsBySession.set(session.sessionId, tab.id);
+    await this.setSessionActiveTab(session.sessionId, tab.id);
     return { ...toBrowserTab(tab), active: true };
   }
 
@@ -583,6 +584,13 @@ class BrowserBackend {
     });
   }
 
+  async setSessionActiveTab(sessionId, tabId) {
+    const session = await this.store.getSession(sessionId);
+    session.activeTabId = tabId;
+    this.activeTabsBySession.set(sessionId, tabId);
+    await this.store.save();
+  }
+
   async getSessionTabs(sessionId) {
     const session = await this.store.getSession(sessionId);
     if (typeof session.chromeGroupId !== "number") {
@@ -621,13 +629,16 @@ class BrowserBackend {
     }
   }
 
-  withLogicalActive(sessionId, tabs) {
+  async withLogicalActive(sessionId, tabs) {
     if (tabs.length === 0) {
       return tabs;
     }
-    let activeTabId = this.activeTabsBySession.get(sessionId);
+    const session = await this.store.getSession(sessionId);
+    let activeTabId = this.activeTabsBySession.get(sessionId) ?? session.activeTabId;
     if (!tabs.some((tab) => tab.id === activeTabId)) {
       activeTabId = tabs.find((tab) => tab.active)?.id ?? tabs[0].id;
+      await this.setSessionActiveTab(sessionId, activeTabId);
+    } else if (!this.activeTabsBySession.has(sessionId)) {
       this.activeTabsBySession.set(sessionId, activeTabId);
     }
     return tabs.map((tab) => ({ ...tab, active: tab.id === activeTabId }));

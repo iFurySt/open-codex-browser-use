@@ -117,3 +117,23 @@ Codex Chrome extension behavior while preserving readable, maintainable source.
 The user-facing route explicitly promises `/tmp/open-browser-use/<uuid>.sock`.
 Matching that contract now avoids baking pid-derived paths into SDKs, scripts,
 or future smoke tests.
+
+## [2026-05-08 18:20] | Update: persist logical active tab
+
+### 🛠 Changes Overview
+
+**Scope:** `apps/chrome-extension`, `docs`
+
+**Key Actions:**
+
+- Persisted each session's logical active tab id in `chrome.storage.local`.
+- Restored logical active tab selection from persisted session state after MV3
+  service worker restarts.
+- Updated architecture and execution plan docs for the persisted session
+  semantics.
+
+### 🧠 Design Intent (Why)
+
+The MV3 service worker can suspend at any time. Persisting the logical active
+tab keeps `getTabs` stable after restart instead of falling back to whichever
+Chrome tab happens to be active in a window.

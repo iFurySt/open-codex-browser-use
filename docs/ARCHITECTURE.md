@@ -127,6 +127,9 @@ com.ifuryst.open-computer-use.extension
   `getUserTabs`、`getUserHistory`、`claimUserTab`、`finalizeTabs`、
   `nameSession`、`attach`、`detach`、`executeCdp`、`moveMouse`、
   `turnEnded`。
+- Session state persists the Chrome tab group id, tab origins, group title,
+  deliverable group id, and logical active tab id in `chrome.storage.local` so
+  MV3 service worker restarts can recover session tab listing semantics.
 - MV3 extension event forwarding：`chrome.debugger.onEvent` 转发为
   `onCDPEvent`，`chrome.downloads` 创建/变更转发为 `onDownloadChange`，
   cursor content script 会回报 cursor arrival 以支持 `moveMouse`

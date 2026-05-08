@@ -86,3 +86,5 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
 - 2026-05-08: Install readiness advanced by switching default socket names to
   UUID filenames under `/tmp/open-browser-use/` and removing stale manifest
   resource references.
+- 2026-05-08: MV3 restart resilience advanced by persisting logical active tab
+  ids in session state.
