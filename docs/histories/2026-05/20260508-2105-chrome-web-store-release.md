@@ -33,6 +33,8 @@
 - **[CI Green]**: Adjusted Markdown lint for accumulated history docs, skipped
   Dependency Review on private repositories that do not support it, and bumped
   Go/Electron versions away from OSV-reported vulnerable baselines.
+- **[Private Release]**: Skipped GitHub artifact attestation for user-owned
+  private repositories, where GitHub does not expose that feature.
 
 ### Design Intent
 

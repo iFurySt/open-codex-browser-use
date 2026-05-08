@@ -23,8 +23,9 @@
 - Dependency Review 在 public repo 可以直接使用；private repo 通常需要 GitHub Advanced Security 或对应的代码安全能力。
 - OSV 和 SBOM 的效果依赖仓库里存在可识别的依赖清单或 lockfile。
 - `scripts/release-package.sh` 当前会产出 Chrome extension zip，并把它纳入
-  release provenance；后续新增 native host 二进制发布时，也要把对应制品纳入
-  同一套 attestation。
+  release provenance；user-owned private repository 不支持 GitHub artifact
+  attestation，release workflow 会在 private repo 下跳过 provenance。
+  后续新增 native host 二进制发布时，也要把对应制品纳入同一套 attestation。
 - OpenSSF Scorecard 默认不启用，因为新模板仓库还没有真实分支保护、release 历史和 SAST 姿态可以评分；等仓库规则配置完成后再按需加回。
 
 ## 项目落地后建议继续做的事
