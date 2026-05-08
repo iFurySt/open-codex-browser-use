@@ -64,6 +64,8 @@ Chrome Web Store API v2 用于上传 extension zip，并可选提交审核。官
   Extension ID。
 - 上传新包时，`apps/chrome-extension/manifest.json` 的 `version` 必须比
   已发布版本更高。
+- 首次提交 Dashboard 文案、权限说明和隐私字段时，先使用
+  `docs/CHROME_WEB_STORE_LISTING.md` 里的 listing draft。
 
 需要在 GitHub repository secrets 里配置：
 
@@ -121,13 +123,13 @@ CWS_REFRESH_TOKEN` 写入 GitHub repository secret。
 
 如果 GitHub Release 已经创建完成，只需要把其中的插件 zip 上传到 Chrome
 Web Store，使用 `.github/workflows/chrome-web-store-publish.yml`。这个
-workflow 不会重新创建 GitHub Release，适合 `v0.1.2` 这类 release asset
+workflow 不会重新创建 GitHub Release，适合 `v0.1.3` 这类 release asset
 已经存在、但当时还没配置 Chrome Web Store secrets 的情况。
 
 手动触发时传入：
 
 ```text
-release_tag=v0.1.2
+release_tag=v0.1.3
 asset_name=
 submit=true
 publish_type=DEFAULT_PUBLISH
