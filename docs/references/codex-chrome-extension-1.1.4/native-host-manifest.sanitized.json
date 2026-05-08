@@ -1,0 +1,9 @@
+{
+  "name": "com.openai.codexextension",
+  "description": "Codex chrome native messaging host",
+  "type": "stdio",
+  "path": "<codex-plugin-cache>/openai-bundled/chrome/latest/extension-host/macos/arm64/extension-host",
+  "allowed_origins": [
+    "chrome-extension://hehggadaopoacecdllhhajmbjkdcmajg/"
+  ]
+}

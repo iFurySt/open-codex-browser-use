@@ -13,3 +13,9 @@
 长期演进的项目知识放在 `docs/wiki/`。例如 Browser Use 客户端的增量逆向
 结论维护在 `docs/wiki/browser-client/`，这里的 reference 文档保留首次分析
 的来源型记录。
+
+## 已沉淀资料
+
+- `codex-chrome-extension-1.1.4/`：Codex Chrome Web Store extension
+  `hehggadaopoacecdllhhajmbjkdcmajg` 的本机安装快照、格式化入口文件和
+  native messaging host 形状记录。

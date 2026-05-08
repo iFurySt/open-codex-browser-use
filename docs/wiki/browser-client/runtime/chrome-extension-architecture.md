@@ -18,6 +18,23 @@ Confirmed from the readable `browser-client.mjs` rewrite:
 - `browser.user.claimTab` and `browser.tabs.finalize` are client-gated to the
   Chrome backend.
 
+Observed on this machine on 2026-05-08 after installing the public Codex Chrome
+extension:
+
+- Chrome profile `Default` contained extension
+  `hehggadaopoacecdllhhajmbjkdcmajg` version `1.1.4`.
+- The installed extension snapshot is preserved in
+  `docs/references/codex-chrome-extension-1.1.4/`.
+- The extension is MV3 and uses `background.service_worker = "background.js"`.
+- The manifest requests `nativeMessaging`, `debugger`, `tabs`, `tabGroups`,
+  `downloads`, `history`, `scripting`, `storage`, and `<all_urls>`.
+- Chrome's native messaging host manifest for `com.openai.codexextension`
+  allows only `chrome-extension://hehggadaopoacecdllhhajmbjkdcmajg/` and points
+  to the Codex Chrome plugin `extension-host` binary.
+- A running `extension-host` process was launched by Google Chrome with the
+  extension origin as its argument and owned a Unix socket under
+  `/tmp/codex-browser-use/`.
+
 Observed on this machine on 2026-04-24:
 
 - `/tmp/codex-browser-use.sock` was not present.
@@ -191,11 +208,10 @@ contract. The backend may use a Chrome tab ID directly or maintain its own
 mapping. The only confirmed requirement is that the same numeric ID must work
 for `attach`, `detach`, `getTabs`, `executeCdp`, and cleanup calls.
 
-## Expected Backend Topology
+## Confirmed Backend Topology
 
-The backend implementation was not present in the packaged Browser Use plugin
-on this machine, so this topology is an inference from the client contract,
-Chrome extension constraints, and native host error text:
+The 2026-05-08 installed extension snapshot confirms this topology for the
+public Chrome extension route:
 
 ```text
 Codex turn / node_repl
@@ -217,18 +233,24 @@ Chrome extension background/service worker
 Chrome windows, tabs, and targets
 ```
 
-The key reason a native host is expected is that a Chrome extension cannot
-itself expose a Unix domain socket or Windows named pipe to Codex. The client
-error text also says:
+The split is now confirmed at source level for the extension side:
 
-```text
-Make sure the Chrome extension native host is installed and running.
-```
-
-The exact split of responsibility between the native host and extension has not
-been confirmed from local source. The source-backed contract is only that Codex
-connects to a local pipe and receives an `extension` backend that implements the
-Browser Use JSON-RPC methods.
+- The MV3 service worker constructs a native transport with
+  `com.openai.codexextension`.
+- The transport uses `chrome.runtime.connectNative(...)`, maintains connection
+  status in `chrome.storage.local.NATIVE_HOST_STATUS`, and retries through a
+  Chrome alarm.
+- The service worker registers Browser Use request handlers for `getInfo`,
+  `createTab`, `getTabs`, `getUserTabs`, `getUserHistory`, `claimUserTab`,
+  `finalizeTabs`, `nameSession`, `attach`, `detach`, `executeCdp`, and
+  `moveMouse`.
+- `executeCdp` and CDP events are backed by `chrome.debugger`.
+- `getUserTabs` uses `chrome.tabs.query({})`; `getUserHistory` uses
+  `chrome.history.search(...)`.
+- `createTab`, `claimUserTab`, `finalizeTabs`, and `nameSession` use Chrome tab
+  groups to represent the Codex browser session.
+- The content script is injected with `chrome.scripting.executeScript(...)`
+  when a tab needs the Codex cursor overlay.
 
 ## Profile And Isolation
 
@@ -251,25 +273,21 @@ This differs from IAB, where the page lives inside Codex's Electron
 | --- | --- | --- |
 | Default selection | default `backend: "chrome"` | explicit `backend: "iab"` |
 | Backend type | `extension` | `iab` |
-| Owner process | expected Chrome native host | Codex Electron main process |
-| Socket | fixed `/tmp/codex-browser-use.sock` or dynamic `extension` candidate | dynamic route socket or fixed IAB fallback |
+| Owner process | Chrome-launched Codex `extension-host` plus MV3 service worker | Codex Electron main process |
+| Socket | dynamic `extension-host` socket under `/tmp/codex-browser-use/`, or fixed extension fallback | dynamic route socket or fixed IAB fallback |
 | Session match | no client-side `codexSessionId` filter | must match `metadata.codexSessionId` |
-| Page primitive | Chrome tab or backend tab mapping | Electron `webContents` behind Codex `pageKey` |
+| Page primitive | Chrome tab ID | Electron `webContents` behind Codex `pageKey` |
 | User tabs | list and claim supported | not supported |
 | Finalization | supported | not supported |
 | Profile | user's Chrome profile, inferred | Electron persistent partition under Codex app data |
 
 ## Open Implementation Questions
 
-- Where is the current Chrome extension backend distributed for non-internal
-  builds?
-- Is the Chrome extension backend a separate Chrome/Atlas extension, an
-  internal-only plugin payload, or a server-delivered component not present in
-  the current bundles?
-- Is the Browser Use Chrome tab ID the raw `chrome.tabs.Tab.id`, a CDP target
-  ID mapping, or a backend-local session ID?
-- Which component starts and supervises the native host process?
-- Does the native host own `/tmp/codex-browser-use.sock`, or does another
-  helper create the socket and bridge to the native host?
-- Which Chrome extension permissions are used in the current implementation
-  (`chrome.debugger`, `nativeMessaging`, `tabs`, or a narrower set)?
+- What is the full Rust `extension-host` implementation behind the native
+  messaging bridge?
+- How does the native host multiplex multiple Codex clients against the same
+  Chrome extension instance?
+- What are the exact security checks in the native host before accepting
+  connections to its `/tmp/codex-browser-use/` socket?
+- How often does the public Chrome Web Store extension change, and should this
+  repo keep versioned snapshots for later diffs?

@@ -1,0 +1,37 @@
+{
+   "action": {
+      "default_icon": {
+         "128": "images/icon128.png",
+         "16": "images/icon16.png",
+         "32": "images/icon32.png",
+         "48": "images/icon48.png"
+      },
+      "default_popup": "popup.html",
+      "default_title": "Codex"
+   },
+   "background": {
+      "service_worker": "background.js"
+   },
+   "content_scripts": [  ],
+   "content_security_policy": {
+      "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self'; font-src 'self' https://cdn.openai.com;"
+   },
+   "description": "Control Chrome with Codex.",
+   "host_permissions": [ "\u003Call_urls>" ],
+   "icons": {
+      "128": "images/icon128.png",
+      "16": "images/icon16.png",
+      "32": "images/icon32.png",
+      "48": "images/icon48.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr5M/DZ28sAuOnk9v8C2IPTLNEZ0F0pv9qwRzMAbGbE0NB6I6T+wS6Na2n0sbQOK98iezN2FX26dsBWMELXtf4YCETdRiFSBOnNhZObZdrxeTTrhk1AhKA/Id5vgDWfSZ3Q+9BjBWHYK9yuTGo3PMK/yOW/CH6cSn07btvn7Aq+t+KrAwGOJewCN7gGojOrshJs/YwdxwxpUnb7s6QbFGkPKg9G6as4y4ipQ8fiQHRAcKm+mUK/CoCVSL+c4Yog0CSJqEEaruOeh8CgM4V0LX4kw5rs/4THAvTwtYRsW0n3faVR7uGj1eadsWuKciQHxpRMI9I4EE7yuaxavv3Agf6QIDAQAB",
+   "manifest_version": 3,
+   "name": "Codex",
+   "permissions": [ "alarms", "bookmarks", "debugger", "downloads", "downloads.ui", "favicon", "history", "nativeMessaging", "notifications", "readingList", "scripting", "sessions", "storage", "tabGroups", "tabs", "topSites" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "1.1.4",
+   "web_accessible_resources": [ {
+      "matches": [ "\u003Call_urls>" ],
+      "resources": [ "images/cursor-chat.png" ]
+   } ]
+}
