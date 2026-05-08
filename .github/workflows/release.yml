@@ -9,6 +9,28 @@ on:
       title:
         description: 给人看的发布标题
         required: false
+      publish_chrome_web_store:
+        description: 是否把 Chrome extension 上传并提交到 Chrome Web Store 审核
+        required: false
+        type: boolean
+        default: false
+      chrome_publish_type:
+        description: Chrome Web Store publishType
+        required: false
+        type: choice
+        options:
+          - DEFAULT_PUBLISH
+          - STAGED_PUBLISH
+        default: DEFAULT_PUBLISH
+      chrome_deploy_percentage:
+        description: 可选灰度比例，留空则使用开发者后台当前设置
+        required: false
+        default: ""
+      chrome_skip_review:
+        description: 是否请求跳过审核，只有符合条件时 Chrome Web Store 才会接受
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -26,7 +48,15 @@ jobs:
           persist-credentials: false
 
       - name: 打包 release 制品
-        run: ./scripts/release-package.sh
+        id: package
+        run: |
+          ./scripts/release-package.sh
+          chrome_extension_zip="$(find dist/chrome-extension -maxdepth 1 -type f -name '*.zip' -print -quit)"
+          if [ -z "${chrome_extension_zip}" ]; then
+            echo "Chrome extension zip not found" >&2
+            exit 1
+          fi
+          echo "chrome_extension_zip=${chrome_extension_zip}" >> "${GITHUB_OUTPUT}"
 
       - name: 生成 SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
@@ -43,12 +73,16 @@ jobs:
           path: |
             dist/repo-metadata.tgz
             dist/release-manifest.json
+            dist/chrome-extension/*.zip
+            dist/chrome-extension/*.json
             dist/sbom.spdx.json
 
       - name: 生成 build provenance
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
-          subject-path: dist/repo-metadata.tgz
+          subject-path: |
+            dist/repo-metadata.tgz
+            dist/chrome-extension/*.zip
 
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
@@ -58,4 +92,32 @@ jobs:
           files: |
             dist/repo-metadata.tgz
             dist/release-manifest.json
+            dist/chrome-extension/*.zip
+            dist/chrome-extension/package-manifest.json
             dist/sbom.spdx.json
+
+      - name: 上传并提交 Chrome Web Store 审核
+        if: ${{ inputs.publish_chrome_web_store }}
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
+          CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+          CHROME_EXTENSION_ZIP: ${{ steps.package.outputs.chrome_extension_zip }}
+          CHROME_PUBLISH_TYPE: ${{ inputs.chrome_publish_type }}
+          CHROME_DEPLOY_PERCENTAGE: ${{ inputs.chrome_deploy_percentage }}
+          CHROME_SKIP_REVIEW: ${{ inputs.chrome_skip_review }}
+        run: |
+          args=(
+            --zip "${CHROME_EXTENSION_ZIP}"
+            --output dist/chrome-extension/chrome-web-store-result.json
+            --publish-type "${CHROME_PUBLISH_TYPE}"
+          )
+          if [ -n "${CHROME_DEPLOY_PERCENTAGE}" ]; then
+            args+=(--deploy-percentage "${CHROME_DEPLOY_PERCENTAGE}")
+          fi
+          if [ "${CHROME_SKIP_REVIEW}" = "true" ]; then
+            args+=(--skip-review)
+          fi
+          ./scripts/publish-chrome-web-store.mjs --submit "${args[@]}"

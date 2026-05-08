@@ -6,7 +6,9 @@
 
 - `ci.yml`：仓库级检查，覆盖 docs、repo hygiene、Markdown 和 shell 脚本校验。
 - `supply-chain-security.yml`：在 PR 上做依赖变更检查，并在 PR、定时任务和手动触发时运行 OSV 扫描。
-- `release.yml`：手动触发的 release 流水线，用来打包仓库级制品、生成 provenance，并创建 GitHub Release。
+- `release.yml`：手动触发的 release 流水线，用来打包仓库级制品、
+  Chrome extension zip、生成 provenance，并创建 GitHub Release；按输入参数
+  可把 extension 上传并提交到 Chrome Web Store。
 
 ## 设计原则
 
@@ -21,8 +23,10 @@
 1. 保留 `ci.yml`，作为唯一默认常驻的仓库基础门禁。
 2. 在 `scripts/ci.sh` 里继续叠加项目自己的验证命令。
 3. 用真实构建产物替换 `scripts/release-package.sh`。
-4. 技术栈和环境稳定后，再补具体的部署 job。
-5. 即使交付方式变化，SBOM 和 provenance 这类供应链能力也建议保留。
+4. 浏览器插件发布走 `docs/CHROME_WEB_STORE_RELEASE.md` 里的 Chrome Web
+   Store API v2 流程。
+5. 技术栈和环境稳定后，再补其他部署 job。
+6. 即使交付方式变化，SBOM 和 provenance 这类供应链能力也建议保留。
 
 ## 默认 release 产物
 
@@ -30,6 +34,8 @@
 
 - `release-manifest.json`
 - `repo-metadata.tgz`
+- `chrome-extension/open-browser-use-chrome-extension-<version>.zip`
+- `chrome-extension/package-manifest.json`
 - `sbom.spdx.json`
 - 对 release artifact 生成的 GitHub artifact attestation
 

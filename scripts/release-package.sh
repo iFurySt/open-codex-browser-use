@@ -8,13 +8,18 @@ dist_dir="${repo_root}/dist"
 rm -rf "${dist_dir}"
 mkdir -p "${dist_dir}"
 
+chrome_extension_zip="$("${repo_root}/scripts/package-chrome-extension.sh")"
+chrome_extension_artifact="$(basename "${chrome_extension_zip}")"
+
 cat > "${dist_dir}/release-manifest.json" <<EOF
 {
   "repository": "${GITHUB_REPOSITORY:-local}",
   "git_sha": "${GITHUB_SHA:-$(git -C "${repo_root}" rev-parse HEAD 2>/dev/null || echo unknown)}",
   "generated_at_utc": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "artifact": "repo-metadata.tgz",
-  "note": "Replace scripts/release-package.sh with the real project build packaging when the stack is known."
+  "artifacts": {
+    "repo_metadata": "repo-metadata.tgz",
+    "chrome_extension": "chrome-extension/${chrome_extension_artifact}"
+  }
 }
 EOF
 
@@ -23,3 +28,4 @@ tar -czf "${dist_dir}/repo-metadata.tgz" \
   AGENTS.md README.md CONTRIBUTING.md LICENSE docs scripts .github Makefile
 
 echo "${dist_dir}/repo-metadata.tgz"
+echo "${chrome_extension_zip}"

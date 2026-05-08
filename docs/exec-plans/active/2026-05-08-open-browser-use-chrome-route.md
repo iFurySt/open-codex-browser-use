@@ -95,3 +95,5 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
   `obu` prints versioned help instead of starting the native host; Chrome
   native messaging still enters host mode through the Chrome-provided extension
   origin argv.
+- 2026-05-08: Open Browser Use package, extension, CLI, SDK, and runtime
+  self-reported versions bumped to `0.1.2` for the CLI startup patch release.

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Open Browser Use",
   "description": "Open Browser Use Chrome automation extension.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "action": {
     "default_title": "Open Browser Use",
     "default_popup": "popup.html"
