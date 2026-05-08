@@ -33,6 +33,10 @@ const requiredFiles = [
   "manifest.json",
   "background.js",
   "content-cursor.js",
+  "icons/icon-16.png",
+  "icons/icon-32.png",
+  "icons/icon-48.png",
+  "icons/icon-128.png",
   "popup.css",
   "popup.html",
   "popup.js"
@@ -47,6 +51,17 @@ if (manifest.background?.service_worker !== "background.js") {
 }
 if (!manifest.permissions?.includes("nativeMessaging")) {
   errors.push("permissions must include nativeMessaging");
+}
+for (const size of ["16", "32", "48", "128"]) {
+  if (manifest.icons?.[size] !== `icons/icon-${size}.png`) {
+    errors.push(`icons.${size} must be icons/icon-${size}.png`);
+  }
+}
+if (manifest.action?.default_icon?.["16"] !== "icons/icon-16.png") {
+  errors.push("action.default_icon.16 must be icons/icon-16.png");
+}
+if (manifest.action?.default_icon?.["32"] !== "icons/icon-32.png") {
+  errors.push("action.default_icon.32 must be icons/icon-32.png");
 }
 if (!/^\d+\.\d+\.\d+(?:\.\d+)?$/.test(manifest.version ?? "")) {
   errors.push("version must use Chrome extension numeric version format");
@@ -77,6 +92,10 @@ mkdir -p "${dist_dir}"
     manifest.json \
     background.js \
     content-cursor.js \
+    icons/icon-16.png \
+    icons/icon-32.png \
+    icons/icon-48.png \
+    icons/icon-128.png \
     popup.css \
     popup.html \
     popup.js
