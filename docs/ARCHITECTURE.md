@@ -27,7 +27,8 @@
 - `apps/chrome-extension/`：Open Browser Use MV3 Chrome extension，包含
   readable service worker、cursor content script 和 popup。
 - `cmd/open-browser-use/`：Go native messaging host 和 CLI 主入口。二进制
-  正式名是 `open-browser-use`，预期可安装 `obu` alias。
+  正式名是 `open-browser-use`，可通过同路径 symlink 或 shell alias 暴露为
+  `obu`。
 - `internal/host/`：Go native messaging stdio 到本地 Unix socket 的中继。
 - `internal/wire/`：Open Browser Use native frame codec。
 - `packages/browser-client-rewrite/`：当前 Browser Use client 的可读重写
@@ -127,6 +128,8 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - `open-browser-use manifest`：输出 Chrome native messaging host manifest。
 - `open-browser-use install-manifest`：把 native messaging host manifest
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。
+- 本地安装后可以把 `obu` 指向同一个二进制，例如
+  `ln -sfn ~/.local/bin/open-browser-use ~/.local/bin/obu`。
 - `open-browser-use call`：unrestricted JSON-RPC 入口，允许上层应用发送
   任意 method/params；未显式传入 `--socket` 时会读取 active socket registry。
 - CLI 便捷子命令覆盖当前 SDK 核心能力：`ping`、`info`、`tabs`、

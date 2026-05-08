@@ -276,3 +276,23 @@ callers can use the same protocol payload.
 The CLI should be useful both as a smoke-test driver and as a small operational
 tool for upper-layer runtimes. Session cleanup also keeps download forwarding
 scoped to actual browser-control activity instead of stale group metadata.
+
+## [2026-05-08 20:00] | Update: verify alias and remaining Chrome capabilities
+
+### 🛠 Changes Overview
+
+**Scope:** `docs`, local install smoke
+
+**Key Actions:**
+
+- Installed the local `obu` symlink to the same `open-browser-use` binary.
+- Documented the symlink-based alias convention.
+- Verified additional real Chrome capabilities: `Target.getTargets`,
+  `Page.captureScreenshot`, `move-mouse`, `finalize-tabs` handoff cleanup, and
+  `claim-tab` against a temporary user tab.
+
+### 🧠 Design Intent (Why)
+
+The project promises `open-browser-use` as the binary and `obu` as the short
+operator-facing alias. The extra smoke covers Chrome route behaviors that are
+not exercised by basic navigation alone.
