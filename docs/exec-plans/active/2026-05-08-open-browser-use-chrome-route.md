@@ -97,3 +97,6 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
   origin argv.
 - 2026-05-08: Open Browser Use package, extension, CLI, SDK, and runtime
   self-reported versions bumped to `0.1.2` for the CLI startup patch release.
+- 2026-05-08: Open Browser Use package, extension, CLI, SDK, and runtime
+  self-reported versions bumped to `0.1.3` for the Chrome Web Store icon-ready
+  patch release.

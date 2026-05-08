@@ -29,6 +29,8 @@ pnpm package:chrome-extension
 - `manifest_version` 必须是 3。
 - `background.service_worker` 必须指向 `background.js`。
 - manifest 必须包含 `nativeMessaging` 权限。
+- manifest 必须声明 `16`、`32`、`48`、`128` 四个 PNG icons，并把 toolbar
+  action icon 指向 `16` 和 `32` 图标。
 - `background.js`、`content-cursor.js`、`popup.js` 必须通过 `node --check`。
 
 输出文件：

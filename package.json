@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "pnpm --filter @codio/desktop dev",
     "build": "pnpm -r --if-present build",
+    "generate:chrome-extension-icons": "node scripts/generate-chrome-extension-icons.mjs",
     "package:chrome-extension": "./scripts/package-chrome-extension.sh",
     "chrome-web-store:oauth": "node scripts/chrome-web-store-oauth.mjs",
     "publish:chrome-web-store": "node scripts/publish-chrome-web-store.mjs",

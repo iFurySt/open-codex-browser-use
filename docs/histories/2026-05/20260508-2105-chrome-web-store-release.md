@@ -60,6 +60,7 @@ upload and publish behavior.
 - `package.json`
 - `scripts/ci.sh`
 - `scripts/chrome-web-store-oauth.mjs`
+- `scripts/generate-chrome-extension-icons.mjs`
 - `scripts/package-chrome-extension.sh`
 - `scripts/publish-chrome-web-store.mjs`
 - `scripts/release-package.sh`
@@ -73,3 +74,7 @@ upload and publish behavior.
   time of release.
 - Added a local OAuth helper for generating the Chrome Web Store API refresh
   token with a loopback callback, keeping the token out of repository files.
+- Added deterministic Chrome extension PNG icons and included them in the
+  manifest, toolbar action, package zip, and CI packaging checks.
+- Bumped Open Browser Use versions from `0.1.2` to `0.1.3` so the next release
+  asset contains the icon-ready Chrome extension package.
