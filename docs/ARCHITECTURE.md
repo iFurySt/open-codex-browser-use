@@ -115,8 +115,9 @@ com.ifuryst.open-computer-use.extension
 
 - native-endian 4-byte length-prefixed JSON frames。
 - `open-browser-use host`：启动 Chrome native messaging stdio 到 SDK Unix
-  socket 的中继，并写入 `/tmp/open-browser-use/active.json` 供 CLI/SDK
-  自动发现当前活跃 socket。
+  socket 的中继；默认 socket 路径是
+  `/tmp/open-browser-use/<uuid>.sock`，并写入
+  `/tmp/open-browser-use/active.json` 供 CLI/SDK 自动发现当前活跃 socket。
 - `open-browser-use manifest`：输出 Chrome native messaging host manifest。
 - `open-browser-use install-manifest`：把 native messaging host manifest
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。

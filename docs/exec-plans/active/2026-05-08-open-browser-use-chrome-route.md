@@ -83,3 +83,6 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
 - 2026-05-08: M2 browser event parity advanced with CDP event forwarding,
   download change forwarding, cursor arrival acknowledgement, and broader
   JS/Python SDK method wrappers.
+- 2026-05-08: Install readiness advanced by switching default socket names to
+  UUID filenames under `/tmp/open-browser-use/` and removing stale manifest
+  resource references.

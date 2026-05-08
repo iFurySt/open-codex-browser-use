@@ -96,3 +96,24 @@ local-user scoped while preserving direct `--socket` override support.
 The browser backend needs to expose both request/response commands and
 asynchronous browser events. This keeps the open route closer to the observed
 Codex Chrome extension behavior while preserving readable, maintainable source.
+
+## [2026-05-08 18:05] | Update: align socket naming and extension manifest
+
+### 🛠 Changes Overview
+
+**Scope:** `internal/host`, `apps/chrome-extension`, `docs`
+
+**Key Actions:**
+
+- Changed the default native host socket filename to a UUID v4 shape under
+  `/tmp/open-browser-use/`.
+- Added host test coverage that asserts default socket paths use UUID
+  filenames.
+- Removed a stale `cursor.png` web accessible resource from the MV3 manifest.
+- Updated architecture and execution plan docs for the socket path guarantee.
+
+### 🧠 Design Intent (Why)
+
+The user-facing route explicitly promises `/tmp/open-browser-use/<uuid>.sock`.
+Matching that contract now avoids baking pid-derived paths into SDKs, scripts,
+or future smoke tests.

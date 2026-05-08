@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -110,6 +111,25 @@ func TestActiveSocketRecordLifecycle(t *testing.T) {
 	}
 	if _, err := os.Stat(ActiveSocketRecordPath(socketDir)); !os.IsNotExist(err) {
 		t.Fatalf("expected active socket record to be removed, got %v", err)
+	}
+}
+
+func TestDefaultSocketPathUsesUUIDFilename(t *testing.T) {
+	socketDir := t.TempDir()
+	relay := NewRelay(Config{SocketDir: socketDir}, nil, nil)
+	socketPath := relay.SocketPath()
+	if filepath.Dir(socketPath) != socketDir {
+		t.Fatalf("expected socket path under %q, got %q", socketDir, socketPath)
+	}
+	matched, err := regexp.MatchString(
+		`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.sock$`,
+		filepath.Base(socketPath),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !matched {
+		t.Fatalf("expected UUID socket filename, got %q", filepath.Base(socketPath))
 	}
 }
 

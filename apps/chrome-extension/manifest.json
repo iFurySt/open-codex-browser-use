@@ -26,11 +26,5 @@
     "storage",
     "tabGroups",
     "tabs"
-  ],
-  "web_accessible_resources": [
-    {
-      "matches": ["<all_urls>"],
-      "resources": ["cursor.png"]
-    }
   ]
 }
