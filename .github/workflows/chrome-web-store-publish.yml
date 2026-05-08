@@ -46,17 +46,16 @@ jobs:
 
       - name: 校验 Chrome Web Store secrets
         env:
+          CWS_ACCESS_TOKEN: ${{ secrets.CWS_ACCESS_TOKEN }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
           CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
           CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
         run: |
           missing=()
           for name in \
-            CWS_CLIENT_ID \
-            CWS_CLIENT_SECRET \
-            CWS_REFRESH_TOKEN \
             CWS_PUBLISHER_ID \
             CWS_EXTENSION_ID
           do
@@ -64,8 +63,24 @@ jobs:
               missing+=("${name}")
             fi
           done
+          has_oauth="false"
+          if [ -n "${CWS_CLIENT_ID}" ] && [ -n "${CWS_CLIENT_SECRET}" ] && [ -n "${CWS_REFRESH_TOKEN}" ]; then
+            has_oauth="true"
+          fi
+          has_service_account="false"
+          if [ -n "${CWS_SERVICE_ACCOUNT_JSON}" ]; then
+            has_service_account="true"
+          fi
+          has_access_token="false"
+          if [ -n "${CWS_ACCESS_TOKEN}" ]; then
+            has_access_token="true"
+          fi
           if [ "${#missing[@]}" -gt 0 ]; then
             printf 'Missing required repository secrets: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+          if [ "${has_oauth}" != "true" ] && [ "${has_service_account}" != "true" ] && [ "${has_access_token}" != "true" ]; then
+            echo "Configure one Chrome Web Store auth method: CWS_SERVICE_ACCOUNT_JSON, CWS_ACCESS_TOKEN, or CWS_CLIENT_ID+CWS_CLIENT_SECRET+CWS_REFRESH_TOKEN" >&2
             exit 1
           fi
 
@@ -99,9 +114,11 @@ jobs:
 
       - name: 上传到 Chrome Web Store
         env:
+          CWS_ACCESS_TOKEN: ${{ secrets.CWS_ACCESS_TOKEN }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
           CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
           CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
           CHROME_EXTENSION_ZIP: ${{ steps.asset.outputs.chrome_extension_zip }}

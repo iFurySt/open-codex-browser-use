@@ -100,9 +100,11 @@ jobs:
       - name: 上传并提交 Chrome Web Store 审核
         if: ${{ inputs.publish_chrome_web_store }}
         env:
+          CWS_ACCESS_TOKEN: ${{ secrets.CWS_ACCESS_TOKEN }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          CWS_SERVICE_ACCOUNT_JSON: ${{ secrets.CWS_SERVICE_ACCOUNT_JSON }}
           CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
           CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
           CHROME_EXTENSION_ZIP: ${{ steps.package.outputs.chrome_extension_zip }}

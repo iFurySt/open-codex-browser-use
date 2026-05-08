@@ -13,6 +13,8 @@ Store Developer Dashboard still needs:
 - Store listing fields completed.
 - Privacy practices fields completed.
 - A privacy policy URL attached to the developer account or item.
+- The service account email added under the Chrome Web Store Developer Dashboard
+  Account settings if CI/CD uses `CWS_SERVICE_ACCOUNT_JSON`.
 - The resulting Extension ID copied into the `CWS_EXTENSION_ID` GitHub secret.
 
 ## Store Listing
