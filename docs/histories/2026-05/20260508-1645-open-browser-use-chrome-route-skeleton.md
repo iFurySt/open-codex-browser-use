@@ -50,3 +50,26 @@ runtime injection.
 - `docs/ARCHITECTURE.md`
 - `docs/SECURITY.md`
 - `docs/exec-plans/active/2026-05-08-open-browser-use-chrome-route.md`
+
+## [2026-05-08 17:20] | Update: add CLI socket discovery and manifest install
+
+### 🛠 Changes Overview
+
+**Scope:** `cmd/open-browser-use`, `internal/host`, `docs`
+
+**Key Actions:**
+
+- Added an active socket registry at `/tmp/open-browser-use/active.json` so
+  CLI commands can discover the current native host socket without a manual
+  `--socket` argument.
+- Added `install-manifest`, `open-tab`, and `navigate` CLI commands for the
+  Chrome route.
+- Added lifecycle test coverage for active socket registry writes and cleanup.
+- Updated architecture, security, and execution plan docs for the new CLI
+  behavior.
+
+### 🧠 Design Intent (Why)
+
+The Chrome route needs to be usable by local SDKs and scripts without copying
+ephemeral socket paths by hand. The registry keeps discovery explicit and
+local-user scoped while preserving direct `--socket` override support.

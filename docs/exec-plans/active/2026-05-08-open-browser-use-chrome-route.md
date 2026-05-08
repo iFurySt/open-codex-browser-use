@@ -73,3 +73,10 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
   to stderr.
 - Multiple SDK clients can share one extension host, so host-side request ID
   remapping is required.
+
+## Progress
+
+- 2026-05-08: M1 skeleton landed with extension, Go host relay, JS/Python SDKs,
+  architecture/security docs, and unit-level framing/relay/SDK validation.
+- 2026-05-08: M2 CLI discovery started with active socket registry,
+  `install-manifest`, `open-tab`, and `navigate` commands.

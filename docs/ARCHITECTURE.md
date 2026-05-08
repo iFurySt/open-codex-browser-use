@@ -115,9 +115,13 @@ com.ifuryst.open-computer-use.extension
 
 - native-endian 4-byte length-prefixed JSON frames。
 - `open-browser-use host`：启动 Chrome native messaging stdio 到 SDK Unix
-  socket 的中继。
+  socket 的中继，并写入 `/tmp/open-browser-use/active.json` 供 CLI/SDK
+  自动发现当前活跃 socket。
 - `open-browser-use manifest`：输出 Chrome native messaging host manifest。
-- `open-browser-use call/info/tabs`：通过 socket 发送 JSON-RPC 请求。
+- `open-browser-use install-manifest`：把 native messaging host manifest
+  写入 Chrome 默认位置，或通过 `--output` 写到指定路径。
+- `open-browser-use call/info/tabs/open-tab/navigate`：通过 socket 发送
+  JSON-RPC 请求；未显式传入 `--socket` 时会读取 active socket registry。
 - MV3 extension core handlers：`getInfo`、`createTab`、`getTabs`、
   `getUserTabs`、`getUserHistory`、`claimUserTab`、`finalizeTabs`、
   `nameSession`、`attach`、`detach`、`executeCdp`、`moveMouse`、

@@ -32,7 +32,8 @@
 - JS/Python SDK 默认无站点限制、无 command allowlist、无 user approval；
   这是有意的产品边界，调用方需要自行决定是否加策略。
 - Go native host 当前创建 Unix socket 目录和 socket 时使用当前用户权限，
-  socket 目标路径默认位于 `/tmp/open-browser-use/`。
+  socket 目标路径默认位于 `/tmp/open-browser-use/`，active socket registry
+  写入同目录的 `active.json` 并使用 `0600` 权限。
 - Chrome native messaging manifest 使用固定 host name
   `com.ifuryst.open-computer-use.extension`，由 Chrome 的
   `allowed_origins` 限制可启动 extension 来源。

@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ifuryst/open-browser-use/internal/wire"
 )
@@ -53,6 +54,12 @@ type pendingRequest struct {
 	originalID any
 }
 
+type ActiveSocketRecord struct {
+	SocketPath string    `json:"socketPath"`
+	PID        int       `json:"pid"`
+	StartedAt  time.Time `json:"startedAt"`
+}
+
 func NewRelay(config Config, stdin io.Reader, stdout io.Writer) *Relay {
 	logger := config.Logger
 	if logger == nil {
@@ -90,6 +97,10 @@ func (r *Relay) Serve(ctx context.Context) error {
 		_ = listener.Close()
 		return err
 	}
+	if err := WriteActiveSocketRecord(r.config.SocketDir, socketPath); err != nil {
+		_ = listener.Close()
+		return err
+	}
 	r.logger.Info("open-browser-use native host listening", "socket", socketPath)
 
 	errCh := make(chan error, 2)
@@ -104,6 +115,7 @@ func (r *Relay) Serve(ctx context.Context) error {
 	err = <-errCh
 	_ = listener.Close()
 	_ = os.Remove(socketPath)
+	_ = RemoveActiveSocketRecord(r.config.SocketDir, socketPath)
 	r.closeClients()
 	if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
 		return nil
@@ -286,6 +298,60 @@ func socketDir(configured string) string {
 		return configured
 	}
 	return filepath.Join(os.TempDir(), "open-browser-use")
+}
+
+func ActiveSocketRecordPath(configuredDir string) string {
+	return filepath.Join(socketDir(configuredDir), "active.json")
+}
+
+func WriteActiveSocketRecord(configuredDir string, socketPath string) error {
+	dir := socketDir(configuredDir)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	record := ActiveSocketRecord{
+		SocketPath: socketPath,
+		PID:        os.Getpid(),
+		StartedAt:  time.Now().UTC(),
+	}
+	payload, err := json.MarshalIndent(record, "", "  ")
+	if err != nil {
+		return err
+	}
+	path := ActiveSocketRecordPath(configuredDir)
+	if err := os.WriteFile(path, append(payload, '\n'), 0o600); err != nil {
+		return err
+	}
+	return os.Chmod(path, 0o600)
+}
+
+func ReadActiveSocketRecord(configuredDir string) (ActiveSocketRecord, error) {
+	payload, err := os.ReadFile(ActiveSocketRecordPath(configuredDir))
+	if err != nil {
+		return ActiveSocketRecord{}, err
+	}
+	var record ActiveSocketRecord
+	if err := json.Unmarshal(payload, &record); err != nil {
+		return ActiveSocketRecord{}, err
+	}
+	if record.SocketPath == "" {
+		return ActiveSocketRecord{}, errors.New("active socket record has empty socketPath")
+	}
+	return record, nil
+}
+
+func RemoveActiveSocketRecord(configuredDir string, socketPath string) error {
+	record, err := ReadActiveSocketRecord(configuredDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if record.SocketPath != socketPath {
+		return nil
+	}
+	return os.Remove(ActiveSocketRecordPath(configuredDir))
 }
 
 func randomID() string {

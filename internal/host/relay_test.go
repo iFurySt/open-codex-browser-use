@@ -20,8 +20,9 @@ func TestRelayRemapsRequestIDs(t *testing.T) {
 	defer extensionToHostReader.Close()
 	defer extensionToHostWriter.Close()
 
-	socketPath := filepath.Join(t.TempDir(), "obu.sock")
-	relay := NewRelay(Config{SocketPath: socketPath}, extensionToHostReader, hostToExtensionWriter)
+	socketDir := t.TempDir()
+	socketPath := filepath.Join(socketDir, "obu.sock")
+	relay := NewRelay(Config{SocketDir: socketDir, SocketPath: socketPath}, extensionToHostReader, hostToExtensionWriter)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	errCh := make(chan error, 1)
@@ -73,6 +74,42 @@ func TestRelayRemapsRequestIDs(t *testing.T) {
 	case <-errCh:
 	case <-time.After(time.Second):
 		t.Fatal("relay did not stop")
+	}
+}
+
+func TestActiveSocketRecordLifecycle(t *testing.T) {
+	socketDir := t.TempDir()
+	socketPath := filepath.Join(socketDir, "obu.sock")
+
+	if err := WriteActiveSocketRecord(socketDir, socketPath); err != nil {
+		t.Fatal(err)
+	}
+	record, err := ReadActiveSocketRecord(socketDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.SocketPath != socketPath {
+		t.Fatalf("expected socket path %q, got %q", socketPath, record.SocketPath)
+	}
+	if record.PID != os.Getpid() {
+		t.Fatalf("expected pid %d, got %d", os.Getpid(), record.PID)
+	}
+	if record.StartedAt.IsZero() {
+		t.Fatal("expected startedAt to be populated")
+	}
+
+	if err := RemoveActiveSocketRecord(socketDir, filepath.Join(socketDir, "other.sock")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(ActiveSocketRecordPath(socketDir)); err != nil {
+		t.Fatal("record should not be removed for a different socket path")
+	}
+
+	if err := RemoveActiveSocketRecord(socketDir, socketPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(ActiveSocketRecordPath(socketDir)); !os.IsNotExist(err) {
+		t.Fatalf("expected active socket record to be removed, got %v", err)
 	}
 }
 
