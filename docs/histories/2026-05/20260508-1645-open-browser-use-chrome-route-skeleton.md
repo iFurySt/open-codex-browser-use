@@ -360,3 +360,22 @@ Running the binary manually should be discoverable and non-blocking. Chrome
 native messaging still has a dedicated startup signal via the standard origin
 argv, so the extension path stays compatible without making plain `obu`
 surprising.
+
+## [2026-05-08 21:05] | Update: bump Open Browser Use to 0.1.2
+
+### 🛠 Changes Overview
+
+**Scope:** `cmd/open-browser-use`, `apps/chrome-extension`, `packages`,
+`apps/desktop`, `docs`
+
+**Key Actions:**
+
+- Bumped the Open Browser Use CLI, Chrome extension, JS SDK, Python SDK,
+  browser-use protocol package, desktop package, and runtime self-reported
+  versions from `0.1.1` to `0.1.2`.
+- Added a user-facing release note for the no-arg CLI help behavior.
+
+### 🧠 Design Intent (Why)
+
+The version bump marks the CLI startup behavior fix as a distinct patch release
+after the previous Chrome route milestone.
