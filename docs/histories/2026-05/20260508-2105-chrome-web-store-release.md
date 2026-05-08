@@ -82,3 +82,5 @@ upload and publish behavior.
 - Added a Chrome Web Store listing and privacy practices draft based on the
   current manifest permissions and native host boundary, so the Dashboard setup
   is reproducible instead of only described in chat.
+- Added Chrome Web Store service account authentication support for CI/CD while
+  keeping OAuth refresh tokens as a fallback path.

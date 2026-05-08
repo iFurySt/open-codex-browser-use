@@ -67,12 +67,15 @@ Chrome Web Store API v2 用于上传 extension zip，并可选提交审核。官
 - 首次提交 Dashboard 文案、权限说明和隐私字段时，先使用
   `docs/CHROME_WEB_STORE_LISTING.md` 里的 listing draft。
 
-需要在 GitHub repository secrets 里配置：
+推荐使用 Chrome Web Store API v2 service account 给 CI/CD 授权。需要在
+Google Cloud 启用 Chrome Web Store API，创建 service account，并在 Chrome
+Web Store Developer Dashboard 的 Account 设置里添加该 service account email。
+官方限制是 publisher 当前只能添加一个 service account。
+
+service account 路径需要在 GitHub repository secrets 里配置：
 
 ```text
-CWS_CLIENT_ID
-CWS_CLIENT_SECRET
-CWS_REFRESH_TOKEN
+CWS_SERVICE_ACCOUNT_JSON
 CWS_PUBLISHER_ID
 CWS_EXTENSION_ID
 ```
@@ -80,11 +83,19 @@ CWS_EXTENSION_ID
 可用 `gh` 写入：
 
 ```bash
-gh secret set CWS_CLIENT_ID
-gh secret set CWS_CLIENT_SECRET
-gh secret set CWS_REFRESH_TOKEN
+gh secret set CWS_SERVICE_ACCOUNT_JSON < /path/to/service-account.json
 gh secret set CWS_PUBLISHER_ID
 gh secret set CWS_EXTENSION_ID
+```
+
+也可以继续使用 OAuth refresh token 路径；这种方式需要配置：
+
+```text
+CWS_CLIENT_ID
+CWS_CLIENT_SECRET
+CWS_REFRESH_TOKEN
+CWS_PUBLISHER_ID
+CWS_EXTENSION_ID
 ```
 
 `CWS_REFRESH_TOKEN` 可以用本地 OAuth helper 生成。先在 Google Cloud 中为同一
@@ -114,6 +125,13 @@ CWS_REFRESH_TOKEN` 写入 GitHub repository secret。
 2. 用 refresh token 换取 access token。
 3. 调用 Chrome Web Store API v2 `upload`。
 4. 上传成功后调用 `publish`，提交审核。
+
+`scripts/publish-chrome-web-store.mjs` 的认证优先级是：
+
+1. `CWS_ACCESS_TOKEN`：短期 access token，适合本地一次性验证。
+2. `CWS_SERVICE_ACCOUNT_JSON`：推荐的 CI/CD service account JSON key。
+3. `CWS_CLIENT_ID`、`CWS_CLIENT_SECRET`、`CWS_REFRESH_TOKEN`：OAuth refresh
+   token fallback。
 
 `chrome_publish_type` 默认为 `DEFAULT_PUBLISH`，通过审核后自动发布；如果想
 审核通过后再手动发布，选择 `STAGED_PUBLISH`。`chrome_deploy_percentage`
@@ -145,6 +163,8 @@ zip，可以显式填写完整 asset 文件名。
 
 - Chrome Web Store API 使用指南：
   <https://developer.chrome.com/docs/webstore/using-api>
+- Chrome Web Store API service account：
+  <https://developer.chrome.com/docs/webstore/service-accounts>
 - Chrome Web Store API v2 upload：
   <https://developer.chrome.com/docs/webstore/api/reference/rest/v2/media/upload>
 - Chrome Web Store API v2 publish：

@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
 import { readFile, writeFile } from "node:fs/promises";
+import { createSign } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 
 const apiRoot = "https://chromewebstore.googleapis.com";
 const oauthTokenUrl = "https://oauth2.googleapis.com/token";
+const chromeWebStoreScope = "https://www.googleapis.com/auth/chromewebstore";
 
 function readFlag(name, fallback = null) {
   const prefix = `--${name}=`;
@@ -22,6 +24,10 @@ function readFlag(name, fallback = null) {
 
 function hasFlag(name) {
   return process.argv.includes(`--${name}`);
+}
+
+function optionalEnv(name) {
+  return process.env[name] ?? "";
 }
 
 function env(name) {
@@ -54,7 +60,44 @@ async function requestJson(url, options = {}) {
   return body;
 }
 
-async function getAccessToken() {
+function base64UrlEncode(input) {
+  return Buffer.from(input)
+    .toString("base64")
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
+}
+
+function signJwt(payload, privateKey) {
+  const header = {
+    alg: "RS256",
+    typ: "JWT"
+  };
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+  const signer = createSign("RSA-SHA256");
+  signer.update(signingInput);
+  signer.end();
+  const signature = signer.sign(privateKey);
+  return `${signingInput}.${base64UrlEncode(signature)}`;
+}
+
+function readServiceAccountJson() {
+  const raw = optionalEnv("CWS_SERVICE_ACCOUNT_JSON");
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    throw new Error(
+      `CWS_SERVICE_ACCOUNT_JSON is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function getOauthAccessToken() {
   const body = new URLSearchParams({
     client_id: env("CWS_CLIENT_ID"),
     client_secret: env("CWS_CLIENT_SECRET"),
@@ -72,6 +115,64 @@ async function getAccessToken() {
     throw new Error("OAuth token response did not include access_token");
   }
   return token.access_token;
+}
+
+async function getServiceAccountAccessToken(serviceAccount) {
+  const clientEmail = serviceAccount.client_email;
+  const privateKey = serviceAccount.private_key;
+  const tokenUri = serviceAccount.token_uri ?? oauthTokenUrl;
+  if (typeof clientEmail !== "string" || clientEmail === "") {
+    throw new Error("CWS_SERVICE_ACCOUNT_JSON must include client_email");
+  }
+  if (typeof privateKey !== "string" || privateKey === "") {
+    throw new Error("CWS_SERVICE_ACCOUNT_JSON must include private_key");
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const assertion = signJwt(
+    {
+      iss: clientEmail,
+      scope: chromeWebStoreScope,
+      aud: tokenUri,
+      exp: now + 3600,
+      iat: now
+    },
+    privateKey
+  );
+  const token = await requestJson(tokenUri, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion
+    })
+  });
+  if (!token.access_token) {
+    throw new Error("Service account token response did not include access_token");
+  }
+  return token.access_token;
+}
+
+async function getAccessToken() {
+  const directAccessToken = optionalEnv("CWS_ACCESS_TOKEN");
+  if (directAccessToken) {
+    return directAccessToken;
+  }
+  const serviceAccount = readServiceAccountJson();
+  if (serviceAccount) {
+    return await getServiceAccountAccessToken(serviceAccount);
+  }
+  if (
+    !optionalEnv("CWS_CLIENT_ID") ||
+    !optionalEnv("CWS_CLIENT_SECRET") ||
+    !optionalEnv("CWS_REFRESH_TOKEN")
+  ) {
+    throw new Error(
+      "Configure one Chrome Web Store auth method: CWS_ACCESS_TOKEN, CWS_SERVICE_ACCOUNT_JSON, or CWS_CLIENT_ID+CWS_CLIENT_SECRET+CWS_REFRESH_TOKEN"
+    );
+  }
+  return await getOauthAccessToken();
 }
 
 function itemName() {
