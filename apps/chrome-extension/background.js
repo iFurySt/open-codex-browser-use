@@ -307,29 +307,38 @@ class BrowserBackend {
     if (!Array.isArray(params.keep)) {
       throw new Error("finalizeTabs requires keep array");
     }
+    const tabs = await this.getSessionTabs(session.sessionId);
+    const knownTabIds = new Set(tabs.filter(hasTabId).map((tab) => tab.id));
     const keep = new Map();
     for (const entry of params.keep) {
       if (!entry || typeof entry !== "object") {
         throw new Error("finalizeTabs received invalid tab entry");
       }
       const tabId = requireTabId(entry, "finalizeTabs");
+      if (!knownTabIds.has(tabId)) {
+        throw new Error(`finalizeTabs cannot keep unknown tab ${tabId}`);
+      }
+      if (keep.has(tabId)) {
+        throw new Error(`finalizeTabs received duplicate tab ${tabId}`);
+      }
       const status = entry.status;
       if (status !== "handoff" && status !== "deliverable") {
         throw new Error(`finalizeTabs received invalid status ${String(status)}`);
       }
       keep.set(tabId, status);
     }
-    const tabs = await this.getSessionTabs(session.sessionId);
     const sessionState = await this.store.getSession(session.sessionId);
     const agentTabsToClose = [];
     const userTabsToRelease = [];
     const deliverableTabs = [];
+    const handoffTabs = [];
     for (const tab of tabs) {
       if (!hasTabId(tab)) {
         continue;
       }
       const keptStatus = keep.get(tab.id);
       if (keptStatus === "handoff") {
+        handoffTabs.push(tab.id);
         continue;
       }
       if (keptStatus === "deliverable") {
@@ -351,6 +360,19 @@ class BrowserBackend {
     }
     if (deliverableTabs.length > 0) {
       await this.moveToDeliverables(deliverableTabs);
+    }
+    for (const tabId of [...agentTabsToClose, ...userTabsToRelease, ...deliverableTabs]) {
+      delete sessionState.tabOrigins[String(tabId)];
+    }
+    if (handoffTabs.length > 0) {
+      sessionState.activeTabId = handoffTabs.includes(sessionState.activeTabId)
+        ? sessionState.activeTabId
+        : handoffTabs[0];
+      this.activeTabsBySession.set(session.sessionId, sessionState.activeTabId);
+      await this.store.save();
+    } else {
+      this.activeTabsBySession.delete(session.sessionId);
+      await this.store.removeSession(session.sessionId);
     }
   }
 
@@ -449,6 +471,10 @@ class BrowserBackend {
     const session = await this.requireSession(params);
     const tabs = await this.getSessionTabs(session.sessionId);
     await this.detachMany(tabs.filter(hasTabId).map((tab) => tab.id));
+    this.activeTabsBySession.delete(session.sessionId);
+    const sessionState = await this.store.getSession(session.sessionId);
+    sessionState.activeTabId = null;
+    await this.store.save();
   }
 
   async executeUnhandledCommand(params) {

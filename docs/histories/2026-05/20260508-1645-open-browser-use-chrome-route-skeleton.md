@@ -252,3 +252,27 @@ fail just because the cursor overlay is not yet injectable.
 Browser Use style CDP calls carry the Chrome tab id in `params.target.tabId`.
 The service worker should validate that target shape directly so CLI and SDK
 callers can use the same protocol payload.
+
+## [2026-05-08 19:50] | Update: expand CLI parity and session cleanup
+
+### 🛠 Changes Overview
+
+**Scope:** `cmd/open-browser-use`, `apps/chrome-extension`, `docs`
+
+**Key Actions:**
+
+- Added direct CLI subcommands for SDK core methods: `ping`, `user-tabs`,
+  `history`, `claim-tab`, `finalize-tabs`, `name-session`, `cdp`,
+  `move-mouse`, and `turn-ended`.
+- Kept `call` as the unrestricted JSON-RPC escape hatch for any method/params.
+- Tightened `finalizeTabs` to reject unknown or duplicate keep entries.
+- Cleared active session state after `turnEnded` or full finalization.
+- Verified the new CLI route against real Chrome by opening a tab, naming the
+  session, using `cdp` for navigation and title evaluation, querying history,
+  finalizing tabs, and confirming the session tab list is empty.
+
+### 🧠 Design Intent (Why)
+
+The CLI should be useful both as a smoke-test driver and as a small operational
+tool for upper-layer runtimes. Session cleanup also keeps download forwarding
+scoped to actual browser-control activity instead of stale group metadata.

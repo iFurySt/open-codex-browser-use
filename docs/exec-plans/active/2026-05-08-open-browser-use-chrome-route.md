@@ -88,3 +88,6 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
   resource references.
 - 2026-05-08: MV3 restart resilience advanced by persisting logical active tab
   ids in session state.
+- 2026-05-08: M2 CLI parity advanced with direct subcommands for SDK core
+  methods, stricter `finalizeTabs` validation, and active session cleanup on
+  `turnEnded` / finalization.

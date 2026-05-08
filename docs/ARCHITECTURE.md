@@ -127,8 +127,11 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - `open-browser-use manifest`：输出 Chrome native messaging host manifest。
 - `open-browser-use install-manifest`：把 native messaging host manifest
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。
-- `open-browser-use call/info/tabs/open-tab/navigate`：通过 socket 发送
-  JSON-RPC 请求；未显式传入 `--socket` 时会读取 active socket registry。
+- `open-browser-use call`：unrestricted JSON-RPC 入口，允许上层应用发送
+  任意 method/params；未显式传入 `--socket` 时会读取 active socket registry。
+- CLI 便捷子命令覆盖当前 SDK 核心能力：`ping`、`info`、`tabs`、
+  `user-tabs`、`history`、`open-tab`、`navigate`、`claim-tab`、
+  `finalize-tabs`、`name-session`、`cdp`、`move-mouse`、`turn-ended`。
 - MV3 extension core handlers：`getInfo`、`createTab`、`getTabs`、
   `getUserTabs`、`getUserHistory`、`claimUserTab`、`finalizeTabs`、
   `nameSession`、`attach`、`detach`、`executeCdp`、`moveMouse`、
@@ -136,6 +139,8 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - Session state persists the Chrome tab group id, tab origins, group title,
   deliverable group id, and logical active tab id in `chrome.storage.local` so
   MV3 service worker restarts can recover session tab listing semantics.
+  `turnEnded` and `finalizeTabs` clear active session state when control ends
+  so download notifications only fire while a browser session is active.
 - MV3 extension event forwarding：`chrome.debugger.onEvent` 转发为
   `onCDPEvent`，`chrome.downloads` 创建/变更转发为 `onDownloadChange`，
   cursor content script 会回报 cursor arrival 以支持 `moveMouse`
