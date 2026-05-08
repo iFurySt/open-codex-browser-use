@@ -125,13 +125,20 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   `/tmp/open-browser-use/active.json` 供 CLI/SDK 自动发现当前活跃 socket。
   Chrome native messaging 以 `chrome-extension://...` origin 参数启动二进制时，
   CLI 会自动进入 host mode。
+- 无参数运行 `open-browser-use` 或 `obu` 只输出版本和用法提示，不再启动
+  native host；手工启动 host 使用 `open-browser-use host`。
 - `open-browser-use manifest`：输出 Chrome native messaging host manifest。
 - `open-browser-use install-manifest`：把 native messaging host manifest
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。
 - 本地安装后可以把 `obu` 指向同一个二进制，例如
   `ln -sfn ~/.local/bin/open-browser-use ~/.local/bin/obu`。
-- CLI 命令层使用 Cobra 实现；无参数或 Chrome native messaging
-  `chrome-extension://...` origin 参数启动时仍绕过 Cobra，直接进入 host mode。
+- CLI 命令层使用 Cobra 实现；Chrome native messaging
+  `chrome-extension://...` origin 参数启动时会绕过 Cobra，直接进入 host mode。
+  这依赖 Chrome Native Messaging 的标准启动形状：MV3 service worker 调用
+  `chrome.runtime.connectNative(...)` 后，Chrome 以 host manifest 中的可执行文件
+  路径启动进程，并把调用方 extension origin 作为第一个 argv 传入。manifest
+  自身不承载额外自定义 argv，因此 Chrome extension 专用启动信号使用这个
+  Chrome 提供的 origin argv。
 - `open-browser-use call`：unrestricted JSON-RPC 入口，允许上层应用发送
   任意 method/params；未显式传入 `--socket` 时会读取 active socket registry。
 - CLI 便捷子命令覆盖当前 SDK 核心能力：`ping`、`info`、`tabs`、

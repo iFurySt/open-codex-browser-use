@@ -195,7 +195,7 @@ export class CodexAppServerClient extends EventEmitter {
       clientInfo: {
         name: "codio",
         title: "Codio",
-        version: "0.1.0"
+        version: "0.1.1"
       },
       capabilities: {
         experimentalApi: true

@@ -91,3 +91,7 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
 - 2026-05-08: M2 CLI parity advanced with direct subcommands for SDK core
   methods, stricter `finalizeTabs` validation, and active session cleanup on
   `turnEnded` / finalization.
+- 2026-05-08: CLI startup behavior tightened so no-arg `open-browser-use` /
+  `obu` prints versioned help instead of starting the native host; Chrome
+  native messaging still enters host mode through the Chrome-provided extension
+  origin argv.

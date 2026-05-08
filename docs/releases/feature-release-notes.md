@@ -1,5 +1,11 @@
 # 功能发布记录
 
+## 2026-05
+
+| 日期 | 功能域 | 用户价值 | 变更摘要 |
+| --- | --- | --- | --- |
+| 2026-05-08 | Open Browser Use Chrome Route | 开发者可以通过开源 MV3 Chrome extension、Go native host/CLI、JS SDK 和 Python SDK 操作真实 Chrome profile，并使用 `obu`/`open-browser-use` 执行常用浏览器动作。 | 发布 `0.1.1` patch 版本，包含 Cobra CLI、Chrome native messaging host、active socket discovery、核心 Browser Use 方法、CDP/history/download/cursor 事件转发和真实 Chrome smoke 覆盖。 |
+
 ## 2026-04
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |

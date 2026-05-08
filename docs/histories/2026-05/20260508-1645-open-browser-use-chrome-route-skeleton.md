@@ -317,3 +317,46 @@ not exercised by basic navigation alone.
 
 Cobra gives the CLI a maintainable command structure as subcommands grow, while
 the explicit native messaging bypass keeps Chrome startup behavior stable.
+
+## [2026-05-08 20:30] | Update: bump Open Browser Use to 0.1.1
+
+### 🛠 Changes Overview
+
+**Scope:** `cmd/open-browser-use`, `apps/chrome-extension`, `packages`,
+`apps/desktop`, `docs`
+
+**Key Actions:**
+
+- Bumped the Open Browser Use CLI, Chrome extension, JS SDK, Python SDK,
+  browser-use protocol package, desktop package, and runtime self-reported
+  versions from `0.1.0` to `0.1.1`.
+- Left external reference and reverse-engineering source versions unchanged.
+
+### 🧠 Design Intent (Why)
+
+The version bump marks the Cobra CLI migration and Chrome route smoke-tested
+milestones as a new patch-level development release.
+
+## [2026-05-08 20:45] | Update: make no-arg CLI startup informational
+
+### 🛠 Changes Overview
+
+**Scope:** `cmd/open-browser-use`, `docs`
+
+**Key Actions:**
+
+- Changed no-arg `open-browser-use` / `obu` startup to print versioned Cobra
+  help instead of entering native host relay mode.
+- Kept Chrome native messaging startup on the Chrome-provided
+  `chrome-extension://...` origin argv.
+- Added a CLI test that asserts no-arg startup includes the version, usage, and
+  host command.
+- Documented that the MV3/native messaging host manifest points at an executable
+  path, while Chrome supplies the extension origin argv at runtime.
+
+### 🧠 Design Intent (Why)
+
+Running the binary manually should be discoverable and non-blocking. Chrome
+native messaging still has a dedicated startup signal via the standard origin
+argv, so the extension path stays compatible without making plain `obu`
+surprising.

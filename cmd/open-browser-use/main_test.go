@@ -38,6 +38,26 @@ func TestCobraVersionCommand(t *testing.T) {
 	}
 }
 
+func TestCobraNoArgsPrintsVersionAndUsage(t *testing.T) {
+	cmd := newRootCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := output.String()
+	if !strings.Contains(got, "Open Browser Use "+version) {
+		t.Fatalf("expected no-arg output to include version, got %q", got)
+	}
+	if !strings.Contains(got, "Usage:") {
+		t.Fatalf("expected no-arg output to include usage, got %q", got)
+	}
+	if !strings.Contains(got, "host") {
+		t.Fatalf("expected no-arg output to mention host command, got %q", got)
+	}
+}
+
 func TestCobraVersionFlag(t *testing.T) {
 	cmd := newRootCommand()
 	var output bytes.Buffer

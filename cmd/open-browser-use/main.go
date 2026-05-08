@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.0"
+const version = "0.1.1"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -27,10 +27,7 @@ func main() {
 }
 
 func run(args []string) error {
-	if len(args) == 0 {
-		return runHost(host.DefaultSocketDir, "")
-	}
-	if isNativeMessagingLaunch(args[0]) {
+	if len(args) > 0 && isNativeMessagingLaunch(args[0]) {
 		return runHost(host.DefaultSocketDir, "")
 	}
 	cmd := newRootCommand()
@@ -54,6 +51,7 @@ func newRootCommand() *cobra.Command {
 				fmt.Fprintln(cmd.OutOrStdout(), version)
 				return nil
 			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Open Browser Use %s\n\n", version)
 			return cmd.Help()
 		},
 	}
