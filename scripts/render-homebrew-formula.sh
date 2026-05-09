@@ -12,7 +12,7 @@ sha256="$2"
 
 cat <<EOF
 class OpenBrowserUse < Formula
-  desc "Open Browser Use native host and CLI"
+  desc "Browser automation native host and CLI"
   homepage "https://github.com/iFurySt/open-codex-browser-use"
   url "https://github.com/iFurySt/open-codex-browser-use/archive/refs/tags/v${version}.tar.gz"
   sha256 "${sha256}"
