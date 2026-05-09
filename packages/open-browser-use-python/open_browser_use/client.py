@@ -5,10 +5,13 @@ import socket
 import struct
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable, Literal
 
 
 JsonObject = dict[str, Any]
+LoadState = Literal["domcontentloaded", "load"]
+NotificationHandler = Callable[[JsonObject], None]
+DEFAULT_NAVIGATION_TIMEOUT = 10.0
 
 
 @dataclass
@@ -23,6 +26,7 @@ class OpenBrowserUseClient:
             self.turn_id = f"turn-{time.time_ns()}"
         self._next_id = 1
         self._socket: socket.socket | None = None
+        self._notification_handlers: list[NotificationHandler] = []
 
     def connect(self) -> "OpenBrowserUseClient":
         if self._socket is None:
@@ -36,6 +40,15 @@ class OpenBrowserUseClient:
         if self._socket is not None:
             self._socket.close()
             self._socket = None
+
+    def on_notification(self, handler: NotificationHandler) -> Callable[[], None]:
+        self._notification_handlers.append(handler)
+
+        def remove() -> None:
+            if handler in self._notification_handlers:
+                self._notification_handlers.remove(handler)
+
+        return remove
 
     def request(self, method: str, params: JsonObject | None = None) -> Any:
         self.connect()
@@ -56,13 +69,21 @@ class OpenBrowserUseClient:
             "params": merged_params,
         }
         self._socket.sendall(encode_frame(request))
-        response = read_frame(self._socket)
-        if response.get("id") != request_id:
+        while True:
+            response = read_frame(self._socket)
+            if response.get("id") == request_id:
+                if "error" in response:
+                    message = response["error"].get("message", "Open Browser Use request failed")
+                    raise RuntimeError(message)
+                return response.get("result")
+            if "id" not in response and isinstance(response.get("method"), str):
+                self._dispatch_notification(response)
+                continue
             raise RuntimeError(f"unexpected response id: {response.get('id')!r}")
-        if "error" in response:
-            message = response["error"].get("message", "Open Browser Use request failed")
-            raise RuntimeError(message)
-        return response.get("result")
+
+    def _dispatch_notification(self, notification: JsonObject) -> None:
+        for handler in list(self._notification_handlers):
+            handler(notification)
 
     def get_info(self) -> Any:
         return self.request("getInfo")
@@ -161,6 +182,185 @@ class OpenBrowserUseClient:
         return self.request("turnEnded")
 
 
+def connect_open_browser_use(
+    socket_path: str,
+    session_id: str = "open-browser-use-python",
+    turn_id: str | None = None,
+    timeout: float = 10.0,
+) -> "OpenBrowserUseBrowser":
+    browser = OpenBrowserUseBrowser(
+        OpenBrowserUseClient(
+            socket_path=socket_path,
+            session_id=session_id,
+            turn_id=turn_id,
+            timeout=timeout,
+        )
+    )
+    browser.connect()
+    return browser
+
+
+class OpenBrowserUseBrowser:
+    def __init__(self, client: OpenBrowserUseClient) -> None:
+        self.client = client
+        self.cdp = OpenBrowserUseCdp(client)
+
+    def connect(self) -> "OpenBrowserUseBrowser":
+        self.client.connect()
+        return self
+
+    def close(self) -> None:
+        self.client.close()
+
+    def new_tab(
+        self,
+        url: str | None = None,
+        wait_until: LoadState = "load",
+        timeout: float = DEFAULT_NAVIGATION_TIMEOUT,
+    ) -> "OpenBrowserUseTab":
+        result = self.client.create_tab()
+        tab = self.tab(_tab_id_from_value(result, "create_tab response"))
+        if url:
+            tab.goto(url, wait_until=wait_until, timeout=timeout)
+        return tab
+
+    def tab(self, tab_id: int) -> "OpenBrowserUseTab":
+        return OpenBrowserUseTab(self, tab_id)
+
+    def get_tabs(self) -> Any:
+        return self.client.get_tabs()
+
+
+class OpenBrowserUseTab:
+    def __init__(self, browser: OpenBrowserUseBrowser, tab_id: int) -> None:
+        self.browser = browser
+        self.id = tab_id
+        self.playwright = OpenBrowserUseTabPlaywright(self)
+
+    def goto(
+        self,
+        url: str,
+        wait_until: LoadState = "load",
+        timeout: float = DEFAULT_NAVIGATION_TIMEOUT,
+    ) -> Any:
+        return self.browser.cdp.navigate(self.id, url, wait_until=wait_until, timeout=timeout)
+
+    def wait_for_load_state(
+        self,
+        state: LoadState = "load",
+        timeout: float = DEFAULT_NAVIGATION_TIMEOUT,
+    ) -> None:
+        self.browser.cdp.wait_for_load_state(self.id, state=state, timeout=timeout)
+
+    def dom_snapshot(self) -> str:
+        value = self.browser.cdp.evaluate(self.id, "document.body?.innerText ?? ''")
+        return "" if value is None else str(value)
+
+    def evaluate(self, expression: str, await_promise: bool | None = None) -> Any:
+        return self.browser.cdp.evaluate(self.id, expression, await_promise=await_promise)
+
+    def close(self) -> Any:
+        return self.browser.cdp.call(self.id, "Page.close")
+
+
+class OpenBrowserUseTabPlaywright:
+    def __init__(self, tab: OpenBrowserUseTab) -> None:
+        self.tab = tab
+
+    def wait_for_load_state(
+        self,
+        state: LoadState = "load",
+        timeout: float = DEFAULT_NAVIGATION_TIMEOUT,
+    ) -> None:
+        self.tab.wait_for_load_state(state=state, timeout=timeout)
+
+    def dom_snapshot(self) -> str:
+        return self.tab.dom_snapshot()
+
+
+class OpenBrowserUseCdp:
+    def __init__(self, client: OpenBrowserUseClient) -> None:
+        self.client = client
+        self._attached_tab_ids: set[int] = set()
+
+    def call(
+        self,
+        tab_id: int,
+        method: str,
+        command_params: JsonObject | None = None,
+        timeout_ms: int | None = None,
+    ) -> Any:
+        self.ensure_attached(tab_id)
+        params: JsonObject = {
+            "target": {"tabId": tab_id},
+            "method": method,
+            "commandParams": command_params or {},
+        }
+        if timeout_ms is not None:
+            params["timeoutMs"] = timeout_ms
+        return self.client.request("executeCdp", params)
+
+    def evaluate(self, tab_id: int, expression: str, await_promise: bool | None = None) -> Any:
+        command_params: JsonObject = {
+            "expression": expression,
+            "returnByValue": True,
+        }
+        if await_promise is not None:
+            command_params["awaitPromise"] = await_promise
+        result = self.call(tab_id, "Runtime.evaluate", command_params)
+        if isinstance(result, dict) and isinstance(result.get("exceptionDetails"), dict):
+            raise RuntimeError(str(result["exceptionDetails"].get("text", "Open Browser Use evaluation failed")))
+        if isinstance(result, dict) and isinstance(result.get("result"), dict):
+            return result["result"].get("value")
+        return None
+
+    def navigate(
+        self,
+        tab_id: int,
+        url: str,
+        wait_until: LoadState = "load",
+        timeout: float = DEFAULT_NAVIGATION_TIMEOUT,
+    ) -> Any:
+        if not url:
+            raise ValueError("goto requires a URL")
+        _assert_supported_load_state(wait_until)
+        self.call(tab_id, "Page.enable")
+        result = self.call(tab_id, "Page.navigate", {"url": url}, timeout_ms=int(timeout * 1000))
+        if isinstance(result, dict) and result.get("errorText"):
+            raise RuntimeError(f"Browser failed to navigate tab {tab_id}: {result['errorText']}")
+        self.wait_for_load_state(tab_id, state=wait_until, timeout=timeout)
+        return result
+
+    def wait_for_load_state(
+        self,
+        tab_id: int,
+        state: LoadState = "load",
+        timeout: float = DEFAULT_NAVIGATION_TIMEOUT,
+    ) -> None:
+        _assert_supported_load_state(state)
+        self.call(tab_id, "Page.enable")
+        deadline = time.monotonic() + timeout
+        while True:
+            if _document_state_matches(self.read_document_state(tab_id), state):
+                return
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"Timed out waiting for {state} in tab {tab_id}")
+            time.sleep(0.1)
+
+    def read_document_state(self, tab_id: int) -> JsonObject | None:
+        try:
+            value = self.evaluate(tab_id, "({ href: window.location.href, readyState: document.readyState })")
+        except Exception:
+            return None
+        return value if isinstance(value, dict) else None
+
+    def ensure_attached(self, tab_id: int) -> None:
+        if tab_id in self._attached_tab_ids:
+            return
+        self.client.attach(tab_id)
+        self._attached_tab_ids.add(tab_id)
+
+
 def encode_frame(value: JsonObject) -> bytes:
     payload = json.dumps(value, separators=(",", ":")).encode("utf-8")
     return struct.pack(_native_u32(), len(payload)) + payload
@@ -190,3 +390,24 @@ def _read_exact(sock: socket.socket, length: int) -> bytes:
 
 def _native_u32() -> str:
     return "=I"
+
+
+def _tab_id_from_value(value: Any, label: str) -> int:
+    if not isinstance(value, dict):
+        raise RuntimeError(f"{label} did not include a tab object")
+    tab_id = value.get("id")
+    if isinstance(tab_id, int) and tab_id > 0:
+        return tab_id
+    if isinstance(tab_id, str) and tab_id.isdigit() and int(tab_id) > 0:
+        return int(tab_id)
+    raise RuntimeError(f"{label} did not include a numeric tab id")
+
+
+def _assert_supported_load_state(state: str) -> None:
+    if state not in ("domcontentloaded", "load"):
+        raise ValueError(f'Unsupported load state "{state}". Use "domcontentloaded" or "load".')
+
+
+def _document_state_matches(document_state: JsonObject | None, state: LoadState) -> bool:
+    ready_state = document_state.get("readyState") if isinstance(document_state, dict) else None
+    return ready_state == "complete" or (state == "domcontentloaded" and ready_state == "interactive")

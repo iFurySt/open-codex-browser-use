@@ -147,12 +147,13 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   download、element info/screenshot、locator bulk reads、generic tab export 和
   clipboard commands。
 - JS 和 Python SDK：直接连接 Unix socket 发送 Browser Use JSON-RPC。
-  JS SDK 支持订阅 native socket 上的 JSON-RPC notification，并在原子
-  `OpenBrowserUseClient` 之外提供 `connectOpenBrowserUse` 高层 browser/tab
-  API，可直接使用 `tab.goto`、`tab.waitForLoadState` 和
-  `tab.playwright.domSnapshot` 这类 Browser Use 风格封装；两个 SDK 都提供核心
-  Browser Use method wrappers、download/clipboard convenience wrappers，也保留
-  unrestricted `request`。
+  JS SDK 支持订阅 native socket 上的 JSON-RPC notification；Python SDK 会在
+  同步 request loop 中分发并跳过 notification，避免 CDP event 插队破坏响应读取。
+  两个 SDK 都在原子 client 之外提供高层 browser/tab API，可直接使用
+  `tab.goto`、`tab.waitForLoadState`/`tab.wait_for_load_state` 和
+  `tab.playwright.domSnapshot`/`tab.playwright.dom_snapshot` 这类 Browser Use
+  风格封装；同时提供核心 Browser Use method wrappers、download/clipboard
+  convenience wrappers，也保留 unrestricted `request`。
 
 当前 SDK 不内置 Codex 风格的站点限制、turn policy 或二次确认。上层应用
 可以自由调用；生产集成如果需要安全策略，应在上层 runtime 或 host 前置网关

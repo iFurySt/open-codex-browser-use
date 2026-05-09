@@ -6,7 +6,7 @@ import threading
 import unittest
 from pathlib import Path
 
-from open_browser_use.client import OpenBrowserUseClient, encode_frame
+from open_browser_use.client import OpenBrowserUseClient, connect_open_browser_use, encode_frame
 
 
 class OpenBrowserUseClientTest(unittest.TestCase):
@@ -125,6 +125,90 @@ class OpenBrowserUseClientTest(unittest.TestCase):
                 client.write_clipboard_text(123, "hello")
             finally:
                 client.close()
+            thread.join(timeout=1)
+
+    def test_high_level_browser_tab_helpers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            socket_path = str(Path(directory) / "obu.sock")
+            server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            server.bind(socket_path)
+            server.listen(1)
+            calls: list[tuple[str, str | None]] = []
+
+            def serve() -> None:
+                conn, _ = server.accept()
+                with conn:
+                    while True:
+                        header = conn.recv(4)
+                        if not header:
+                            break
+                        (length,) = struct.unpack("=I", header)
+                        payload = conn.recv(length)
+                        request = json.loads(payload)
+                        method = request["method"]
+                        cdp_method = request["params"].get("method")
+                        calls.append((method, cdp_method))
+                        result = {}
+                        if method == "createTab":
+                            result = {"id": 123}
+                        elif method == "executeCdp" and cdp_method == "Page.navigate":
+                            conn.sendall(
+                                encode_frame(
+                                    {
+                                        "jsonrpc": "2.0",
+                                        "method": "onCDPEvent",
+                                        "params": {
+                                            "source": {"tabId": 123},
+                                            "method": "Page.domContentEventFired",
+                                            "params": {},
+                                        },
+                                    }
+                                )
+                            )
+                            result = {"frameId": "frame-1"}
+                        elif method == "executeCdp" and cdp_method == "Runtime.evaluate":
+                            expression = request["params"]["commandParams"]["expression"]
+                            if "readyState" in expression:
+                                result = {
+                                    "result": {
+                                        "value": {
+                                            "href": "https://example.test/issues",
+                                            "readyState": "interactive",
+                                        }
+                                    }
+                                }
+                            else:
+                                result = {"result": {"value": "Open\nClosed\nIssues\nStarred"}}
+                        conn.sendall(encode_frame({"jsonrpc": "2.0", "id": request["id"], "result": result}))
+                server.close()
+
+            thread = threading.Thread(target=serve)
+            thread.start()
+            browser = connect_open_browser_use(socket_path=socket_path)
+            notifications = []
+            browser.client.on_notification(notifications.append)
+            try:
+                tab = browser.new_tab()
+                tab.goto("https://example.test/issues", wait_until="domcontentloaded", timeout=1)
+                tab.playwright.wait_for_load_state(state="domcontentloaded", timeout=1)
+                self.assertEqual(tab.playwright.dom_snapshot(), "Open\nClosed\nIssues\nStarred")
+                self.assertEqual(notifications[0]["method"], "onCDPEvent")
+                self.assertEqual(
+                    calls,
+                    [
+                        ("createTab", None),
+                        ("attach", None),
+                        ("executeCdp", "Page.enable"),
+                        ("executeCdp", "Page.navigate"),
+                        ("executeCdp", "Page.enable"),
+                        ("executeCdp", "Runtime.evaluate"),
+                        ("executeCdp", "Page.enable"),
+                        ("executeCdp", "Runtime.evaluate"),
+                        ("executeCdp", "Runtime.evaluate"),
+                    ],
+                )
+            finally:
+                browser.close()
             thread.join(timeout=1)
 
 
