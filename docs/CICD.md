@@ -13,6 +13,8 @@
 - `npm-publish.yml`：tag `v*` 推送触发的 npm CLI 发布流水线，使用 npm
   trusted publishing/OIDC 发布 `packages/open-browser-use-cli`。该包是二进制
   CLI 分发入口，不发布 Chrome extension。
+- `homebrew-publish.yml`：tag `v*` 推送触发的 Homebrew tap 更新流水线，渲染
+  `open-browser-use` formula 并推送到 `iFurySt/homebrew-open-browser-use`。
 - `chrome-web-store-publish.yml`：手动触发的 Chrome Web Store 发布流水线，
   从已有 GitHub Release 下载 extension zip，再上传并可选提交审核；用于
   release 已经创建、只需要补跑商店发布的场景。
@@ -32,10 +34,12 @@
 3. 用真实构建产物替换 `scripts/release-package.sh`。
 4. CLI 的 npm 发布走 `npm-publish.yml`，包级 trusted publisher 要配置为
    `iFurySt/open-codex-browser-use` + `npm-publish.yml`。
-5. 浏览器插件发布走 `docs/CHROME_WEB_STORE_RELEASE.md` 里的 Chrome Web
+5. Homebrew 发布走 `homebrew-publish.yml`，需要仓库 secret
+   `HOMEBREW_TAP_TOKEN` 能写入 tap repo。
+6. 浏览器插件发布走 `docs/CHROME_WEB_STORE_RELEASE.md` 里的 Chrome Web
    Store API v2 流程。
-6. 技术栈和环境稳定后，再补其他部署 job。
-7. 即使交付方式变化，SBOM 和 provenance 这类供应链能力也建议保留。
+7. 技术栈和环境稳定后，再补其他部署 job。
+8. 即使交付方式变化，SBOM 和 provenance 这类供应链能力也建议保留。
 
 ## 默认 release 产物
 

@@ -1,0 +1,48 @@
+name: Homebrew 发布
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  update-homebrew-tap:
+    runs-on: ubuntu-latest
+    env:
+      HOMEBREW_TAP_REPOSITORY: iFurySt/homebrew-open-browser-use
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Render and publish Homebrew formula
+        run: |
+          if [ -z "${HOMEBREW_TAP_TOKEN}" ]; then
+            echo "HOMEBREW_TAP_TOKEN is required to update ${HOMEBREW_TAP_REPOSITORY}" >&2
+            exit 1
+          fi
+
+          version="${GITHUB_REF_NAME#v}"
+          archive_url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz"
+          sha256="$(curl -fsSL "${archive_url}" | sha256sum | awk '{print $1}')"
+
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "${tmp_dir}"' EXIT
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${HOMEBREW_TAP_REPOSITORY}.git" "${tmp_dir}/tap"
+          mkdir -p "${tmp_dir}/tap/Formula"
+          ./scripts/render-homebrew-formula.sh "${version}" "${sha256}" > "${tmp_dir}/tap/Formula/open-browser-use.rb"
+
+          cd "${tmp_dir}/tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/open-browser-use.rb
+          if git diff --cached --quiet; then
+            echo "Homebrew formula already up to date"
+            exit 0
+          fi
+          git commit -m "Update open-browser-use to ${GITHUB_REF_NAME}"
+          git push origin HEAD:main

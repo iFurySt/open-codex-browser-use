@@ -33,4 +33,10 @@ jobs:
 
       - name: Publish CLI package to npm
         working-directory: packages/open-browser-use-cli
-        run: npm publish
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          if npm view "open-browser-use@${version}" version >/dev/null 2>&1; then
+            echo "open-browser-use@${version} already exists on npm; skipping publish"
+            exit 0
+          fi
+          npm publish
