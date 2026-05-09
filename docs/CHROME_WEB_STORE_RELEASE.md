@@ -146,13 +146,13 @@ CWS_REFRESH_TOKEN` 写入 GitHub repository secret。
 
 如果 GitHub Release 已经创建完成，只需要把其中的插件 zip 上传到 Chrome
 Web Store，使用 `.github/workflows/chrome-web-store-publish.yml`。这个
-workflow 不会重新创建 GitHub Release，适合 `v0.1.4` 这类 release asset
+workflow 不会重新创建 GitHub Release，适合 `v0.1.5` 这类 release asset
 已经存在、但当时还没配置 Chrome Web Store secrets 的情况。
 
 手动触发时传入：
 
 ```text
-release_tag=v0.1.4
+release_tag=v0.1.5
 asset_name=
 submit=true
 publish_type=DEFAULT_PUBLISH
