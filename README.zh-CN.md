@@ -58,6 +58,19 @@ npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-bro
 
 *[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)里有可下载的.skill/.zip包*
 
+### MCP
+
+支持本地 stdio MCP 的 Agent runtime 可以直接配置：
+
+```toml
+[mcp_servers.open_browser_use]
+command = "obu"
+args = ["mcp"]
+```
+
+这个 MCP server 会暴露标签页列表、打开/接管标签页、导航、CDP、action plan
+和清理等浏览器工具。
+
 ## License
 
 [MIT](./LICENSE)

@@ -10,7 +10,7 @@ Default route:
 
 ```text
 agent runtime
-  -> open-browser-use CLI or SDK
+  -> open-browser-use CLI, MCP server, or SDK
   -> active Open Browser Use socket
   -> native messaging host
   -> Chrome extension
@@ -155,6 +155,29 @@ with `#`, shell-like quotes, shared session/turn, and a default tab set by
 `user-tabs`, `history`, `name-session`, `open-tab`, `claim-tab`, `navigate`,
 `wait-load`, `page-info`, `cdp`, `move-mouse`, `wait-file-chooser`,
 `set-file-chooser-files`, `finalize-tabs`, `turn-ended`, and `call`.
+
+## MCP Server
+
+Use the stdio MCP server when the surrounding runtime supports local MCP tools:
+
+```toml
+[mcp_servers.open_browser_use]
+command = "obu"
+args = ["mcp"]
+```
+
+`obu mcp` speaks newline-delimited JSON-RPC on stdin/stdout. It handles
+`initialize`, `ping`, `tools/list`, and `tools/call`, and exposes tools that
+mirror the CLI action surface:
+
+- `ping`, `info`, `tabs`, `user_tabs`, `history`
+- `open_tab`, `claim_tab`, `navigate`, `wait_load`, `page_info`
+- `cdp`, `move_mouse`, `wait_file_chooser`, `set_file_chooser_files`
+- `name_session`, `finalize_tabs`, `turn_ended`, `call`, `run_action_plan`
+
+Pass `--socket` or `--socket-dir` in the MCP `args` only when the runtime needs
+an explicit Open Browser Use socket. Otherwise the server uses the same socket
+discovery as the CLI.
 
 SDK request escape hatch:
 

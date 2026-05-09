@@ -75,6 +75,19 @@ your agent.
 Downloadable `.skill` and `.zip` packages are available in
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases).
 
+### MCP
+
+Agent runtimes with local MCP stdio support can run Open Browser Use directly:
+
+```toml
+[mcp_servers.open_browser_use]
+command = "obu"
+args = ["mcp"]
+```
+
+The server exposes browser tools for tab listing, opening, claiming,
+navigation, CDP, action plans, and cleanup.
+
 ## License
 
 [MIT](./LICENSE)

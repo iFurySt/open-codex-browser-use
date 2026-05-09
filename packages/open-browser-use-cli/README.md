@@ -118,6 +118,28 @@ finalize-tabs [{"tabId":<tab-id>,"status":"handoff"}]
 '
 ```
 
+## MCP Server
+
+Use `mcp` when an agent runtime supports local MCP servers over stdio:
+
+```sh
+obu mcp
+```
+
+For Codex, add a server entry similar to this in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.open_browser_use]
+command = "obu"
+args = ["mcp"]
+```
+
+The MCP server exposes browser tools such as `user_tabs`, `open_tab`,
+`claim_tab`, `navigate`, `wait_load`, `page_info`, `cdp`, `history`,
+`run_action_plan`, `finalize_tabs`, and unrestricted `call`. It uses the same
+socket discovery as the CLI; pass `--socket <path>` or `--socket-dir <dir>` in
+`args` only when the runtime needs an explicit socket.
+
 ## Low-Level JSON-RPC
 
 Use `call` when no convenience command or action exists:

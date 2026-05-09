@@ -4,7 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
-| 2026-05-09 | MCP Stdio Server And CLI Socket Recovery | 支持 Codex 等 agent runtime 通过本地 stdio MCP 直接调用 Open Browser Use 工具；CLI 在 `active.json` 缺失或过期时仍能连接已存活的 native host，减少用户手工传 `--socket` 或重启 Chrome 的需要。 | 发布 `0.1.22` patch 版本，新增 `open-browser-use mcp` / `obu mcp`、`tools/list`/`tools/call` 浏览器工具桥接、MCP stdio 测试与文档；CLI socket discovery 改为 registry 优先、socket-dir fallback，并清理 stale registry。 |
+| 2026-05-09 | CLI Socket Recovery | CLI 在 `active.json` 缺失或过期时仍能连接已存活的 native host，并自动清理不可连接的旧 socket，减少用户手工传 `--socket` 或重启 Chrome 的需要。 | 发布 `0.1.22` patch 版本，CLI 改为 registry 优先、socket-dir fallback，fallback 成功后修复 active registry，并在扫描时清理 stale `.sock` 文件。 |
 | 2026-05-09 | Homebrew Binary Install | Homebrew 用户不再因为安装 `open-browser-use` 被迫下载 Go bottle 并在本机编译，安装路径更快也更符合二进制 CLI 分发预期。 | 发布 `0.1.21` patch 版本，release workflow 新增 darwin/linux x amd64/arm64 CLI tarball，Homebrew tap workflow 改为等待 release asset、计算真实 sha256 并渲染 binary formula，formula 不再声明 Go build dependency。 |
 | 2026-05-09 | Skill Release Bundle | Agent 用户可以直接从 GitHub Release 下载 Open Browser Use skill，不需要从源码仓库手工拷贝 `skills/open-browser-use/`。 | 发布 `0.1.20` patch 版本，release workflow 新增 `open-browser-use-skill.zip` 和 `open-browser-use.skill` 两个产物，二者解压后都是 `open-browser-use/` 顶层目录，并纳入 release manifest、evidence artifact 和 provenance。 |
 | 2026-05-09 | CLI Action Runner | Shell-first agent runtime 和 CI 可以用 `open-browser-use run -c/--file` 编排多步浏览器动作，不必额外引入 JS/Python runtime。 | 发布 `0.1.19` patch 版本，新增 line-oriented action plan、共享 session/turn、默认 tab 传递、`wait-load`/`page-info` 等 action，并补齐 CLI README、skill 指南和 fake socket 测试。 |

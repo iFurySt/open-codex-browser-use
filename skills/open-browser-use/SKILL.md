@@ -7,16 +7,17 @@ description: Platform-neutral guidance for using Open Browser Use, the open-sour
 
 ## Overview
 
-Open Browser Use connects an MV3 Chrome extension, a local native messaging host, a CLI, and SDKs so agents can automate a real Chrome profile. It is not Codex.app-specific; adapt the commands and SDK examples to the agent runtime you are operating in.
+Open Browser Use connects an MV3 Chrome extension, a local native messaging host, a CLI, SDKs, and an optional stdio MCP server so agents can automate a real Chrome profile. It is not Codex.app-specific; adapt the commands, MCP config, and SDK examples to the agent runtime you are operating in.
 
 ## Core Workflow
 
 1. Check setup with `open-browser-use ping` or `obu ping`. If it fails because setup is missing, read [references/installation.md](references/installation.md).
 2. Name the current browser task group before opening or claiming tabs. Use a short task label followed by ` - OBU`; if no better task label is available, use `Task - OBU`.
 3. Use the CLI for simple inspection or one-shot actions: `info`, `tabs`, `user-tabs`, `history`, `open-tab`, `navigate`, `cdp`, and `call`.
-4. Use the JavaScript or Python SDK for multi-step workflows, event subscriptions, or when the surrounding agent runtime already runs code. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
-5. Before ending browser work, release or keep session tabs with `open-browser-use finalize-tabs --keep '<json-array>'` or the SDK `finalizeTabs` / `finalize_tabs` method.
-6. If communication fails after setup, read [references/troubleshooting.md](references/troubleshooting.md).
+4. If the surrounding agent runtime supports local MCP servers, configure `obu mcp` and call the exposed browser tools directly. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
+5. Use the JavaScript or Python SDK for multi-step workflows, event subscriptions, or when the surrounding agent runtime already runs code. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
+6. Before ending browser work, release or keep session tabs with `open-browser-use finalize-tabs --keep '<json-array>'`, the MCP `finalize_tabs` tool, or the SDK `finalizeTabs` / `finalize_tabs` method.
+7. If communication fails after setup, read [references/troubleshooting.md](references/troubleshooting.md).
 
 ## Operating Rules
 
@@ -61,6 +62,20 @@ default tab for later tab-scoped actions such as `wait-load`, `page-info`,
 `navigate`, `cdp`, `move-mouse`, and `wait-file-chooser`.
 
 Use `obu` as the short alias when available.
+
+## MCP Usage
+
+For runtimes that can launch local MCP servers over stdio, use:
+
+```toml
+[mcp_servers.open_browser_use]
+command = "obu"
+args = ["mcp"]
+```
+
+The MCP server exposes tools including `user_tabs`, `open_tab`, `claim_tab`,
+`navigate`, `wait_load`, `page_info`, `cdp`, `history`, `run_action_plan`,
+`finalize_tabs`, and unrestricted `call`.
 
 ## Tab Lifecycle
 

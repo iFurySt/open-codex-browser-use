@@ -128,6 +128,12 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   CLI action，保留同一个 session/turn，并让 `open-tab`/`claim-tab` 设置默认
   tab，供后续 `wait-load`、`page-info`、`navigate`、`cdp` 等 tab-scoped action
   复用；它不是通用编程语言，适合 shell、CI 和轻量 agent 编排。
+- `open-browser-use mcp` / `obu mcp`：stdio MCP server 入口，使用
+  newline-delimited JSON-RPC，完成 `initialize` 生命周期握手，并暴露
+  `tools/list` 与 `tools/call`。MCP tools 复用 CLI/runner 能力，包括
+  `user_tabs`、`open_tab`、`navigate`、`page_info`、`cdp`、
+  `run_action_plan`、`finalize_tabs` 和 unrestricted `call`，适合 Codex
+  等支持本地 MCP server 的 agent runtime 直接接入。
 - CLI 便捷子命令覆盖当前 SDK 核心能力：`ping`、`info`、`tabs`、
   `user-tabs`、`history`、`open-tab`、`navigate`、`claim-tab`、
   `finalize-tabs`、`name-session`、`cdp`、`move-mouse`、
