@@ -56,8 +56,21 @@ and install it manually.
 
 ### Use It
 
-Download and install the [`open-browser-use` skill](./skills/open-browser-use),
-then you are ready to use Open Browser Use from your agent.
+Install the skill directly:
+
+```bash
+# Install for Codex
+npx skills add iFurySt/open-codex-browser-use -g -a codex --skill open-browser-use --copy -y
+npx skills ls -g -a codex | rg 'open-browser-use'
+codex exec "Use open-browser-use to check today’s Hacker News and summarize the most worth-reading posts."
+
+# Install for Claude Code
+npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-browser-use --copy -y
+```
+
+You can also manually download and install the
+[`open-browser-use` skill](./skills/open-browser-use), then start using it from
+your agent.
 
 Downloadable `.skill` and `.zip` packages are available in
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases).

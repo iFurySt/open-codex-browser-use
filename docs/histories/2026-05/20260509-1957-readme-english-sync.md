@@ -18,6 +18,7 @@
 
 - **[Docs]**: 按新版中文 README 的结构重写英文 README，突出 Homebrew 快速安装、beta setup 和 skill 入口。
 - **[Copy]**: 调整英文表达，避免逐字翻译，让项目定位、安装说明和使用入口更自然。
+- **[Docs]**: 根据后续中文 README 更新，同步补充 Codex 与 Claude Code 的 `npx skills add` 安装命令。
 
 ### 🧠 Design Intent (Why)
 

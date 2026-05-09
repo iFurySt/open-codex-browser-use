@@ -43,7 +43,18 @@ open-browser-use setup beta
 *也可以手动到[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)里下载最新的包安装*
 
 ### 使用
-直接下载`open-browser-use`的[skill](./skills/open-browser-use)并安装，就可以愉快的开始使用了🚀
+一键安装skill
+```bash
+# 安装到codex
+npx skills add iFurySt/open-codex-browser-use -g -a codex --skill open-browser-use --copy -y
+npx skills ls -g -a codex | rg 'open-browser-use'
+codex exec "Use open-browser-use to check today’s Hacker News and summarize the most worth-reading posts."
+
+# 安装到claude code
+npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-browser-use --copy -y
+```
+
+也可以手动下载`open-browser-use`的[skill](./skills/open-browser-use)并安装，就可以愉快的开始使用了🚀
 
 *[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)里有可下载的.skill/.zip包*
 
