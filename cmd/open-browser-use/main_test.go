@@ -176,6 +176,102 @@ func TestCobraInstallManifestDefaultsToStoreExtension(t *testing.T) {
 	}
 }
 
+func TestInstallChromeExternalExtensionWritesWebStoreHint(t *testing.T) {
+	outputPath := filepath.Join(t.TempDir(), defaultChromeExtensionID+".json")
+	path, err := installChromeExternalExtension("", outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != outputPath {
+		t.Fatalf("expected output path %q, got %q", outputPath, path)
+	}
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(payload, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest["external_update_url"] != chromeWebStoreUpdateURL {
+		t.Fatalf("expected Chrome Web Store update URL, got %#v", manifest["external_update_url"])
+	}
+}
+
+func TestCobraSetupWritesNativeAndExternalManifests(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stable native host link is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	targetPath := filepath.Join(t.TempDir(), "open-browser-use")
+	if err := os.WriteFile(targetPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	externalPath := filepath.Join(t.TempDir(), defaultChromeExtensionID+".json")
+
+	cmd := newRootCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{"setup", "--path", targetPath, "--external-extension-output", externalPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "Native messaging host manifest:") {
+		t.Fatalf("expected setup output to mention native manifest, got %q", output.String())
+	}
+	if _, err := os.Stat(filepath.Join(home, "Library/Application Support/Google/Chrome/NativeMessagingHosts", host.NativeHostName+".json")); runtime.GOOS == "darwin" && err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(externalPath); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCobraSetupOfflineAliasUsesProvidedCRX(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stable native host link is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	targetPath := filepath.Join(t.TempDir(), "open-browser-use")
+	if err := os.WriteFile(targetPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	crxPath := filepath.Join(t.TempDir(), "open-browser-use-chrome-extension.crx")
+	crxID := []byte{0xed, 0x76, 0xae, 0x2d, 0xae, 0xf3, 0x92, 0xe3, 0xc0, 0x93, 0xc0, 0x75, 0xc0, 0x4e, 0xfb, 0x48}
+	expectedExtensionID := extensionIDFromCRXID(crxID)
+	if err := os.WriteFile(crxPath, testCRX(crxID), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRootCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{"setup", "offline", "--path", targetPath, "--crx", crxPath, "--no-open"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := output.String()
+	if !strings.Contains(got, "Chrome extension CRX:") || !strings.Contains(got, crxPath) {
+		t.Fatalf("expected setup offline output to mention CRX path, got %q", got)
+	}
+	if !strings.Contains(got, "Chrome extension id: "+expectedExtensionID) {
+		t.Fatalf("expected setup offline output to mention CRX extension id, got %q", got)
+	}
+	manifestPath := filepath.Join(home, "Library/Application Support/Google/Chrome/NativeMessagingHosts", host.NativeHostName+".json")
+	if runtime.GOOS == "linux" {
+		manifestPath = filepath.Join(home, ".config/google-chrome/NativeMessagingHosts", host.NativeHostName+".json")
+	}
+	payload, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(payload), "chrome-extension://"+expectedExtensionID+"/") {
+		t.Fatalf("expected native manifest to allow CRX extension id, got %s", payload)
+	}
+}
+
 func TestCobraUnknownCommand(t *testing.T) {
 	cmd := newRootCommand()
 	cmd.SetArgs([]string{"does-not-exist"})
@@ -201,4 +297,33 @@ func TestInvokeRemovesStaleActiveSocketRecord(t *testing.T) {
 	if _, err := host.ReadActiveSocketRecord(socketDir); err == nil {
 		t.Fatal("expected stale active socket record to be removed")
 	}
+}
+
+func testCRX(crxID []byte) []byte {
+	signedHeaderData := testProtoBytes(1, crxID)
+	header := testProtoBytes(10000, signedHeaderData)
+	prefix := make([]byte, 12)
+	copy(prefix[0:4], "Cr24")
+	prefix[4] = 3
+	prefix[8] = byte(len(header))
+	prefix[9] = byte(len(header) >> 8)
+	prefix[10] = byte(len(header) >> 16)
+	prefix[11] = byte(len(header) >> 24)
+	return append(append(prefix, header...), []byte("zip")...)
+}
+
+func testProtoBytes(fieldNumber uint64, value []byte) []byte {
+	key := testVarint((fieldNumber << 3) | 2)
+	length := testVarint(uint64(len(value)))
+	payload := append(key, length...)
+	return append(payload, value...)
+}
+
+func testVarint(value uint64) []byte {
+	var out []byte
+	for value > 0x7f {
+		out = append(out, byte(value&0x7f)|0x80)
+		value >>= 7
+	}
+	return append(out, byte(value))
 }

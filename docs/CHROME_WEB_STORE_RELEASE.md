@@ -7,16 +7,33 @@
 
 Chrome Web Store 只分发 `apps/chrome-extension/` 里的 MV3 extension 包。
 宿主机二进制 `open-browser-use` 仍然需要用户通过项目安装包、脚本或二进制
-单独安装到本机。npm 和 Homebrew 安装会 best-effort 自动写入 Chrome Native
-Messaging manifest。
+单独安装到本机。npm 和 Homebrew 安装只提供 CLI，并提示用户显式运行
+`open-browser-use setup`。
 
 Chrome extension 不能自己安装 native messaging host manifest。正式扩展 ID 是
-`bgjoihaepiejlfjinojjfgokghnodnhd`，已经作为 CLI 默认值写入。需要手工修复时
-直接运行：
+`bgjoihaepiejlfjinojjfgokghnodnhd`，已经作为 CLI 默认值写入。正式安装路径是：
+
+```bash
+open-browser-use setup
+```
+
+`setup` 会调用 native host manifest 注册，并写入 Chrome External Extensions
+JSON，让 Chrome 从 Chrome Web Store 安装正式扩展；用户仍可能需要重启 Chrome
+并确认启用扩展。需要只修复 native host 时，仍可运行：
 
 ```bash
 open-browser-use install-manifest
 ```
+
+Chrome Web Store 条目仍在审核时，用 GitHub Release CRX 路径：
+
+```bash
+open-browser-use setup release
+```
+
+`setup release` 会注册 native host，下载最新 release CRX 并用 Chrome 打开。
+它会从 CRX3 头读取 extension id，并用该 id 注册 native host allowed origin。
+`setup offline` 是同一路径的别名，但它仍会联网访问 GitHub Release。
 
 `install-manifest` 会把 manifest 的 `path` 写成稳定 native host link：
 `~/Library/Application Support/OpenBrowserUse/native-host/open-browser-use`，并
@@ -53,11 +70,11 @@ dist/chrome-extension/crx-manifest.json
 格式的 `CHROME_EXTENSION_PRIVATE_KEY`。
 
 自分发 CRX 的 extension id 会写入 `crx-manifest.json` 和
-`package-manifest.json`。如果这个 id 不等于 Chrome Web Store extension id，
-用户安装 native host 时需要用对应 id 运行：
+`package-manifest.json`。`setup release` 默认会从 CRX3 头读取这个 id；如果需要
+手工覆盖，可以运行：
 
 ```bash
-open-browser-use install-manifest --extension-id <crxExtensionId>
+open-browser-use setup release --extension-id <crxExtensionId>
 ```
 
 ## GitHub Release

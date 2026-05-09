@@ -108,11 +108,17 @@ short in the Dashboard if character limits apply.
 ## Native Host Boundary
 
 The Chrome Web Store package contains only the MV3 extension. Users must install
-the native host separately through npm or Homebrew. Those installers attempt to
-register the native host automatically for Web Store extension
-`bgjoihaepiejlfjinojjfgokghnodnhd`.
+the native host separately through npm or Homebrew. After installing the CLI,
+users run setup to register the native host and the Chrome Web Store extension
+install hint for extension `bgjoihaepiejlfjinojjfgokghnodnhd`.
 
-If registration needs to be repaired, users can run:
+Recommended setup command:
+
+```bash
+open-browser-use setup
+```
+
+If native host registration alone needs to be repaired, users can run:
 
 ```bash
 open-browser-use install-manifest
@@ -120,8 +126,8 @@ open-browser-use install-manifest
 
 ## Dashboard Checklist
 
-- Upload or select the `v0.1.7` extension package from
-  `open-browser-use-chrome-extension-0.1.7.zip`.
+- Upload or select the `v0.1.8` extension package from
+  `open-browser-use-chrome-extension-0.1.8.zip`.
 - Add at least one screenshot that shows the extension popup or a local
   Open Browser Use automation session.
 - Confirm the listing text matches the current native host requirement.

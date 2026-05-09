@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -17,8 +21,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.7"
+const version = "0.1.8"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
+const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
+const githubLatestReleaseURL = "https://api.github.com/repos/iFurySt/open-codex-browser-use/releases/latest"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -59,6 +65,7 @@ func newRootCommand() *cobra.Command {
 	root.Flags().BoolVarP(&showVersion, "version", "v", false, "print version")
 	root.AddCommand(
 		newHostCommand(),
+		newSetupCommand(),
 		newManifestCommand(),
 		newInstallManifestCommand(),
 		newCallCommand(),
@@ -104,6 +111,92 @@ func runHost(socketDir string, socketPath string) error {
 		SocketPath: socketPath,
 	}, os.Stdin, os.Stdout)
 	return relay.Serve(context.Background())
+}
+
+func newSetupCommand() *cobra.Command {
+	extensionID := defaultChromeExtensionID
+	var binaryPath string
+	var externalExtensionOutput string
+	cmd := &cobra.Command{
+		Use:   "setup",
+		Short: "Register Chrome integration for Open Browser Use",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			result, err := setupChrome(extensionID, binaryPath, externalExtensionOutput)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Native messaging host manifest: %s\n", result.NativeManifestPath)
+			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension install hint: %s\n", result.ExternalExtensionPath)
+			fmt.Fprintln(cmd.OutOrStdout(), "Restart Chrome and approve the Open Browser Use extension prompt if Chrome asks.")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&extensionID, "extension-id", defaultChromeExtensionID, "Chrome extension id for allowed_origins")
+	cmd.Flags().StringVar(&binaryPath, "path", "", "native host binary target for the stable host link")
+	cmd.Flags().StringVar(&externalExtensionOutput, "external-extension-output", "", "Chrome external extension JSON output path")
+	cmd.AddCommand(newSetupReleaseCommand())
+	return cmd
+}
+
+func newSetupReleaseCommand() *cobra.Command {
+	extensionID := defaultChromeExtensionID
+	var binaryPath string
+	var crxPath string
+	var noOpen bool
+	cmd := &cobra.Command{
+		Use:     "release",
+		Aliases: []string{"offline"},
+		Short:   "Register the native host and open the latest release CRX",
+		Args:    cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			resolvedCRXPath := crxPath
+			if resolvedCRXPath == "" {
+				var err error
+				resolvedCRXPath, err = downloadLatestReleaseCRX()
+				if err != nil {
+					return err
+				}
+			} else {
+				var err error
+				resolvedCRXPath, err = resolveExistingCRXPath(resolvedCRXPath)
+				if err != nil {
+					return err
+				}
+			}
+			effectiveExtensionID := extensionID
+			if !cmd.Flags().Changed("extension-id") {
+				crxExtensionID, err := extensionIDFromCRX(resolvedCRXPath)
+				if err != nil {
+					return err
+				}
+				effectiveExtensionID = crxExtensionID
+			}
+			manifestPath, err := installNativeManifest(effectiveExtensionID, binaryPath, "")
+			if err != nil {
+				return err
+			}
+			if !noOpen {
+				if err := openFile(resolvedCRXPath); err != nil {
+					return err
+				}
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Native messaging host manifest: %s\n", manifestPath)
+			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension id: %s\n", effectiveExtensionID)
+			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension CRX: %s\n", resolvedCRXPath)
+			if noOpen {
+				fmt.Fprintln(cmd.OutOrStdout(), "Open the CRX in Chrome to install the extension.")
+			} else {
+				fmt.Fprintln(cmd.OutOrStdout(), "Approve the Chrome extension install prompt if Chrome asks.")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&extensionID, "extension-id", defaultChromeExtensionID, "Chrome extension id for allowed_origins")
+	cmd.Flags().StringVar(&binaryPath, "path", "", "native host binary target for the stable host link")
+	cmd.Flags().StringVar(&crxPath, "crx", "", "existing CRX path; defaults to the latest GitHub Release CRX")
+	cmd.Flags().BoolVar(&noOpen, "no-open", false, "download or resolve the CRX without opening it")
+	return cmd
 }
 
 func newManifestCommand() *cobra.Command {
@@ -181,6 +274,55 @@ func installNativeManifest(extensionID string, binaryPath string, outputPath str
 	}
 	if err := os.WriteFile(path, append(payload, '\n'), 0o600); err != nil {
 		return "", err
+	}
+	return path, nil
+}
+
+type setupResult struct {
+	NativeManifestPath    string
+	ExternalExtensionPath string
+}
+
+func setupChrome(extensionID string, binaryPath string, externalExtensionOutput string) (setupResult, error) {
+	manifestPath, err := installNativeManifest(extensionID, binaryPath, "")
+	if err != nil {
+		return setupResult{}, err
+	}
+	extensionPath, err := installChromeExternalExtension(extensionID, externalExtensionOutput)
+	if err != nil {
+		return setupResult{}, err
+	}
+	return setupResult{
+		NativeManifestPath:    manifestPath,
+		ExternalExtensionPath: extensionPath,
+	}, nil
+}
+
+func installChromeExternalExtension(extensionID string, outputPath string) (string, error) {
+	allowedExtensionID := strings.TrimSpace(extensionID)
+	if allowedExtensionID == "" {
+		allowedExtensionID = defaultChromeExtensionID
+	}
+	path := outputPath
+	if path == "" {
+		var err error
+		path, err = defaultChromeExternalExtensionPath(allowedExtensionID)
+		if err != nil {
+			return "", err
+		}
+	}
+	manifest := map[string]any{
+		"external_update_url": chromeWebStoreUpdateURL,
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return "", fmt.Errorf("failed to create Chrome external extension directory %q: %w", filepath.Dir(path), err)
+	}
+	payload, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, append(payload, '\n'), 0o644); err != nil {
+		return "", fmt.Errorf("failed to write Chrome external extension manifest %q: %w", path, err)
 	}
 	return path, nil
 }
@@ -645,6 +787,25 @@ func stableNativeHostPath() (string, error) {
 	}
 }
 
+func defaultChromeExternalExtensionPath(extensionID string) (string, error) {
+	filename := strings.TrimSpace(extensionID) + ".json"
+	if filename == ".json" {
+		return "", errors.New("Chrome extension id is empty")
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, "Library/Application Support/Google/Chrome/External Extensions", filename), nil
+	case "linux":
+		return filepath.Join("/opt/google/chrome/extensions", filename), nil
+	default:
+		return "", fmt.Errorf("Chrome external extension setup is not implemented for %s", runtime.GOOS)
+	}
+}
+
 func installStableNativeHostLink(targetPath string, linkPath string) error {
 	if err := os.MkdirAll(filepath.Dir(linkPath), 0o700); err != nil {
 		return err
@@ -669,6 +830,228 @@ func defaultNativeHostManifestPath() (string, error) {
 	default:
 		return "", fmt.Errorf("default manifest install path is not implemented for %s; pass --output", runtime.GOOS)
 	}
+}
+
+type githubRelease struct {
+	TagName string `json:"tag_name"`
+	Assets  []struct {
+		Name               string `json:"name"`
+		BrowserDownloadURL string `json:"browser_download_url"`
+	} `json:"assets"`
+}
+
+func downloadLatestReleaseCRX() (string, error) {
+	request, err := http.NewRequest(http.MethodGet, githubLatestReleaseURL, nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("User-Agent", "open-browser-use/"+version)
+	client := http.Client{Timeout: 30 * time.Second}
+	response, err := client.Do(request)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("GitHub latest release request failed: %s", response.Status)
+	}
+	var release githubRelease
+	if err := json.NewDecoder(response.Body).Decode(&release); err != nil {
+		return "", err
+	}
+	for _, asset := range release.Assets {
+		if strings.HasPrefix(asset.Name, "open-browser-use-chrome-extension-") &&
+			strings.HasSuffix(asset.Name, ".crx") &&
+			asset.BrowserDownloadURL != "" {
+			return downloadReleaseAsset(asset.Name, asset.BrowserDownloadURL)
+		}
+	}
+	return "", fmt.Errorf("latest GitHub release %q does not include an Open Browser Use CRX asset", release.TagName)
+}
+
+func downloadReleaseAsset(name string, url string) (string, error) {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	targetDir := filepath.Join(cacheDir, "open-browser-use", "extensions")
+	if err := os.MkdirAll(targetDir, 0o700); err != nil {
+		return "", err
+	}
+	targetPath := filepath.Join(targetDir, filepath.Base(name))
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("User-Agent", "open-browser-use/"+version)
+	client := http.Client{Timeout: 2 * time.Minute}
+	response, err := client.Do(request)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", fmt.Errorf("CRX download failed: %s", response.Status)
+	}
+	tempPath := targetPath + ".tmp"
+	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		return "", err
+	}
+	_, copyErr := io.Copy(file, response.Body)
+	closeErr := file.Close()
+	if copyErr != nil {
+		_ = os.Remove(tempPath)
+		return "", copyErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(tempPath)
+		return "", closeErr
+	}
+	if err := os.Rename(tempPath, targetPath); err != nil {
+		_ = os.Remove(tempPath)
+		return "", err
+	}
+	return targetPath, nil
+}
+
+func resolveExistingCRXPath(path string) (string, error) {
+	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(absolutePath)
+	if err != nil {
+		return "", err
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("CRX path is a directory: %s", absolutePath)
+	}
+	return absolutePath, nil
+}
+
+func extensionIDFromCRX(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	prefix := make([]byte, 12)
+	if _, err := io.ReadFull(file, prefix); err != nil {
+		return "", err
+	}
+	if string(prefix[0:4]) != "Cr24" {
+		return "", fmt.Errorf("CRX %s does not start with Cr24", path)
+	}
+	version := binary.LittleEndian.Uint32(prefix[4:8])
+	if version != 3 {
+		return "", fmt.Errorf("CRX %s uses unsupported version %d", path, version)
+	}
+	headerLength := binary.LittleEndian.Uint32(prefix[8:12])
+	header := make([]byte, headerLength)
+	if _, err := io.ReadFull(file, header); err != nil {
+		return "", err
+	}
+	signedHeaderData, err := protobufBytesField(header, 10000)
+	if err != nil {
+		return "", err
+	}
+	crxID, err := protobufBytesField(signedHeaderData, 1)
+	if err != nil {
+		return "", err
+	}
+	if len(crxID) != 16 {
+		return "", fmt.Errorf("CRX %s has invalid id length %d", path, len(crxID))
+	}
+	return extensionIDFromCRXID(crxID), nil
+}
+
+func protobufBytesField(payload []byte, wantedField uint64) ([]byte, error) {
+	for offset := 0; offset < len(payload); {
+		key, n, err := readVarint(payload[offset:])
+		if err != nil {
+			return nil, err
+		}
+		offset += n
+		fieldNumber := key >> 3
+		wireType := key & 0x7
+		switch wireType {
+		case 0:
+			_, n, err := readVarint(payload[offset:])
+			if err != nil {
+				return nil, err
+			}
+			offset += n
+		case 1:
+			offset += 8
+		case 2:
+			length, n, err := readVarint(payload[offset:])
+			if err != nil {
+				return nil, err
+			}
+			offset += n
+			if length > uint64(len(payload)-offset) {
+				return nil, errors.New("protobuf bytes field exceeds payload")
+			}
+			end := offset + int(length)
+			if fieldNumber == wantedField {
+				return payload[offset:end], nil
+			}
+			offset = end
+		case 5:
+			offset += 4
+		default:
+			return nil, fmt.Errorf("unsupported protobuf wire type %d", wireType)
+		}
+		if offset > len(payload) {
+			return nil, errors.New("protobuf field exceeds payload")
+		}
+	}
+	return nil, fmt.Errorf("protobuf bytes field %d not found", wantedField)
+}
+
+func readVarint(payload []byte) (uint64, int, error) {
+	var value uint64
+	for i, b := range payload {
+		if i == 10 {
+			return 0, 0, errors.New("protobuf varint is too long")
+		}
+		value |= uint64(b&0x7f) << (7 * i)
+		if b < 0x80 {
+			return value, i + 1, nil
+		}
+	}
+	return 0, 0, io.ErrUnexpectedEOF
+}
+
+func extensionIDFromCRXID(crxID []byte) string {
+	const alphabet = "abcdefghijklmnop"
+	var builder strings.Builder
+	builder.Grow(len(crxID) * 2)
+	for _, b := range crxID {
+		builder.WriteByte(alphabet[(b>>4)&0x0f])
+		builder.WriteByte(alphabet[b&0x0f])
+	}
+	return builder.String()
+}
+
+func openFile(path string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", "-a", "Google Chrome", path)
+	case "linux":
+		cmd = exec.Command("xdg-open", path)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", path)
+	default:
+		return fmt.Errorf("opening files is not implemented for %s", runtime.GOOS)
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
 }
 
 func numberAsInt(value any) (int, bool) {

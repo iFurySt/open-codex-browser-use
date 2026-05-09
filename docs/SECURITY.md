@@ -24,6 +24,9 @@
 - Chrome native messaging manifest 使用固定 host name
   `com.ifuryst.open_browser_use.extension`，由 Chrome 的
   `allowed_origins` 限制可启动 extension 来源。
+- `open-browser-use setup` 会写入 Chrome External Extensions JSON，让 Chrome
+  从 Chrome Web Store 安装正式扩展；用户仍需要接受 Chrome 的扩展启用提示。
+  `setup release` 只用于审核期或非商店路径，会下载并打开 GitHub Release CRX。
 - MV3 extension 使用 `chrome.debugger`、`tabs`、`tabGroups`、`history` 和
   `downloads` 等高权限 API；真实安装前必须让用户明确知道它会操作真实
   Chrome profile。

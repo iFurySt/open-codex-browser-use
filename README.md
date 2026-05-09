@@ -17,15 +17,6 @@ commands, and hand browser state back to an upper-layer agent runtime.
 
 ## Quick Start
 
-### Install the Extension
-
-Install the Chrome extension from either source:
-
-- [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases):
-  download the latest `open-browser-use-chrome-extension-*.crx` or `.zip`.
-- Chrome Web Store:
-  [Open Browser Use](https://chromewebstore.google.com/detail/open-browser-use/bgjoihaepiejlfjinojjfgokghnodnhd).
-
 ### Install the CLI
 
 Install the native host and CLI with npm:
@@ -40,8 +31,32 @@ Or install with Homebrew:
 brew install iFurySt/open-browser-use/open-browser-use
 ```
 
-The CLI installer registers the Chrome native messaging host automatically. If
-you need to repair the registration, run:
+### Set Up Chrome
+
+After installing the CLI, register the native host and ask Chrome to install the
+Web Store extension:
+
+```bash
+open-browser-use setup
+```
+
+Restart Chrome and approve the Open Browser Use extension prompt if Chrome asks.
+
+While the Chrome Web Store item is pending review, install the latest release
+CRX instead:
+
+```bash
+open-browser-use setup release
+```
+
+`setup release` downloads the latest
+`open-browser-use-chrome-extension-*.crx` from
+[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
+and opens it in Chrome. It reads the CRX extension id and registers the native
+host for that id. The alias `open-browser-use setup offline` is also available
+for this non-Web-Store path.
+
+If you only need to repair the native messaging host registration, run:
 
 ```bash
 open-browser-use install-manifest

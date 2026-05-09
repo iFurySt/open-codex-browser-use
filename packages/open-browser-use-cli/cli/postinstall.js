@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,7 +24,7 @@ const arch = archMap[process.arch];
 
 if (!platform || !arch || platform === "windows") {
   console.warn(
-    `open-browser-use native host auto-registration is not available for ${process.platform}/${process.arch}.`
+    `open-browser-use setup is not fully automated for ${process.platform}/${process.arch}.`
   );
   process.exit(0);
 }
@@ -35,16 +34,11 @@ const executable = process.platform === "win32" ? "open-browser-use.exe" : "open
 const binaryPath = join(__dirname, "..", "native", `${platform}-${arch}`, executable);
 
 if (!existsSync(binaryPath)) {
-  console.warn(`open-browser-use native binary is missing, skipping native host registration: ${binaryPath}`);
+  console.warn(`open-browser-use native binary is missing: ${binaryPath}`);
   process.exit(0);
 }
 
-const result = spawnSync(binaryPath, ["install-manifest", "--path", binaryPath], {
-  stdio: "inherit"
-});
-
-if (result.error || result.status !== 0) {
-  const detail = result.error ? `: ${result.error.message}` : "";
-  console.warn(`open-browser-use native host auto-registration skipped${detail}`);
-  console.warn("Run `open-browser-use install-manifest` after installation to repair the Chrome native host manifest.");
-}
+console.log("");
+console.log("Open Browser Use CLI installed.");
+console.log("Run `open-browser-use setup` to register Chrome integration.");
+console.log("While the Chrome Web Store item is pending, run `open-browser-use setup release` to install the latest release CRX.");
