@@ -40,6 +40,6 @@ if (!existsSync(binaryPath)) {
 
 console.log("");
 console.log("Open Browser Use CLI installed.");
-console.log("执行以下命令安装：");
+console.log("Run the following command to install:");
 console.log("");
 console.log("open-browser-use setup beta");

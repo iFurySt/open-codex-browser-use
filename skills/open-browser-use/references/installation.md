@@ -48,7 +48,7 @@ While the Chrome Web Store item is unavailable or pending review, use the releas
 open-browser-use setup beta
 ```
 
-This downloads the latest `open-browser-use-chrome-extension-*.zip` from GitHub Releases, registers the native host for the stable unpacked extension id, opens `chrome://extensions/`, and reveals a keyed manual-install ZIP in Finder or the system file manager. Ask the user to enable Developer mode and drag that ZIP into the Chrome extensions page.
+This downloads the latest keyed `open-browser-use-chrome-extension-*.zip` from GitHub Releases, registers the native host for that stable extension id, opens `chrome://extensions/`, and reveals the ZIP in Finder or the system file manager. Ask the user to enable Developer mode and drag that ZIP into the Chrome extensions page.
 
 Repair only the native host manifest:
 

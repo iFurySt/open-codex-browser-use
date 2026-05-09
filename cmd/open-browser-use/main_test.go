@@ -266,13 +266,12 @@ func TestCobraSetupBetaUsesProvidedZIP(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	manualZIPPath := manualInstallZIPPath(zipPath)
 	got := output.String()
-	if !strings.Contains(got, "ZIP:") || !strings.Contains(got, manualZIPPath) {
-		t.Fatalf("expected setup beta output to mention manual ZIP path, got %q", got)
+	if !strings.Contains(got, "ZIP:") || !strings.Contains(got, zipPath) {
+		t.Fatalf("expected setup beta output to mention install ZIP path, got %q", got)
 	}
-	if strings.Contains(got, "ZIP: "+zipPath) {
-		t.Fatalf("expected setup beta output to avoid the raw release ZIP path, got %q", got)
+	if strings.Contains(got, "-manual.zip") {
+		t.Fatalf("expected setup beta output to avoid a separate manual ZIP path, got %q", got)
 	}
 	if !strings.Contains(got, "Extension id: "+expectedExtensionID) {
 		t.Fatalf("expected setup beta output to mention unpacked extension id, got %q", got)
@@ -302,12 +301,12 @@ func TestCobraSetupBetaUsesProvidedZIP(t *testing.T) {
 	if !strings.Contains(string(unpackedManifest), betaExtensionPublicKey) {
 		t.Fatalf("expected unpacked manifest to include stable key, got %s", unpackedManifest)
 	}
-	manualManifest, err := readManifestFromZIP(manualZIPPath)
+	installManifest, err := readManifestFromZIP(zipPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(manualManifest), betaExtensionPublicKey) {
-		t.Fatalf("expected manual ZIP manifest to include stable key, got %s", manualManifest)
+	if !strings.Contains(string(installManifest), betaExtensionPublicKey) {
+		t.Fatalf("expected install ZIP manifest to include stable key, got %s", installManifest)
 	}
 }
 

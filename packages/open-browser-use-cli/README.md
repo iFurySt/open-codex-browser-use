@@ -29,5 +29,5 @@ zip as an unpacked extension instead:
 open-browser-use setup beta
 ```
 
-That command opens `chrome://extensions/` and reveals the keyed manual-install
-ZIP so the user can drag it into Chrome with the expected extension id.
+That command opens `chrome://extensions/` and reveals the keyed release ZIP so
+the user can drag it into Chrome with the expected extension id.

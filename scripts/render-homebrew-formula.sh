@@ -32,7 +32,7 @@ class OpenBrowserUse < Formula
 
   def caveats
     <<~EOS
-      执行以下命令安装：
+      Run the following command to install:
 
         open-browser-use setup beta
     EOS

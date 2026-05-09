@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.16"
+const version = "0.1.17"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
 const betaExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
@@ -167,7 +167,7 @@ func newSetupBetaCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			manualZIPPath, err := writeManualInstallZIP(unpackedPath, resolvedZIPPath)
+			installZIPPath, err := writeBetaInstallZIP(unpackedPath, resolvedZIPPath)
 			if err != nil {
 				return err
 			}
@@ -176,7 +176,7 @@ func newSetupBetaCommand() *cobra.Command {
 				effectiveExtensionID = unpackedExtensionID
 			}
 			if effectiveExtensionID != unpackedExtensionID {
-				return fmt.Errorf("--extension-id %s does not match keyed manual ZIP extension id %s", effectiveExtensionID, unpackedExtensionID)
+				return fmt.Errorf("--extension-id %s does not match keyed beta ZIP extension id %s", effectiveExtensionID, unpackedExtensionID)
 			}
 			manifestPath, err := installNativeManifest(effectiveExtensionID, binaryPath, "")
 			if err != nil {
@@ -186,7 +186,7 @@ func newSetupBetaCommand() *cobra.Command {
 				if err := openChromeExtensionsPage(); err != nil {
 					return err
 				}
-				if err := revealFile(manualZIPPath); err != nil {
+				if err := revealFile(installZIPPath); err != nil {
 					return err
 				}
 			}
@@ -196,7 +196,7 @@ func newSetupBetaCommand() *cobra.Command {
 			return renderManualSetupResult(cmd.OutOrStdout(), manualSetupResult{
 				NativeManifestPath: manifestPath,
 				ExtensionID:        effectiveExtensionID,
-				ZIPPath:            manualZIPPath,
+				ZIPPath:            installZIPPath,
 				UnpackedPath:       unpackedPath,
 				OpenedChrome:       !noOpen,
 				OpenedFileManager:  !noOpen,
@@ -381,11 +381,11 @@ func renderStoreSetupResult(writer io.Writer, result setupResult, status browser
 }
 
 func renderManualSetupResult(writer io.Writer, result manualSetupResult, status browserExtensionStatus) error {
-	fmt.Fprintln(writer, "✅ Open Browser Use manual setup")
+	fmt.Fprintln(writer, "✅ Open Browser Use beta setup")
 	fmt.Fprintf(writer, "1. ✅ Registered native host\n   %s\n", result.NativeManifestPath)
 	fmt.Fprintf(writer, "2. ✅ Prepared browser extension package\n   Extension id: %s\n   ZIP: %s\n   Includes stable extension key for this id.\n", result.ExtensionID, result.ZIPPath)
 	fmt.Fprintf(writer, "3. ✅ Prepared unpacked extension directory\n   %s\n", result.UnpackedPath)
-	fmt.Fprintf(writer, "4. 🧩 Browser extension\n   %s\n", status.summaryForSetup("Not installed yet. Finish the manual ZIP install below."))
+	fmt.Fprintf(writer, "4. 🧩 Browser extension\n   %s\n", status.summaryForSetup("Not installed yet. Finish the ZIP install below."))
 	fmt.Fprintln(writer)
 	if status.isReady() {
 		fmt.Fprintln(writer, "All set. The browser extension is installed, connected, and on the expected version.")
@@ -1232,8 +1232,8 @@ func installUnpackedExtension(zipPath string) (string, string, error) {
 	return targetDir, extensionID, nil
 }
 
-func writeManualInstallZIP(unpackedPath string, sourceZIPPath string) (string, error) {
-	targetPath := manualInstallZIPPath(sourceZIPPath)
+func writeBetaInstallZIP(unpackedPath string, sourceZIPPath string) (string, error) {
+	targetPath := sourceZIPPath
 	tempPath := targetPath + ".tmp"
 	if err := os.Remove(tempPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", err
@@ -1247,18 +1247,6 @@ func writeManualInstallZIP(unpackedPath string, sourceZIPPath string) (string, e
 		return "", err
 	}
 	return targetPath, nil
-}
-
-func manualInstallZIPPath(sourceZIPPath string) string {
-	extension := filepath.Ext(sourceZIPPath)
-	base := strings.TrimSuffix(filepath.Base(sourceZIPPath), extension)
-	if extension == "" {
-		extension = ".zip"
-	}
-	if strings.HasSuffix(base, "-manual") {
-		return filepath.Join(filepath.Dir(sourceZIPPath), base+extension)
-	}
-	return filepath.Join(filepath.Dir(sourceZIPPath), base+"-manual"+extension)
 }
 
 func packageExtensionDirectory(sourceDir string, targetZIPPath string) error {

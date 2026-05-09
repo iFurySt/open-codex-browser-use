@@ -56,11 +56,10 @@ open-browser-use setup beta
 `setup beta` downloads the latest
 `open-browser-use-chrome-extension-*.zip` from
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
-and unpacks it under Application Support. It pins a stable unpacked extension
-id, registers the native host for that id, opens `chrome://extensions/`, and
-reveals a keyed manual-install ZIP in Finder or the system file manager. Enable
-Developer mode, then drag that ZIP file into the Chrome extensions page to
-install it manually with the same id.
+and uses its stable extension key to register the native host. It opens
+`chrome://extensions/` and reveals that same ZIP in Finder or the system file
+manager. Enable Developer mode, then drag the ZIP file into the Chrome
+extensions page to install it manually with the same id.
 
 If you only need to repair the native messaging host registration, run:
 
