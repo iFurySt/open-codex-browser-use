@@ -32,13 +32,9 @@ class OpenBrowserUse < Formula
 
   def caveats
     <<~EOS
-      Run setup after installation to register Chrome integration:
+      执行以下命令安装：
 
-        open-browser-use setup
-
-      While the Chrome Web Store item is pending, prepare the keyed manual-install ZIP with:
-
-        open-browser-use setup release
+        open-browser-use setup beta
     EOS
   end
 end

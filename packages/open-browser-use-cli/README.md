@@ -26,7 +26,7 @@ While the Chrome Web Store item is pending review, use the latest GitHub Release
 zip as an unpacked extension instead:
 
 ```sh
-open-browser-use setup release
+open-browser-use setup beta
 ```
 
 That command opens `chrome://extensions/` and reveals the keyed manual-install

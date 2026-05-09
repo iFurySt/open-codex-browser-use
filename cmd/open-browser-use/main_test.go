@@ -240,7 +240,7 @@ func TestCobraSetupWritesNativeAndExternalManifests(t *testing.T) {
 	}
 }
 
-func TestCobraSetupOfflineAliasUsesProvidedZIP(t *testing.T) {
+func TestCobraSetupBetaUsesProvidedZIP(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("stable native host link is not implemented on windows")
 	}
@@ -251,7 +251,7 @@ func TestCobraSetupOfflineAliasUsesProvidedZIP(t *testing.T) {
 		t.Fatal(err)
 	}
 	zipPath := filepath.Join(t.TempDir(), "open-browser-use-chrome-extension.zip")
-	expectedExtensionID, err := extensionIDFromPublicKey(offlineExtensionPublicKey)
+	expectedExtensionID, err := extensionIDFromPublicKey(betaExtensionPublicKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,23 +262,23 @@ func TestCobraSetupOfflineAliasUsesProvidedZIP(t *testing.T) {
 	cmd := newRootCommand()
 	var output bytes.Buffer
 	cmd.SetOut(&output)
-	cmd.SetArgs([]string{"setup", "offline", "--path", targetPath, "--zip", zipPath, "--no-open"})
+	cmd.SetArgs([]string{"setup", "beta", "--path", targetPath, "--zip", zipPath, "--no-open"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
 	manualZIPPath := manualInstallZIPPath(zipPath)
 	got := output.String()
 	if !strings.Contains(got, "ZIP:") || !strings.Contains(got, manualZIPPath) {
-		t.Fatalf("expected setup offline output to mention manual ZIP path, got %q", got)
+		t.Fatalf("expected setup beta output to mention manual ZIP path, got %q", got)
 	}
 	if strings.Contains(got, "ZIP: "+zipPath) {
-		t.Fatalf("expected setup offline output to avoid the raw release ZIP path, got %q", got)
+		t.Fatalf("expected setup beta output to avoid the raw release ZIP path, got %q", got)
 	}
 	if !strings.Contains(got, "Extension id: "+expectedExtensionID) {
-		t.Fatalf("expected setup offline output to mention unpacked extension id, got %q", got)
+		t.Fatalf("expected setup beta output to mention unpacked extension id, got %q", got)
 	}
 	if !strings.Contains(got, "Drag the ZIP file into the Chrome extensions page") {
-		t.Fatalf("expected setup offline output to mention manual ZIP drag install, got %q", got)
+		t.Fatalf("expected setup beta output to mention manual ZIP drag install, got %q", got)
 	}
 	manifestPath := filepath.Join(home, "Library/Application Support/Google/Chrome/NativeMessagingHosts", host.NativeHostName+".json")
 	if runtime.GOOS == "linux" {
@@ -299,14 +299,14 @@ func TestCobraSetupOfflineAliasUsesProvidedZIP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(unpackedManifest), offlineExtensionPublicKey) {
+	if !strings.Contains(string(unpackedManifest), betaExtensionPublicKey) {
 		t.Fatalf("expected unpacked manifest to include stable key, got %s", unpackedManifest)
 	}
 	manualManifest, err := readManifestFromZIP(manualZIPPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(manualManifest), offlineExtensionPublicKey) {
+	if !strings.Contains(string(manualManifest), betaExtensionPublicKey) {
 		t.Fatalf("expected manual ZIP manifest to include stable key, got %s", manualManifest)
 	}
 }

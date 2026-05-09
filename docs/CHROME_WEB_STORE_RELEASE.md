@@ -28,15 +28,14 @@ open-browser-use install-manifest
 Chrome Web Store 条目仍在审核时，用 GitHub Release zip 的 unpacked 路径：
 
 ```bash
-open-browser-use setup release
+open-browser-use setup beta
 ```
 
-`setup release` 会下载最新 release zip，展开到用户 Application Support 目录，
+`setup beta` 会下载最新 release zip，展开到用户 Application Support 目录，
 给 unpacked manifest 写入稳定 public key，注册 native host allowed origin，并打开
 `chrome://extensions/`，同时在 Finder 或系统文件管理器中定位已写入稳定 key 的
 手动安装 ZIP。用户需要打开 Developer mode，把这个 ZIP 拖到 Chrome 扩展页面完
 成手动安装。
-`setup offline` 是同一路径的别名，但它仍会联网访问 GitHub Release。
 
 `install-manifest` 会把 manifest 的 `path` 写成稳定 native host link：
 `~/Library/Application Support/OpenBrowserUse/native-host/open-browser-use`，并
@@ -67,16 +66,16 @@ dist/chrome-extension/package-manifest.json
 dist/chrome-extension/crx-manifest.json
 ```
 
-`.zip` 是 Chrome Web Store 上传包，也是 `setup release` 下载并展开的审核期安装包。
+`.zip` 是 Chrome Web Store 上传包，也是 `setup beta` 下载并展开的审核期安装包。
 `.crx` 会保留在 GitHub Release 里用于制品归档、Chromium/企业策略/自托管更新等
 场景；Chrome Stable 对非 Web Store CRX 会报 `CRX_REQUIRED_PROOF_MISSING`，
 不要把它作为普通用户安装入口。
 
-`setup release` 默认会用 CLI 内置的 unpacked public key 计算 extension id；如果需要
+`setup beta` 默认会用 CLI 内置的 unpacked public key 计算 extension id；如果需要
 手工覆盖 native host allowed origin，可以运行：
 
 ```bash
-open-browser-use setup release --extension-id <extensionId>
+open-browser-use setup beta --extension-id <extensionId>
 ```
 
 ## GitHub Release

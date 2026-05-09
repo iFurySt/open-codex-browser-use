@@ -24,10 +24,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.15"
+const version = "0.1.16"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
-const offlineExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
+const betaExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -135,20 +135,19 @@ func newSetupCommand() *cobra.Command {
 	cmd.Flags().StringVar(&extensionID, "extension-id", defaultChromeExtensionID, "Chrome extension id for allowed_origins")
 	cmd.Flags().StringVar(&binaryPath, "path", "", "native host binary target for the stable host link")
 	cmd.Flags().StringVar(&externalExtensionOutput, "external-extension-output", "", "Chrome external extension JSON output path")
-	cmd.AddCommand(newSetupReleaseCommand())
+	cmd.AddCommand(newSetupBetaCommand())
 	return cmd
 }
 
-func newSetupReleaseCommand() *cobra.Command {
+func newSetupBetaCommand() *cobra.Command {
 	extensionID := defaultChromeExtensionID
 	var binaryPath string
 	var zipPath string
 	var noOpen bool
 	cmd := &cobra.Command{
-		Use:     "release",
-		Aliases: []string{"offline"},
-		Short:   "Register the native host and prepare the latest release extension",
-		Args:    cobra.NoArgs,
+		Use:   "beta",
+		Short: "Register the native host and prepare the beta extension package",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			resolvedZIPPath := zipPath
 			if resolvedZIPPath == "" {
@@ -192,8 +191,8 @@ func newSetupReleaseCommand() *cobra.Command {
 				}
 			}
 			status := detectBrowserExtension(host.DefaultSocketDir, 700*time.Millisecond)
-			status.InstallCommand = "open-browser-use setup offline"
-			status.UpgradeCommand = "open-browser-use setup offline"
+			status.InstallCommand = "open-browser-use setup beta"
+			status.UpgradeCommand = "open-browser-use setup beta"
 			return renderManualSetupResult(cmd.OutOrStdout(), manualSetupResult{
 				NativeManifestPath: manifestPath,
 				ExtensionID:        effectiveExtensionID,
@@ -340,7 +339,7 @@ func renderStartupStatus(writer io.Writer) error {
 	fmt.Fprintln(writer, "Next steps:")
 	if status.needsInstall() {
 		fmt.Fprintf(writer, "  1. Install the browser extension: %s\n", status.InstallCommand)
-		fmt.Fprintln(writer, "     If the Chrome Web Store item is unavailable, use: open-browser-use setup offline")
+		fmt.Fprintln(writer, "     If the Chrome Web Store item is unavailable, use: open-browser-use setup beta")
 		fmt.Fprintln(writer, "  2. Restart Chrome if it asks you to enable the extension.")
 		fmt.Fprintln(writer, "  3. Verify the connection: open-browser-use info")
 		return nil
@@ -452,8 +451,8 @@ type detectedExtension struct {
 
 func detectInstalledChromeExtension() (detectedExtension, bool) {
 	candidates := []string{defaultChromeExtensionID}
-	if offlineID, err := extensionIDFromPublicKey(offlineExtensionPublicKey); err == nil && offlineID != defaultChromeExtensionID {
-		candidates = append(candidates, offlineID)
+	if betaID, err := extensionIDFromPublicKey(betaExtensionPublicKey); err == nil && betaID != defaultChromeExtensionID {
+		candidates = append(candidates, betaID)
 	}
 	var best detectedExtension
 	for _, extensionID := range candidates {
@@ -1390,7 +1389,7 @@ func pinUnpackedExtensionKey(manifestPath string) (string, error) {
 	}
 	key, _ := manifest["key"].(string)
 	if strings.TrimSpace(key) == "" {
-		key = offlineExtensionPublicKey
+		key = betaExtensionPublicKey
 		manifest["key"] = key
 		updated, err := json.MarshalIndent(manifest, "", "  ")
 		if err != nil {

@@ -50,18 +50,17 @@ While the Chrome Web Store item is pending review, use the latest GitHub
 Release zip as an unpacked extension instead:
 
 ```bash
-open-browser-use setup release
+open-browser-use setup beta
 ```
 
-`setup release` downloads the latest
+`setup beta` downloads the latest
 `open-browser-use-chrome-extension-*.zip` from
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
 and unpacks it under Application Support. It pins a stable unpacked extension
 id, registers the native host for that id, opens `chrome://extensions/`, and
 reveals a keyed manual-install ZIP in Finder or the system file manager. Enable
 Developer mode, then drag that ZIP file into the Chrome extensions page to
-install it manually with the same id. The alias `open-browser-use setup offline`
-is also available for this non-Web-Store path.
+install it manually with the same id.
 
 If you only need to repair the native messaging host registration, run:
 

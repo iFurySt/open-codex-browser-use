@@ -94,23 +94,22 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   注册，再写入 Chrome External Extensions JSON，让 Chrome 从 Web Store
   安装正式扩展。macOS/Windows 仍需要用户在 Chrome 中确认启用扩展；Linux
   的 External Extensions 写入默认使用 Chrome 官方系统路径，可能需要更高权限。
-- `open-browser-use setup release`：审核期或非 Web Store 路径，注册 native
+- `open-browser-use setup beta`：审核期或非 Web Store 路径，注册 native
   host 后从 GitHub Releases 下载最新
   `open-browser-use-chrome-extension-*.zip`，展开为 unpacked extension，写入稳定
   public key 生成固定 extension id，用该 id 注册 native host allowed origin，再
   从 keyed unpacked 目录生成手动安装 ZIP，并打开 `chrome://extensions/` 和
-  Finder/文件管理器，引导用户把这个 ZIP 拖到扩展页面手动安装；
-  `setup offline` 是这个 release 路径的别名。
+  Finder/文件管理器，引导用户把这个 ZIP 拖到扩展页面手动安装。
 - manifest 的 `path` 默认统一写入稳定 native host link：
   macOS 为
   `~/Library/Application Support/OpenBrowserUse/native-host/open-browser-use`，
   Linux 为 `~/.local/share/open-browser-use/native-host/open-browser-use`。
   `install-manifest --path` 表示这个稳定 link 指向的真实二进制 target。
 - npm 包 `open-browser-use` 是 CLI 二进制分发入口，安装后提供
-  `open-browser-use` 和 `obu`；`postinstall` 只提示用户运行显式
-  `open-browser-use setup`。
+  `open-browser-use` 和 `obu`；Chrome Web Store 上架前，`postinstall` 只提示
+  用户运行显式 `open-browser-use setup beta`。
 - Homebrew formula 安装后提供 `open-browser-use` 和 `obu`，并在
-  caveats 中提示用户运行显式 `open-browser-use setup`。
+  caveats 中提示用户运行显式 `open-browser-use setup beta`。
 - CLI 命令层使用 Cobra 实现；Chrome native messaging
   `chrome-extension://...` origin 参数启动时会绕过 Cobra，直接进入 host mode。
   这依赖 Chrome Native Messaging 的标准启动形状：MV3 service worker 调用

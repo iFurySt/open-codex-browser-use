@@ -4,6 +4,8 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
+| 2026-05-09 | Tab Group Naming | Agent 浏览器任务组和交付组的命名更清楚，当前任务保留在 `<short task> - OBU` 组，最终交付统一移动到 `🫪 Open Browser Use`。 | 发布 `0.1.16` patch 版本，默认 session group 改为 `Task - OBU`，deliverable group 改为 `🫪 Open Browser Use`，并补齐 legacy group title 迁移和 skill 指南。 |
+| 2026-05-09 | Beta Setup Guidance | Chrome Web Store 上架前，安装后的下一步只引导用户走 keyed manual-install ZIP 路径，避免 `setup release` / `setup offline` 两套名字造成混淆。 | 发布 `0.1.16` patch 版本，移除 `open-browser-use setup release/offline` 用户入口，保留 `open-browser-use setup` 和 `open-browser-use setup beta`，并把 npm postinstall、Homebrew caveats、README、架构、安全和 skill 文档同步到 `setup beta`。 |
 | 2026-05-09 | SDK High-Level Browser API | JS/Python SDK 用户可以保留底层 JSON-RPC/CDP 原子调用，同时用 browser/tab/playwright-like helper 编排常见浏览器自动化流程。 | 发布 `0.1.15` patch 版本，新增 JS `connectOpenBrowserUse` 与 Python `connect_open_browser_use` 高层 browser/tab API；覆盖 `goto`、load-state wait、DOM snapshot 和 Python notification 插队读取。 |
 | 2026-05-09 | Homebrew Setup Guidance | Homebrew 安装后的提示文案和当前审核期手动安装路径一致，用户会被引导生成 keyed manual-install ZIP，而不是旧的 Load unpacked 表述。 | 发布 `0.1.14` patch 版本，同步 Homebrew formula caveat 模板，并把 CLI、扩展、SDK 和 npm CLI 包版本提升到 `0.1.14`。 |
 | 2026-05-09 | Guided Manual Install | 审核期手动安装不会因为 release ZIP 缺少稳定 key 而生成错误 extension id，native host allowed origin 与浏览器实际安装 id 保持一致。 | 发布 `0.1.13` patch 版本，`setup release/offline` 会从已写入稳定 key 的 unpacked 目录重新生成 `*-manual.zip`，并只定位这个 keyed ZIP 给用户拖入安装。 |

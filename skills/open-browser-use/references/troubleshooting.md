@@ -38,7 +38,7 @@ If no active host exists, opening Chrome with the extension enabled can allow Ch
 
 ## Extension Or Native Host Mismatch
 
-The native host manifest must allow the installed extension id. The default Web Store id is built into the CLI, while `setup release` writes a stable key into the unpacked extension, registers that id, and generates a keyed manual-install ZIP with the same id.
+The native host manifest must allow the installed extension id. The default Web Store id is built into the CLI, while `setup beta` writes a stable key into the unpacked extension, registers that id, and generates a keyed manual-install ZIP with the same id.
 
 Use:
 
@@ -46,7 +46,7 @@ Use:
 open-browser-use manifest
 open-browser-use install-manifest
 open-browser-use setup
-open-browser-use setup release
+open-browser-use setup beta
 ```
 
 If the user installed a custom extension build, pass the extension id explicitly:
