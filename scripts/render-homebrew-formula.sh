@@ -36,7 +36,7 @@ class OpenBrowserUse < Formula
 
         open-browser-use setup
 
-      While the Chrome Web Store item is pending, prepare the latest release zip for Load unpacked with:
+      While the Chrome Web Store item is pending, prepare the keyed manual-install ZIP with:
 
         open-browser-use setup release
     EOS

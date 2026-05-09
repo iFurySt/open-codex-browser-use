@@ -57,3 +57,4 @@
 - `skills/open-browser-use/references/troubleshooting.md`
 - `packages/open-browser-use-cli/README.md`
 - `packages/open-browser-use-cli/cli/postinstall.js`
+- `scripts/render-homebrew-formula.sh`
