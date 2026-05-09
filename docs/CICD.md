@@ -11,7 +11,9 @@
   Chrome extension zip、可双击打开的 CRX 包、生成 provenance，并创建 GitHub
   Release；Release 页面只暴露 zip 和 CRX 两个用户下载项，其他 manifest、
   SBOM 和 repo metadata 留在 workflow artifact 里。手动触发时按输入参数可把
-  extension 上传并提交到 Chrome Web Store。
+  extension 上传并提交到 Chrome Web Store。新建 GitHub Release 时使用
+  `gh release create --generate-notes`，交给 GitHub 自动生成 `What's Changed`、
+  `New Contributors` 和 `Full Changelog`。
 - `npm-publish.yml`：tag `v*` 推送触发的 npm CLI 发布流水线，使用 npm
   trusted publishing/OIDC 发布 `packages/open-browser-use-cli`。该包是二进制
   CLI 分发入口，不发布 Chrome extension。

@@ -73,6 +73,12 @@ open-browser-use install-manifest --extension-id <crxExtensionId>
 `release-evidence` artifact 中，用于追溯和排查，不作为用户下载项展示。
 release workflow 会对 Chrome extension zip 和 CRX 生成 provenance attestation。
 
+workflow 新建 GitHub Release 时使用 `gh release create --generate-notes`，由
+GitHub 自动生成 `What's Changed`、`New Contributors` 和 `Full Changelog`。
+tag push 后仍要检查 release body；如果自动正文只有 `Full Changelog`，根据
+`docs/releases/feature-release-notes.md`、`git log <previous-tag>..<tag> --oneline`
+和本轮 history 手动补一段简短的 `What's Changed`。
+
 ## 自动提交 Chrome Web Store
 
 Chrome Web Store API v2 用于上传 extension zip，并可选提交审核。官方约束：

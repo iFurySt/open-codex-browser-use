@@ -120,13 +120,20 @@ jobs:
             dist/chrome-extension/*.crx
 
       - name: 创建 GitHub Release
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
-        with:
-          tag_name: ${{ steps.release.outputs.tag }}
-          name: ${{ steps.release.outputs.title }}
-          files: |
-            dist/chrome-extension/*.zip
-            dist/chrome-extension/*.crx
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.release.outputs.title }}
+        run: |
+          assets=(dist/chrome-extension/*.zip dist/chrome-extension/*.crx)
+
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
+          else
+            gh release create "${RELEASE_TAG}" "${assets[@]}" \
+              --title "${RELEASE_TITLE}" \
+              --generate-notes
+          fi
 
       - name: 上传并提交 Chrome Web Store 审核
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_chrome_web_store }}
