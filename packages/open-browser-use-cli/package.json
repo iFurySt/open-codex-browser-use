@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/iFurySt/open-codex-browser-use#readme",
   "scripts": {
+    "postinstall": "node cli/postinstall.js",
     "prepack": "../../scripts/build-npm-cli-package.sh",
     "test": "../../scripts/build-npm-cli-package.sh && node cli/open-browser-use.js version"
   },
