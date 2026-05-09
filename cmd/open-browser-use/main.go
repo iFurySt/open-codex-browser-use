@@ -21,10 +21,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.8"
+const version = "0.1.9"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
-const githubLatestReleaseURL = "https://api.github.com/repos/iFurySt/open-codex-browser-use/releases/latest"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -832,42 +831,14 @@ func defaultNativeHostManifestPath() (string, error) {
 	}
 }
 
-type githubRelease struct {
-	TagName string `json:"tag_name"`
-	Assets  []struct {
-		Name               string `json:"name"`
-		BrowserDownloadURL string `json:"browser_download_url"`
-	} `json:"assets"`
-}
-
 func downloadLatestReleaseCRX() (string, error) {
-	request, err := http.NewRequest(http.MethodGet, githubLatestReleaseURL, nil)
-	if err != nil {
-		return "", err
-	}
-	request.Header.Set("Accept", "application/vnd.github+json")
-	request.Header.Set("User-Agent", "open-browser-use/"+version)
-	client := http.Client{Timeout: 30 * time.Second}
-	response, err := client.Do(request)
-	if err != nil {
-		return "", err
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return "", fmt.Errorf("GitHub latest release request failed: %s", response.Status)
-	}
-	var release githubRelease
-	if err := json.NewDecoder(response.Body).Decode(&release); err != nil {
-		return "", err
-	}
-	for _, asset := range release.Assets {
-		if strings.HasPrefix(asset.Name, "open-browser-use-chrome-extension-") &&
-			strings.HasSuffix(asset.Name, ".crx") &&
-			asset.BrowserDownloadURL != "" {
-			return downloadReleaseAsset(asset.Name, asset.BrowserDownloadURL)
-		}
-	}
-	return "", fmt.Errorf("latest GitHub release %q does not include an Open Browser Use CRX asset", release.TagName)
+	assetName := fmt.Sprintf("open-browser-use-chrome-extension-%s.crx", version)
+	url := fmt.Sprintf(
+		"https://github.com/iFurySt/open-codex-browser-use/releases/download/v%s/%s",
+		version,
+		assetName,
+	)
+	return downloadReleaseAsset(assetName, url)
 }
 
 func downloadReleaseAsset(name string, url string) (string, error) {

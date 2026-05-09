@@ -27,7 +27,9 @@
 - **[Docs]**: 更新 README、架构、Chrome Web Store 发布/Listing、安全和 release
   notes，记录新的安装路径。
 - **[Release]**: 将 CLI、extension、JS/Python package 和协议包版本统一 bump 到
-  `0.1.8`，用于发布 guided setup 变更。
+  `0.1.8`，用于发布 guided setup 变更；安装验证发现 GitHub API 403 后，再
+  发布 `0.1.9`，把 release CRX 下载改为直接拉当前 CLI 版本的 GitHub Release
+  asset。
 
 ### 🧠 Design Intent (Why)
 
