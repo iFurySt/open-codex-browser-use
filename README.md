@@ -33,6 +33,10 @@ brew install iFurySt/open-browser-use/open-browser-use
 
 ### Set Up Chrome
 
+Run `open-browser-use` by itself at any time to see the CLI version, whether the
+browser extension was detected, the extension version when available, and the
+next install or upgrade command.
+
 After installing the CLI, register the native host and ask Chrome to install the
 Web Store extension:
 
@@ -53,9 +57,10 @@ open-browser-use setup release
 `open-browser-use-chrome-extension-*.zip` from
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
 and unpacks it under Application Support. It pins a stable unpacked extension
-id, registers the native host for that id, and opens `chrome://extensions/`.
-Enable Developer mode, choose **Load unpacked**, and select the printed
-extension directory. The alias `open-browser-use setup offline` is also
+id, registers the native host for that id, opens `chrome://extensions/`, and
+reveals the downloaded ZIP in Finder or the system file manager. Enable
+Developer mode, then drag the ZIP file into the Chrome extensions page to
+install it manually. The alias `open-browser-use setup offline` is also
 available for this non-Web-Store path.
 
 If you only need to repair the native messaging host registration, run:

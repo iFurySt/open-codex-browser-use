@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.11"
+const version = "0.1.12"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
 const offlineExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
@@ -61,8 +61,7 @@ func newRootCommand() *cobra.Command {
 				fmt.Fprintln(cmd.OutOrStdout(), version)
 				return nil
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Open Browser Use %s\n\n", version)
-			return cmd.Help()
+			return renderStartupStatus(cmd.OutOrStdout())
 		},
 	}
 	root.Flags().BoolVarP(&showVersion, "version", "v", false, "print version")
@@ -129,10 +128,8 @@ func newSetupCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Native messaging host manifest: %s\n", result.NativeManifestPath)
-			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension install hint: %s\n", result.ExternalExtensionPath)
-			fmt.Fprintln(cmd.OutOrStdout(), "Restart Chrome and approve the Open Browser Use extension prompt if Chrome asks.")
-			return nil
+			status := detectBrowserExtension(host.DefaultSocketDir, 700*time.Millisecond)
+			return renderStoreSetupResult(cmd.OutOrStdout(), result, status)
 		},
 	}
 	cmd.Flags().StringVar(&extensionID, "extension-id", defaultChromeExtensionID, "Chrome extension id for allowed_origins")
@@ -183,17 +180,21 @@ func newSetupReleaseCommand() *cobra.Command {
 				if err := openChromeExtensionsPage(); err != nil {
 					return err
 				}
+				if err := revealFile(resolvedZIPPath); err != nil {
+					return err
+				}
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Native messaging host manifest: %s\n", manifestPath)
-			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension id: %s\n", effectiveExtensionID)
-			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension ZIP: %s\n", resolvedZIPPath)
-			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension directory: %s\n", unpackedPath)
-			if noOpen {
-				fmt.Fprintln(cmd.OutOrStdout(), "Open chrome://extensions, enable Developer mode, choose Load unpacked, and select the extension directory.")
-			} else {
-				fmt.Fprintln(cmd.OutOrStdout(), "In chrome://extensions, enable Developer mode, choose Load unpacked, and select the extension directory.")
-			}
-			return nil
+			status := detectBrowserExtension(host.DefaultSocketDir, 700*time.Millisecond)
+			status.InstallCommand = "open-browser-use setup offline"
+			status.UpgradeCommand = "open-browser-use setup offline"
+			return renderManualSetupResult(cmd.OutOrStdout(), manualSetupResult{
+				NativeManifestPath: manifestPath,
+				ExtensionID:        effectiveExtensionID,
+				ZIPPath:            resolvedZIPPath,
+				UnpackedPath:       unpackedPath,
+				OpenedChrome:       !noOpen,
+				OpenedFileManager:  !noOpen,
+			}, status)
 		},
 	}
 	cmd.Flags().StringVar(&extensionID, "extension-id", defaultChromeExtensionID, "Chrome extension id for allowed_origins")
@@ -287,6 +288,27 @@ type setupResult struct {
 	ExternalExtensionPath string
 }
 
+type manualSetupResult struct {
+	NativeManifestPath string
+	ExtensionID        string
+	ZIPPath            string
+	UnpackedPath       string
+	OpenedChrome       bool
+	OpenedFileManager  bool
+}
+
+type browserExtensionStatus struct {
+	Installed       bool
+	Reachable       bool
+	ExtensionID     string
+	Version         string
+	VersionSource   string
+	ExpectedVersion string
+	InstallCommand  string
+	UpgradeCommand  string
+	Error           string
+}
+
 func setupChrome(extensionID string, binaryPath string, externalExtensionOutput string) (setupResult, error) {
 	manifestPath, err := installNativeManifest(extensionID, binaryPath, "")
 	if err != nil {
@@ -300,6 +322,282 @@ func setupChrome(extensionID string, binaryPath string, externalExtensionOutput 
 		NativeManifestPath:    manifestPath,
 		ExternalExtensionPath: extensionPath,
 	}, nil
+}
+
+func renderStartupStatus(writer io.Writer) error {
+	status := detectBrowserExtension(host.DefaultSocketDir, 700*time.Millisecond)
+	fmt.Fprintln(writer, "Open Browser Use")
+	fmt.Fprintf(writer, "📦 CLI version: %s\n", version)
+	fmt.Fprintf(writer, "🧩 Browser extension: %s\n", status.summary())
+	fmt.Fprintln(writer)
+	fmt.Fprintln(writer, "Next steps:")
+	if status.needsInstall() {
+		fmt.Fprintf(writer, "  1. Install the browser extension: %s\n", status.InstallCommand)
+		fmt.Fprintln(writer, "     If the Chrome Web Store item is unavailable, use: open-browser-use setup offline")
+		fmt.Fprintln(writer, "  2. Restart Chrome if it asks you to enable the extension.")
+		fmt.Fprintln(writer, "  3. Verify the connection: open-browser-use info")
+		return nil
+	}
+	if status.needsUpgrade() {
+		fmt.Fprintf(writer, "  1. Upgrade the browser extension: %s\n", status.UpgradeCommand)
+		fmt.Fprintln(writer, "  2. Restart Chrome if it asks you to reload the extension.")
+		fmt.Fprintln(writer, "  3. Verify the connection: open-browser-use info")
+		return nil
+	}
+	if !status.Reachable {
+		fmt.Fprintln(writer, "  1. Open Chrome and make sure the Open Browser Use extension is enabled.")
+		fmt.Fprintln(writer, "  2. Verify the connection: open-browser-use info")
+		return nil
+	}
+	fmt.Fprintln(writer, "  1. You are ready. Try: open-browser-use user-tabs")
+	return nil
+}
+
+func renderStoreSetupResult(writer io.Writer, result setupResult, status browserExtensionStatus) error {
+	fmt.Fprintln(writer, "✅ Open Browser Use setup")
+	fmt.Fprintf(writer, "1. ✅ Registered native host\n   %s\n", result.NativeManifestPath)
+	fmt.Fprintf(writer, "2. ✅ Requested Chrome extension install\n   Extension id: %s\n   Chrome install file: %s\n", defaultChromeExtensionID, result.ExternalExtensionPath)
+	fmt.Fprintf(writer, "3. 🧩 Browser extension\n   %s\n", status.summaryForSetup("Not installed yet. Chrome still needs to install or enable it."))
+	fmt.Fprintln(writer)
+	if status.isReady() {
+		fmt.Fprintln(writer, "All set. The browser extension is installed, connected, and on the expected version.")
+		return nil
+	}
+	if status.needsUpgrade() {
+		fmt.Fprintf(writer, "Next: upgrade the browser extension with `%s`, then run `open-browser-use info`.\n", status.UpgradeCommand)
+		return nil
+	}
+	fmt.Fprintln(writer, "Next:")
+	fmt.Fprintln(writer, "  1. Restart Chrome if it is already open.")
+	fmt.Fprintln(writer, "  2. Approve or enable the Open Browser Use extension if Chrome asks.")
+	fmt.Fprintln(writer, "  3. Verify the connection: open-browser-use info")
+	return nil
+}
+
+func renderManualSetupResult(writer io.Writer, result manualSetupResult, status browserExtensionStatus) error {
+	fmt.Fprintln(writer, "✅ Open Browser Use manual setup")
+	fmt.Fprintf(writer, "1. ✅ Registered native host\n   %s\n", result.NativeManifestPath)
+	fmt.Fprintf(writer, "2. ✅ Prepared browser extension package\n   Extension id: %s\n   ZIP: %s\n", result.ExtensionID, result.ZIPPath)
+	fmt.Fprintf(writer, "3. ✅ Prepared unpacked extension directory\n   %s\n", result.UnpackedPath)
+	fmt.Fprintf(writer, "4. 🧩 Browser extension\n   %s\n", status.summaryForSetup("Not installed yet. Finish the manual ZIP install below."))
+	fmt.Fprintln(writer)
+	if status.isReady() {
+		fmt.Fprintln(writer, "All set. The browser extension is installed, connected, and on the expected version.")
+		return nil
+	}
+	if result.OpenedChrome {
+		fmt.Fprintln(writer, "Opened chrome://extensions for you.")
+	} else {
+		fmt.Fprintln(writer, "Open chrome://extensions manually.")
+	}
+	if result.OpenedFileManager {
+		fmt.Fprintln(writer, "Opened the extension package in Finder/file manager.")
+	} else {
+		fmt.Fprintf(writer, "Open the folder containing the package: %s\n", filepath.Dir(result.ZIPPath))
+	}
+	fmt.Fprintln(writer, "Next:")
+	fmt.Fprintln(writer, "  1. Turn on Developer mode in chrome://extensions.")
+	fmt.Fprintln(writer, "  2. Drag the ZIP file into the Chrome extensions page to install it manually.")
+	fmt.Fprintln(writer, "  3. Approve or enable the Open Browser Use extension if Chrome asks.")
+	fmt.Fprintln(writer, "  4. Verify the connection: open-browser-use info")
+	return nil
+}
+
+func detectBrowserExtension(socketDir string, timeout time.Duration) browserExtensionStatus {
+	status := browserExtensionStatus{
+		ExpectedVersion: version,
+		InstallCommand:  "open-browser-use setup",
+		UpgradeCommand:  "open-browser-use setup",
+	}
+	if response, err := invoke("", socketDir, "getInfo", map[string]any{}, timeout); err == nil {
+		if result, ok := response["result"].(map[string]any); ok {
+			status.Installed = true
+			status.Reachable = true
+			status.VersionSource = "connected extension"
+			if extensionVersion, ok := result["version"].(string); ok {
+				status.Version = extensionVersion
+			}
+			if metadata, ok := result["metadata"].(map[string]any); ok {
+				if extensionID, ok := metadata["extensionId"].(string); ok {
+					status.ExtensionID = extensionID
+				}
+			}
+			return status
+		}
+	} else {
+		status.Error = err.Error()
+	}
+
+	if detected, ok := detectInstalledChromeExtension(); ok {
+		status.Installed = true
+		status.ExtensionID = detected.ExtensionID
+		status.Version = detected.Version
+		status.VersionSource = detected.Source
+	}
+	return status
+}
+
+type detectedExtension struct {
+	ExtensionID string
+	Version     string
+	Source      string
+}
+
+func detectInstalledChromeExtension() (detectedExtension, bool) {
+	candidates := []string{defaultChromeExtensionID}
+	if offlineID, err := extensionIDFromPublicKey(offlineExtensionPublicKey); err == nil && offlineID != defaultChromeExtensionID {
+		candidates = append(candidates, offlineID)
+	}
+	var best detectedExtension
+	for _, extensionID := range candidates {
+		detected, ok := detectInstalledChromeExtensionByID(extensionID)
+		if !ok {
+			continue
+		}
+		if best.Version == "" || compareChromeVersions(detected.Version, best.Version) > 0 {
+			best = detected
+		}
+	}
+	return best, best.Version != ""
+}
+
+func detectInstalledChromeExtensionByID(extensionID string) (detectedExtension, bool) {
+	root, err := defaultChromeUserDataDir()
+	if err != nil {
+		return detectedExtension{}, false
+	}
+	profiles, err := chromeProfileDirs(root)
+	if err != nil {
+		return detectedExtension{}, false
+	}
+	var best detectedExtension
+	for _, profile := range profiles {
+		versionDirs, err := filepath.Glob(filepath.Join(profile, "Extensions", extensionID, "*"))
+		if err != nil {
+			continue
+		}
+		for _, versionDir := range versionDirs {
+			manifestPath := filepath.Join(versionDir, "manifest.json")
+			payload, err := os.ReadFile(manifestPath)
+			if err != nil {
+				continue
+			}
+			var manifest map[string]any
+			if err := json.Unmarshal(payload, &manifest); err != nil {
+				continue
+			}
+			extensionVersion, ok := manifest["version"].(string)
+			if !ok || strings.TrimSpace(extensionVersion) == "" {
+				continue
+			}
+			detected := detectedExtension{
+				ExtensionID: extensionID,
+				Version:     extensionVersion,
+				Source:      manifestPath,
+			}
+			if best.Version == "" || compareChromeVersions(detected.Version, best.Version) > 0 {
+				best = detected
+			}
+		}
+	}
+	return best, best.Version != ""
+}
+
+func defaultChromeUserDataDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		return filepath.Join(home, "Library/Application Support/Google/Chrome"), nil
+	case "linux":
+		return filepath.Join(home, ".config/google-chrome"), nil
+	default:
+		return "", fmt.Errorf("Chrome extension detection is not implemented for %s", runtime.GOOS)
+	}
+}
+
+func chromeProfileDirs(root string) ([]string, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+	profiles := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if name == "Default" || strings.HasPrefix(name, "Profile ") {
+			profiles = append(profiles, filepath.Join(root, name))
+		}
+	}
+	return profiles, nil
+}
+
+func (status browserExtensionStatus) summary() string {
+	if status.isReady() {
+		return fmt.Sprintf("Ready, installed and connected at v%s.", status.Version)
+	}
+	if status.needsUpgrade() {
+		return fmt.Sprintf("Installed v%s, but CLI expects v%s. Run `%s` to upgrade.", status.Version, status.ExpectedVersion, status.UpgradeCommand)
+	}
+	if status.Installed {
+		if status.Version != "" {
+			if compareChromeVersions(status.Version, status.ExpectedVersion) >= 0 {
+				return fmt.Sprintf("Installed v%s and version matches CLI v%s. Open Chrome and run `open-browser-use info` to verify the connection.", status.Version, status.ExpectedVersion)
+			}
+			return fmt.Sprintf("Installed v%s, but not connected yet. Open Chrome and run `open-browser-use info`.", status.Version)
+		}
+		return "Installed, but not connected yet. Open Chrome and run `open-browser-use info`."
+	}
+	return fmt.Sprintf("Not installed yet. Run `%s`.", status.InstallCommand)
+}
+
+func (status browserExtensionStatus) summaryForSetup(missingMessage string) string {
+	if status.needsInstall() {
+		return missingMessage
+	}
+	return status.summary()
+}
+
+func (status browserExtensionStatus) isReady() bool {
+	return status.Reachable && status.Installed && compareChromeVersions(status.Version, status.ExpectedVersion) >= 0
+}
+
+func (status browserExtensionStatus) needsInstall() bool {
+	return !status.Installed
+}
+
+func (status browserExtensionStatus) needsUpgrade() bool {
+	return status.Installed && status.Version != "" && compareChromeVersions(status.Version, status.ExpectedVersion) < 0
+}
+
+func compareChromeVersions(left string, right string) int {
+	leftParts := strings.Split(left, ".")
+	rightParts := strings.Split(right, ".")
+	maxParts := len(leftParts)
+	if len(rightParts) > maxParts {
+		maxParts = len(rightParts)
+	}
+	for i := 0; i < maxParts; i++ {
+		leftValue := 0
+		rightValue := 0
+		if i < len(leftParts) {
+			_, _ = fmt.Sscanf(leftParts[i], "%d", &leftValue)
+		}
+		if i < len(rightParts) {
+			_, _ = fmt.Sscanf(rightParts[i], "%d", &rightValue)
+		}
+		if leftValue > rightValue {
+			return 1
+		}
+		if leftValue < rightValue {
+			return -1
+		}
+	}
+	return 0
 }
 
 func installChromeExternalExtension(extensionID string, outputPath string) (string, error) {
@@ -1141,6 +1439,24 @@ func openFile(path string) error {
 		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", path)
 	default:
 		return fmt.Errorf("opening files is not implemented for %s", runtime.GOOS)
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
+}
+
+func revealFile(path string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", "-R", path)
+	case "linux":
+		cmd = exec.Command("xdg-open", filepath.Dir(path))
+	case "windows":
+		cmd = exec.Command("explorer", "/select,", path)
+	default:
+		return fmt.Errorf("revealing files is not implemented for %s", runtime.GOOS)
 	}
 	if err := cmd.Start(); err != nil {
 		return err

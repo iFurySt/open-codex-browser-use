@@ -44,7 +44,10 @@ func TestCobraVersionCommand(t *testing.T) {
 	}
 }
 
-func TestCobraNoArgsPrintsVersionAndUsage(t *testing.T) {
+func TestCobraNoArgsPrintsVersionAndExtensionStatus(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
 	cmd := newRootCommand()
 	var output bytes.Buffer
 	cmd.SetOut(&output)
@@ -53,14 +56,14 @@ func TestCobraNoArgsPrintsVersionAndUsage(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := output.String()
-	if !strings.Contains(got, "Open Browser Use "+version) {
-		t.Fatalf("expected no-arg output to include version, got %q", got)
+	if !strings.Contains(got, "📦 CLI version: "+version) {
+		t.Fatalf("expected no-arg output to include CLI version, got %q", got)
 	}
-	if !strings.Contains(got, "Usage:") {
-		t.Fatalf("expected no-arg output to include usage, got %q", got)
+	if !strings.Contains(got, "🧩 Browser extension:") {
+		t.Fatalf("expected no-arg output to include browser extension status, got %q", got)
 	}
-	if !strings.Contains(got, "host") {
-		t.Fatalf("expected no-arg output to mention host command, got %q", got)
+	if !strings.Contains(got, "open-browser-use setup") {
+		t.Fatalf("expected no-arg output to include install command, got %q", got)
 	}
 }
 
@@ -218,8 +221,14 @@ func TestCobraSetupWritesNativeAndExternalManifests(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(output.String(), "Native messaging host manifest:") {
+	if !strings.Contains(output.String(), "✅ Open Browser Use setup") {
 		t.Fatalf("expected setup output to mention native manifest, got %q", output.String())
+	}
+	if !strings.Contains(output.String(), "Registered native host") {
+		t.Fatalf("expected setup output to mention native host registration, got %q", output.String())
+	}
+	if !strings.Contains(output.String(), "Browser extension") {
+		t.Fatalf("expected setup output to mention browser extension status, got %q", output.String())
 	}
 	if _, err := os.Stat(filepath.Join(home, "Library/Application Support/Google/Chrome/NativeMessagingHosts", host.NativeHostName+".json")); runtime.GOOS == "darwin" && err != nil {
 		t.Fatal(err)
@@ -256,11 +265,14 @@ func TestCobraSetupOfflineAliasUsesProvidedZIP(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := output.String()
-	if !strings.Contains(got, "Chrome extension ZIP:") || !strings.Contains(got, zipPath) {
+	if !strings.Contains(got, "ZIP:") || !strings.Contains(got, zipPath) {
 		t.Fatalf("expected setup offline output to mention ZIP path, got %q", got)
 	}
-	if !strings.Contains(got, "Chrome extension id: "+expectedExtensionID) {
+	if !strings.Contains(got, "Extension id: "+expectedExtensionID) {
 		t.Fatalf("expected setup offline output to mention unpacked extension id, got %q", got)
+	}
+	if !strings.Contains(got, "Drag the ZIP file into the Chrome extensions page") {
+		t.Fatalf("expected setup offline output to mention manual ZIP drag install, got %q", got)
 	}
 	manifestPath := filepath.Join(home, "Library/Application Support/Google/Chrome/NativeMessagingHosts", host.NativeHostName+".json")
 	if runtime.GOOS == "linux" {
@@ -283,6 +295,76 @@ func TestCobraSetupOfflineAliasUsesProvidedZIP(t *testing.T) {
 	}
 	if !strings.Contains(string(unpackedManifest), offlineExtensionPublicKey) {
 		t.Fatalf("expected unpacked manifest to include stable key, got %s", unpackedManifest)
+	}
+}
+
+func TestDetectInstalledChromeExtensionFromProfile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	profileRoot := filepath.Join(home, "Library/Application Support/Google/Chrome/Default/Extensions", defaultChromeExtensionID, "0.1.10")
+	if runtime.GOOS == "linux" {
+		profileRoot = filepath.Join(home, ".config/google-chrome/Default/Extensions", defaultChromeExtensionID, "0.1.10")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	if err := os.MkdirAll(profileRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(profileRoot, "manifest.json"), []byte(`{"version":"0.1.10"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	detected, ok := detectInstalledChromeExtension()
+	if !ok {
+		t.Fatal("expected installed extension to be detected")
+	}
+	if detected.ExtensionID != defaultChromeExtensionID {
+		t.Fatalf("expected extension id %q, got %q", defaultChromeExtensionID, detected.ExtensionID)
+	}
+	if detected.Version != "0.1.10" {
+		t.Fatalf("expected version 0.1.10, got %q", detected.Version)
+	}
+}
+
+func TestCompareChromeVersions(t *testing.T) {
+	tests := []struct {
+		left  string
+		right string
+		want  int
+	}{
+		{left: "0.1.12", right: "0.1.11", want: 1},
+		{left: "0.1.12", right: "0.1.12", want: 0},
+		{left: "0.1.11", right: "0.1.12", want: -1},
+		{left: "0.1", right: "0.1.0", want: 0},
+	}
+	for _, test := range tests {
+		got := compareChromeVersions(test.left, test.right)
+		if got != test.want {
+			t.Fatalf("compareChromeVersions(%q, %q) = %d, want %d", test.left, test.right, got, test.want)
+		}
+	}
+}
+
+func TestBrowserExtensionStatusSummaries(t *testing.T) {
+	ready := browserExtensionStatus{
+		Installed:       true,
+		Reachable:       true,
+		Version:         version,
+		ExpectedVersion: version,
+	}
+	if got := ready.summary(); !strings.Contains(got, "Ready") || !strings.Contains(got, version) {
+		t.Fatalf("expected ready summary with version, got %q", got)
+	}
+
+	outdated := browserExtensionStatus{
+		Installed:       true,
+		Version:         "0.1.0",
+		ExpectedVersion: version,
+		UpgradeCommand:  "open-browser-use setup",
+	}
+	if got := outdated.summary(); !strings.Contains(got, "CLI expects v"+version) || !strings.Contains(got, "open-browser-use setup") {
+		t.Fatalf("expected upgrade summary with command, got %q", got)
 	}
 }
 

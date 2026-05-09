@@ -83,8 +83,9 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   `/tmp/open-browser-use/active.json` 供 CLI/SDK 自动发现当前活跃 socket。
   Chrome native messaging 以 `chrome-extension://...` origin 参数启动二进制时，
   CLI 会自动进入 host mode。
-- 无参数运行 `open-browser-use` 或 `obu` 只输出版本和用法提示，不再启动
-  native host；手工启动 host 使用 `open-browser-use host`。
+- 无参数运行 `open-browser-use` 或 `obu` 输出 CLI 版本、浏览器插件检测状态、
+  插件版本和下一步安装/升级命令，不再启动 native host；手工启动 host 使用
+  `open-browser-use host`。
 - `open-browser-use manifest`：输出 Chrome native messaging host manifest。
 - `open-browser-use install-manifest`：把 native messaging host manifest
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。默认 extension id
@@ -97,8 +98,8 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   host 后从 GitHub Releases 下载最新
   `open-browser-use-chrome-extension-*.zip`，展开为 unpacked extension，写入稳定
   public key 生成固定 extension id，用该 id 注册 native host allowed origin，并打开
-  `chrome://extensions/` 引导用户 Load unpacked；`setup offline` 是这个 release
-  路径的别名。
+  `chrome://extensions/` 和 Finder/文件管理器，引导用户把 ZIP 拖到扩展页面手动
+  安装；`setup offline` 是这个 release 路径的别名。
 - manifest 的 `path` 默认统一写入稳定 native host link：
   macOS 为
   `~/Library/Application Support/OpenBrowserUse/native-host/open-browser-use`，

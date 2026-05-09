@@ -11,8 +11,12 @@ obu version
 The package contains prebuilt Go binaries for macOS, Linux, and Windows on
 `amd64` and `arm64`.
 
+Run `open-browser-use` with no subcommand to print the CLI version, browser
+extension status, extension version when available, and the next setup or
+upgrade command.
+
 After installation, run setup to register the Chrome native messaging host and
-the Chrome extension install hint:
+guide Chrome extension installation:
 
 ```sh
 open-browser-use setup
@@ -25,5 +29,5 @@ zip as an unpacked extension instead:
 open-browser-use setup release
 ```
 
-That command prints the unpacked extension directory to select from
-`chrome://extensions/` after enabling Developer mode.
+That command opens `chrome://extensions/` and reveals the downloaded ZIP so the
+user can drag it into Chrome for manual installation.

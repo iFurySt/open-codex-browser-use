@@ -41,4 +41,4 @@ if (!existsSync(binaryPath)) {
 console.log("");
 console.log("Open Browser Use CLI installed.");
 console.log("Run `open-browser-use setup` to register Chrome integration.");
-console.log("While the Chrome Web Store item is pending, run `open-browser-use setup release` to prepare the latest release zip for Load unpacked.");
+console.log("While the Chrome Web Store item is pending, run `open-browser-use setup release` to prepare the latest release zip for manual install.");

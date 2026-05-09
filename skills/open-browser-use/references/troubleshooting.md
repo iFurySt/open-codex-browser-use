@@ -38,7 +38,7 @@ If no active host exists, opening Chrome with the extension enabled can allow Ch
 
 ## Extension Or Native Host Mismatch
 
-The native host manifest must allow the installed extension id. The default Web Store id is built into the CLI, while `setup release` reads the id from the downloaded CRX and registers that id.
+The native host manifest must allow the installed extension id. The default Web Store id is built into the CLI, while `setup release` uses the stable unpacked extension id for the downloaded release ZIP and registers that id.
 
 Use:
 

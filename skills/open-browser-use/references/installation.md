@@ -28,6 +28,9 @@ obu version
 ```
 
 If the short alias is unavailable, use `open-browser-use`.
+Running `open-browser-use` with no subcommand prints the CLI version, browser
+extension detection status, extension version when available, and the next setup
+or upgrade command.
 
 ## Set Up Chrome
 
@@ -39,13 +42,13 @@ open-browser-use setup
 
 Chrome may ask the user to confirm or enable the Open Browser Use extension. Do not bypass this user step.
 
-While the Chrome Web Store item is unavailable or pending review, use the release CRX path:
+While the Chrome Web Store item is unavailable or pending review, use the release ZIP path:
 
 ```sh
 open-browser-use setup release
 ```
 
-This downloads the latest `open-browser-use-chrome-extension-*.crx` from GitHub Releases, reads its extension id, registers the native host for that id, and opens the CRX for Chrome installation. `open-browser-use setup offline` is an alias for this release path.
+This downloads the latest `open-browser-use-chrome-extension-*.zip` from GitHub Releases, registers the native host for the stable unpacked extension id, opens `chrome://extensions/`, and reveals the ZIP in Finder or the system file manager. Ask the user to enable Developer mode and drag the ZIP into the Chrome extensions page. `open-browser-use setup offline` is an alias for this release path.
 
 Repair only the native host manifest:
 
