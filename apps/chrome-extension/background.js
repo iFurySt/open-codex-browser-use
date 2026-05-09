@@ -6,6 +6,9 @@ const HEARTBEAT_ALARM_NAME = "open-browser-use-heartbeat";
 const DEFAULT_CDP_TIMEOUT_MS = 10_000;
 const CURSOR_ARRIVAL_TIMEOUT_MS = 1_000;
 const MAX_USER_TABS = 1000;
+const DEFAULT_SESSION_GROUP_TITLE = "Task - OBU";
+const DELIVERABLE_GROUP_TITLE = "🫪 Open Browser Use";
+const LEGACY_SESSION_GROUP_TITLE_PATTERN = /^Open Browser Use [0-9a-f]{8}$/i;
 
 class JsonRpcPeer {
   constructor(transport, handlers) {
@@ -148,6 +151,26 @@ class SessionStore {
         deliverableGroupId:
           typeof value.deliverableGroupId === "number" ? value.deliverableGroupId : null
       };
+      let migrated = false;
+      for (const session of Object.values(this.state.sessions)) {
+        if (
+          session &&
+          typeof session === "object" &&
+          typeof session.title === "string" &&
+          LEGACY_SESSION_GROUP_TITLE_PATTERN.test(session.title)
+        ) {
+          session.title = DEFAULT_SESSION_GROUP_TITLE;
+          migrated = true;
+        }
+      }
+      if (migrated) {
+        await this.save();
+      }
+      if (typeof this.state.deliverableGroupId === "number") {
+        await chrome.tabGroups
+          .update(this.state.deliverableGroupId, { title: DELIVERABLE_GROUP_TITLE })
+          .catch(() => {});
+      }
     }
   }
 
@@ -163,7 +186,7 @@ class SessionStore {
     }
     const created = {
       chromeGroupId: null,
-      title: `Open Browser Use ${sessionId.slice(0, 8)}`,
+      title: DEFAULT_SESSION_GROUP_TITLE,
       activeTabId: null,
       tabOrigins: {}
     };
@@ -382,7 +405,7 @@ class BrowserBackend {
 
   async nameSession(params) {
     const session = await this.requireSession(params);
-    const name = typeof params.name === "string" && params.name.trim() ? params.name.trim() : "Open Browser Use";
+    const name = typeof params.name === "string" && params.name.trim() ? params.name.trim() : DEFAULT_SESSION_GROUP_TITLE;
     const sessionState = await this.store.getSession(session.sessionId);
     sessionState.title = name;
     await this.store.save();
@@ -977,7 +1000,7 @@ class BrowserBackend {
     }
     await this.store.save();
     await chrome.tabGroups.update(groupId, {
-      title: "Open Browser Use Deliverables",
+      title: DELIVERABLE_GROUP_TITLE,
       color: "green",
       collapsed: false
     });

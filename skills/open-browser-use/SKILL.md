@@ -12,10 +12,11 @@ Open Browser Use connects an MV3 Chrome extension, a local native messaging host
 ## Core Workflow
 
 1. Check setup with `open-browser-use ping` or `obu ping`. If it fails because setup is missing, read [references/installation.md](references/installation.md).
-2. Use the CLI for simple inspection or one-shot actions: `info`, `tabs`, `user-tabs`, `history`, `open-tab`, `navigate`, `cdp`, and `call`.
-3. Use the JavaScript or Python SDK for multi-step workflows, event subscriptions, or when the surrounding agent runtime already runs code. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
-4. Before ending browser work, release or keep session tabs with `open-browser-use finalize-tabs --keep '<json-array>'` or the SDK `finalizeTabs` / `finalize_tabs` method.
-5. If communication fails after setup, read [references/troubleshooting.md](references/troubleshooting.md).
+2. Name the current browser task group before opening or claiming tabs. Use a short task label followed by ` - OBU`; if no better task label is available, use `Task - OBU`.
+3. Use the CLI for simple inspection or one-shot actions: `info`, `tabs`, `user-tabs`, `history`, `open-tab`, `navigate`, `cdp`, and `call`.
+4. Use the JavaScript or Python SDK for multi-step workflows, event subscriptions, or when the surrounding agent runtime already runs code. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
+5. Before ending browser work, release or keep session tabs with `open-browser-use finalize-tabs --keep '<json-array>'` or the SDK `finalizeTabs` / `finalize_tabs` method.
+6. If communication fails after setup, read [references/troubleshooting.md](references/troubleshooting.md).
 
 ## Operating Rules
 
@@ -32,6 +33,7 @@ Open Browser Use connects an MV3 Chrome extension, a local native messaging host
 ```sh
 open-browser-use ping
 open-browser-use info
+open-browser-use name-session --name "Task - OBU"
 open-browser-use tabs
 open-browser-use user-tabs
 open-browser-use history --query "example" --limit 20
@@ -46,8 +48,10 @@ Use `obu` as the short alias when available.
 ## Tab Lifecycle
 
 - Session tabs are tabs Open Browser Use has created or claimed for the current agent workflow.
+- Task session groups should be named from the task, using the pattern `<short task> - OBU`. Use `Task - OBU` as the fallback name.
 - Keep no tabs by default: `open-browser-use finalize-tabs --keep '[]'`.
 - Keep a tab only when the tab itself is the deliverable or the user needs to continue from that live state. Use a keep item such as `{"tabId":123,"status":"handoff"}` or `{"tabId":123,"status":"deliverable"}`.
+- Handoff tabs stay in the task session group. Deliverable tabs move to the shared `🫪 Open Browser Use` tab group.
 - Run finalization as the last Open Browser Use browser action for the turn.
 
 ## File Choosers, Downloads, And Clipboard

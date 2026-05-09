@@ -36,6 +36,7 @@ const browser = new OpenBrowserUseClient({
 });
 
 await browser.connect();
+await browser.nameSession("Task - OBU");
 const tab = await browser.createTab() as { id: number };
 await browser.executeCdp(tab.id, "Page.navigate", { url: "https://example.com" });
 await browser.finalizeTabs([]);
@@ -62,6 +63,7 @@ browser = OpenBrowserUseClient(
     session_id="my-agent",
 )
 
+browser.name_session("Task - OBU")
 tab = browser.create_tab()
 browser.execute_cdp(tab["id"], "Page.navigate", {"url": "https://example.com"})
 browser.finalize_tabs([])
