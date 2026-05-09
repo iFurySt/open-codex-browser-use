@@ -70,7 +70,7 @@ function parseHex(hex) {
 }
 
 function setPixel(pixels, width, x, y, color) {
-  if (x < 0 || y < 0 || x >= width) {
+  if (x < 0 || y < 0 || x >= width || y >= width) {
     return;
   }
   const offset = (y * width + x) * 4;
@@ -127,23 +127,108 @@ function fillCircle(pixels, width, height, cx, cy, radius, color) {
   }
 }
 
+function fillPolygon(pixels, width, height, points, color) {
+  const minY = Math.max(0, Math.floor(Math.min(...points.map((point) => point[1]))));
+  const maxY = Math.min(height - 1, Math.ceil(Math.max(...points.map((point) => point[1]))));
+
+  for (let y = minY; y <= maxY; y += 1) {
+    const intersections = [];
+    for (let index = 0; index < points.length; index += 1) {
+      const current = points[index];
+      const next = points[(index + 1) % points.length];
+      if ((current[1] <= y && next[1] > y) || (next[1] <= y && current[1] > y)) {
+        const x = current[0] + ((y - current[1]) * (next[0] - current[0])) / (next[1] - current[1]);
+        intersections.push(x);
+      }
+    }
+
+    intersections.sort((a, b) => a - b);
+    for (let index = 0; index < intersections.length; index += 2) {
+      const start = Math.max(0, Math.floor(intersections[index]));
+      const end = Math.min(width - 1, Math.ceil(intersections[index + 1]));
+      for (let x = start; x <= end; x += 1) {
+        setPixel(pixels, width, x, y, color);
+      }
+    }
+  }
+}
+
+function drawRoundLine(pixels, width, height, x1, y1, x2, y2, radius, color) {
+  const length = Math.hypot(x2 - x1, y2 - y1);
+  const steps = Math.max(1, Math.ceil(length / Math.max(1, radius * 0.5)));
+
+  for (let step = 0; step <= steps; step += 1) {
+    const ratio = step / steps;
+    fillCircle(
+      pixels,
+      width,
+      height,
+      x1 + (x2 - x1) * ratio,
+      y1 + (y2 - y1) * ratio,
+      radius,
+      color
+    );
+  }
+}
+
+function scalePoints(points, size) {
+  return points.map(([x, y]) => [x * size, y * size]);
+}
+
 function drawIcon(logicalSize) {
   const scale = 4;
   const size = logicalSize * scale;
   const pixels = Buffer.alloc(size * size * 4);
   const color = (hex, alpha = 255) => [...parseHex(hex), alpha];
 
-  fillRoundedRect(pixels, size, size, 0, 0, size, size, size * 0.2, color("#111827"));
-  fillRoundedRect(pixels, size, size, size * 0.14, size * 0.16, size * 0.72, size * 0.56, size * 0.06, color("#f8fafc"));
-  fillRoundedRect(pixels, size, size, size * 0.18, size * 0.21, size * 0.64, size * 0.46, size * 0.04, color("#0f172a"));
-  fillRect(pixels, size, size, size * 0.18, size * 0.21, size * 0.64, size * 0.12, color("#38bdf8"));
-  fillCircle(pixels, size, size, size * 0.26, size * 0.27, size * 0.025, color("#f8fafc"));
-  fillCircle(pixels, size, size, size * 0.34, size * 0.27, size * 0.025, color("#f8fafc"));
-  fillCircle(pixels, size, size, size * 0.42, size * 0.27, size * 0.025, color("#f8fafc"));
-  fillRoundedRect(pixels, size, size, size * 0.28, size * 0.42, size * 0.32, size * 0.08, size * 0.025, color("#22c55e"));
-  fillRoundedRect(pixels, size, size, size * 0.28, size * 0.54, size * 0.44, size * 0.08, size * 0.025, color("#a78bfa"));
-  fillCircle(pixels, size, size, size * 0.68, size * 0.72, size * 0.16, color("#f8fafc"));
-  fillCircle(pixels, size, size, size * 0.68, size * 0.72, size * 0.09, color("#111827"));
+  fillRoundedRect(pixels, size, size, size * 0.07, size * 0.09, size * 0.86, size * 0.8, size * 0.08, color("#061b2e"));
+  fillRoundedRect(pixels, size, size, size * 0.11, size * 0.25, size * 0.78, size * 0.58, size * 0.04, color("#ffffff"));
+  fillRect(pixels, size, size, size * 0.11, size * 0.25, size * 0.78, size * 0.08, color("#ffffff"));
+
+  fillCircle(pixels, size, size, size * 0.18, size * 0.18, size * 0.028, color("#ff4b3e"));
+  fillCircle(pixels, size, size, size * 0.26, size * 0.18, size * 0.028, color("#ffd635"));
+  fillCircle(pixels, size, size, size * 0.34, size * 0.18, size * 0.028, color("#34c96b"));
+
+  const clickBlue = color("#1373f2");
+  drawRoundLine(pixels, size, size, size * 0.46, size * 0.34, size * 0.48, size * 0.45, size * 0.016, clickBlue);
+  drawRoundLine(pixels, size, size, size * 0.56, size * 0.38, size * 0.5, size * 0.47, size * 0.016, clickBlue);
+  drawRoundLine(pixels, size, size, size * 0.34, size * 0.39, size * 0.43, size * 0.46, size * 0.016, clickBlue);
+  drawRoundLine(pixels, size, size, size * 0.31, size * 0.52, size * 0.42, size * 0.49, size * 0.016, clickBlue);
+
+  fillPolygon(
+    pixels,
+    size,
+    size,
+    scalePoints(
+      [
+        [0.47, 0.45],
+        [0.73, 0.58],
+        [0.61, 0.64],
+        [0.56, 0.81],
+        [0.51, 0.82],
+        [0.43, 0.48]
+      ],
+      size
+    ),
+    color("#050505")
+  );
+  fillPolygon(
+    pixels,
+    size,
+    size,
+    scalePoints(
+      [
+        [0.48, 0.49],
+        [0.68, 0.59],
+        [0.58, 0.63],
+        [0.54, 0.76],
+        [0.52, 0.76],
+        [0.46, 0.52]
+      ],
+      size
+    ),
+    color("#ffffff")
+  );
 
   const downsampled = Buffer.alloc(logicalSize * logicalSize * 4);
   for (let y = 0; y < logicalSize; y += 1) {

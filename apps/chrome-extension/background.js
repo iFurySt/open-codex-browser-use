@@ -194,6 +194,7 @@ class BrowserBackend {
     this.store = new SessionStore();
     this.attachedTabs = new Set();
     this.activeTabsBySession = new Map();
+    this.cursorByTabId = new Map();
     this.downloadFilenamesById = new Map();
     this.downloadUrlsById = new Map();
     this.downloadChangeListeners = new Set();
@@ -235,7 +236,6 @@ class BrowserBackend {
     const chromeTab = await createBackgroundTab();
     await this.ensureSessionGroup(session.sessionId, chromeTab.id, "agent");
     await this.setSessionActiveTab(session.sessionId, chromeTab.id);
-    await this.ensureCursorContentScript(session.sessionId, chromeTab.id);
     return { ...toBrowserTab(chromeTab), active: true };
   }
 
@@ -299,7 +299,6 @@ class BrowserBackend {
       }
     }
     await this.ensureSessionGroup(session.sessionId, tab.id, "user");
-    await this.ensureCursorContentScript(session.sessionId, tab.id);
     await this.setSessionActiveTab(session.sessionId, tab.id);
     return { ...toBrowserTab(tab), active: true };
   }
@@ -365,6 +364,7 @@ class BrowserBackend {
     }
     for (const tabId of [...agentTabsToClose, ...userTabsToRelease, ...deliverableTabs]) {
       delete sessionState.tabOrigins[String(tabId)];
+      this.cursorByTabId.delete(tabId);
     }
     if (handoffTabs.length > 0) {
       sessionState.activeTabId = handoffTabs.includes(sessionState.activeTabId)
@@ -448,6 +448,13 @@ class BrowserBackend {
     }
     const moveSequence = this.nextCursorMoveSequence;
     this.nextCursorMoveSequence += 1;
+    const cursor = {
+      moveSequence,
+      visible: true,
+      x: params.x,
+      y: params.y
+    };
+    this.cursorByTabId.set(tabId, cursor);
     const arrivalWaiter =
       params.waitForArrival === false
         ? null
@@ -458,9 +465,9 @@ class BrowserBackend {
         sessionId: params.session_id,
         turnId: params.turn_id,
         moveSequence,
-        x: params.x,
-        y: params.y,
-        visible: true
+        x: cursor.x,
+        y: cursor.y,
+        visible: cursor.visible
       });
       await arrivalWaiter?.promise;
     } catch (error) {
@@ -527,9 +534,15 @@ class BrowserBackend {
     const tabs = await this.getSessionTabs(session.sessionId);
     await this.detachMany(tabs.filter(hasTabId).map((tab) => tab.id));
     this.activeTabsBySession.delete(session.sessionId);
+    for (const tab of tabs) {
+      if (hasTabId(tab)) {
+        this.cursorByTabId.delete(tab.id);
+      }
+    }
     const sessionState = await this.store.getSession(session.sessionId);
     sessionState.activeTabId = null;
     await this.store.save();
+    await Promise.allSettled(tabs.filter(hasTabId).map((tab) => this.publishCursorState(tab.id)));
   }
 
   async executeUnhandledCommand(params) {
@@ -637,7 +650,7 @@ class BrowserBackend {
     for (const [sessionId, activeTabId] of this.activeTabsBySession) {
       if (activeTabId === tabId) {
         return {
-          cursor: null,
+          cursor: this.cursorByTabId.get(tabId) ?? null,
           isVisible: true,
           sessionId,
           turnId: null
@@ -710,6 +723,7 @@ class BrowserBackend {
     session.activeTabId = tabId;
     this.activeTabsBySession.set(sessionId, tabId);
     await this.store.save();
+    await this.publishCursorState(tabId);
   }
 
   async getSessionTabs(sessionId) {
@@ -801,6 +815,7 @@ class BrowserBackend {
           this.fileChoosersById.delete(fileChooserId);
         }
       }
+      this.cursorByTabId.delete(tabId);
     }
   }
 
@@ -817,6 +832,21 @@ class BrowserBackend {
         files: ["content-cursor.js"]
       });
       return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async publishCursorState(tabId) {
+    if (!(await this.ensureCursorContentScript(null, tabId))) {
+      return false;
+    }
+    try {
+      const response = await chrome.tabs.sendMessage(tabId, {
+        type: "OPEN_BROWSER_USE_CURSOR_STATE",
+        state: this.readCursorOverlayState(tabId)
+      });
+      return response?.ok === true;
     } catch {
       return false;
     }

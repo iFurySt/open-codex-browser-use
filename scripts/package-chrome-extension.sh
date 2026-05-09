@@ -37,6 +37,7 @@ const requiredFiles = [
   "icons/icon-32.png",
   "icons/icon-48.png",
   "icons/icon-128.png",
+  "images/cursor-chat.png",
   "popup.css",
   "popup.html",
   "popup.js"
@@ -51,6 +52,18 @@ if (manifest.background?.service_worker !== "background.js") {
 }
 if (!manifest.permissions?.includes("nativeMessaging")) {
   errors.push("permissions must include nativeMessaging");
+}
+const webResources = manifest.web_accessible_resources ?? [];
+if (
+  !webResources.some(
+    (entry) =>
+      Array.isArray(entry.resources) &&
+      entry.resources.includes("images/cursor-chat.png") &&
+      Array.isArray(entry.matches) &&
+      entry.matches.includes("<all_urls>")
+  )
+) {
+  errors.push("web_accessible_resources must expose images/cursor-chat.png to <all_urls>");
 }
 for (const size of ["16", "32", "48", "128"]) {
   if (manifest.icons?.[size] !== `icons/icon-${size}.png`) {
@@ -96,6 +109,7 @@ mkdir -p "${dist_dir}"
     icons/icon-32.png \
     icons/icon-48.png \
     icons/icon-128.png \
+    images/cursor-chat.png \
     popup.css \
     popup.html \
     popup.js

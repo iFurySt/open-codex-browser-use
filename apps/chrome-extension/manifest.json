@@ -25,6 +25,12 @@
     "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self';"
   },
   "host_permissions": ["<all_urls>"],
+  "web_accessible_resources": [
+    {
+      "resources": ["images/cursor-chat.png"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "permissions": [
     "alarms",
     "debugger",
@@ -36,5 +42,11 @@
     "storage",
     "tabGroups",
     "tabs"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["images/cursor-chat.png"],
+      "matches": ["<all_urls>"]
+    }
   ]
 }
