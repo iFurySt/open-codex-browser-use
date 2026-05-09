@@ -1,23 +1,53 @@
-# 参与协作
+# Contributing
 
-这个仓库是为 Agent-first 开发准备的，但这些规则对人和 Agent 都一样适用。
+Open Browser Use is an agent-first repository, but the collaboration rules apply to both people and agents.
 
-## 基本协作方式
+## Start With The Local Docs
 
-- 从 `AGENTS.md` 开始，再按任务类型去读对应文档。
-- 仓库级知识要落在版本化文件里，不要只存在聊天记录、口头同步或工单评论里。
-- 如果行为变了，就一起更新代码、文档、测试和 release/history 记录。
-- 遇到跨度大、风险高、会分多轮推进的任务，先在 `docs/exec-plans/active/` 下建 execution plan。
+Begin with `AGENTS.md`, then follow the task-specific links into `docs/`. The repository's durable knowledge should live in versioned files, not only in chat history, private notes, or pull request comments.
 
-## 发起 Pull Request 之前
+For most changes, read at least:
 
-- 运行 `make ci`。
-- 如果本次改动涉及代码或仓库流程，补齐或更新对应 history。
-- 如果变更对用户可感知，补齐 release note。
-- 确认示例、脚本、说明文档和当前实现一致。
+- `docs/REPO_COLLAB_GUIDE.md`
+- `docs/ARCHITECTURE.md`
+- `docs/design-docs/core-beliefs.md`
 
-## Review 默认要求
+Before finishing code or workflow changes, also check:
 
-- 优先拆成范围清晰的小 PR。
-- 明确写出风险点、迁移影响和后续待办。
-- 如果上下文复杂，直接链接对应 plan、spec 或 history，不要依赖评审者自己猜。
+- `docs/HISTORY_GUIDE.md`
+- `docs/QUALITY_SCORE.md`
+
+## Keep Changes Coherent
+
+- Prefer small, clearly scoped changes.
+- Update code, tests, docs, release notes, and history together when behavior changes.
+- Do not hide required setup steps in one-off comments or local scripts.
+- If a task is broad, risky, or likely to span multiple rounds, create an execution plan under `docs/exec-plans/active/`.
+- Keep `AGENTS.md` short and use `docs/` for detailed repository knowledge.
+
+## Before Opening A Pull Request
+
+Run:
+
+```sh
+make ci
+```
+
+Also verify:
+
+- Relevant docs match the final behavior.
+- A history entry was added or updated when the change touched code or repository workflow.
+- User-visible changes have release notes where appropriate.
+- Examples, scripts, and setup instructions still match the implementation.
+- No secrets, private local paths, cookies, browser data, or credentials were committed.
+
+## Review Expectations
+
+- Split large work into reviewable pull requests.
+- Call out risks, migration impact, and follow-up tasks explicitly.
+- Link the relevant plan, spec, history entry, or docs when context is not obvious.
+- Prefer concrete file references over background knowledge that only one contributor has.
+
+## Security Reports
+
+Do not publish exploit details in public issues. Follow `docs/SECURITY.md` for private reporting, redaction, and maintainer handling expectations.
