@@ -7,9 +7,52 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <main>
-      <h1>Open Browser Use</h1>
-      <p id="status">Checking native host...</p>
+    <main class="popup-shell">
+      <header class="popup-header">
+        <img src="icons/icon-32.png" alt="" class="app-icon" />
+        <div>
+          <h1>Open Browser Use</h1>
+          <p class="subtitle">Chrome automation bridge</p>
+        </div>
+      </header>
+
+      <section class="panel" aria-labelledby="connection-title">
+        <div class="section-heading">
+          <span class="eyebrow" id="connection-title">Connection</span>
+          <span class="status-pill" id="status-pill">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="status-label">Checking</span>
+          </span>
+        </div>
+        <p class="status-message" id="status-message">Checking native host...</p>
+        <dl class="status-details">
+          <div>
+            <dt>Native host</dt>
+            <dd id="host-name">com.ifuryst.open_browser_use.extension</dd>
+          </div>
+          <div>
+            <dt>Last checked</dt>
+            <dd id="last-checked">Now</dd>
+          </div>
+        </dl>
+        <p class="error-message" id="error-message" hidden></p>
+      </section>
+
+      <section class="panel repo-panel" aria-labelledby="repo-title">
+        <div>
+          <span class="eyebrow" id="repo-title">GitHub</span>
+          <p class="repo-copy">Open source repo, setup notes, and SDK packages.</p>
+        </div>
+        <a
+          class="repo-link"
+          id="repo-link"
+          href="https://github.com/iFurySt/open-codex-browser-use"
+          target="_blank"
+          rel="noreferrer"
+        >
+          View repo
+        </a>
+      </section>
     </main>
     <script src="popup.js"></script>
   </body>
