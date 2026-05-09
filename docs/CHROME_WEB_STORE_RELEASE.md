@@ -33,8 +33,9 @@ open-browser-use setup release
 
 `setup release` 会下载最新 release zip，展开到用户 Application Support 目录，
 给 unpacked manifest 写入稳定 public key，注册 native host allowed origin，并打开
-`chrome://extensions/`，同时在 Finder 或系统文件管理器中定位下载好的 ZIP。用户
-需要打开 Developer mode，把 ZIP 拖到 Chrome 扩展页面完成手动安装。
+`chrome://extensions/`，同时在 Finder 或系统文件管理器中定位已写入稳定 key 的
+手动安装 ZIP。用户需要打开 Developer mode，把这个 ZIP 拖到 Chrome 扩展页面完
+成手动安装。
 `setup offline` 是同一路径的别名，但它仍会联网访问 GitHub Release。
 
 `install-manifest` 会把 manifest 的 `path` 写成稳定 native host link：

@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.12"
+const version = "0.1.13"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
 const offlineExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
@@ -168,9 +168,16 @@ func newSetupReleaseCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			manualZIPPath, err := writeManualInstallZIP(unpackedPath, resolvedZIPPath)
+			if err != nil {
+				return err
+			}
 			effectiveExtensionID := extensionID
 			if !cmd.Flags().Changed("extension-id") {
 				effectiveExtensionID = unpackedExtensionID
+			}
+			if effectiveExtensionID != unpackedExtensionID {
+				return fmt.Errorf("--extension-id %s does not match keyed manual ZIP extension id %s", effectiveExtensionID, unpackedExtensionID)
 			}
 			manifestPath, err := installNativeManifest(effectiveExtensionID, binaryPath, "")
 			if err != nil {
@@ -180,7 +187,7 @@ func newSetupReleaseCommand() *cobra.Command {
 				if err := openChromeExtensionsPage(); err != nil {
 					return err
 				}
-				if err := revealFile(resolvedZIPPath); err != nil {
+				if err := revealFile(manualZIPPath); err != nil {
 					return err
 				}
 			}
@@ -190,7 +197,7 @@ func newSetupReleaseCommand() *cobra.Command {
 			return renderManualSetupResult(cmd.OutOrStdout(), manualSetupResult{
 				NativeManifestPath: manifestPath,
 				ExtensionID:        effectiveExtensionID,
-				ZIPPath:            resolvedZIPPath,
+				ZIPPath:            manualZIPPath,
 				UnpackedPath:       unpackedPath,
 				OpenedChrome:       !noOpen,
 				OpenedFileManager:  !noOpen,
@@ -377,7 +384,7 @@ func renderStoreSetupResult(writer io.Writer, result setupResult, status browser
 func renderManualSetupResult(writer io.Writer, result manualSetupResult, status browserExtensionStatus) error {
 	fmt.Fprintln(writer, "✅ Open Browser Use manual setup")
 	fmt.Fprintf(writer, "1. ✅ Registered native host\n   %s\n", result.NativeManifestPath)
-	fmt.Fprintf(writer, "2. ✅ Prepared browser extension package\n   Extension id: %s\n   ZIP: %s\n", result.ExtensionID, result.ZIPPath)
+	fmt.Fprintf(writer, "2. ✅ Prepared browser extension package\n   Extension id: %s\n   ZIP: %s\n   Includes stable extension key for this id.\n", result.ExtensionID, result.ZIPPath)
 	fmt.Fprintf(writer, "3. ✅ Prepared unpacked extension directory\n   %s\n", result.UnpackedPath)
 	fmt.Fprintf(writer, "4. 🧩 Browser extension\n   %s\n", status.summaryForSetup("Not installed yet. Finish the manual ZIP install below."))
 	fmt.Fprintln(writer)
@@ -1224,6 +1231,88 @@ func installUnpackedExtension(zipPath string) (string, string, error) {
 		return "", "", err
 	}
 	return targetDir, extensionID, nil
+}
+
+func writeManualInstallZIP(unpackedPath string, sourceZIPPath string) (string, error) {
+	targetPath := manualInstallZIPPath(sourceZIPPath)
+	tempPath := targetPath + ".tmp"
+	if err := os.Remove(tempPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	if err := packageExtensionDirectory(unpackedPath, tempPath); err != nil {
+		_ = os.Remove(tempPath)
+		return "", err
+	}
+	if err := os.Rename(tempPath, targetPath); err != nil {
+		_ = os.Remove(tempPath)
+		return "", err
+	}
+	return targetPath, nil
+}
+
+func manualInstallZIPPath(sourceZIPPath string) string {
+	extension := filepath.Ext(sourceZIPPath)
+	base := strings.TrimSuffix(filepath.Base(sourceZIPPath), extension)
+	if extension == "" {
+		extension = ".zip"
+	}
+	if strings.HasSuffix(base, "-manual") {
+		return filepath.Join(filepath.Dir(sourceZIPPath), base+extension)
+	}
+	return filepath.Join(filepath.Dir(sourceZIPPath), base+"-manual"+extension)
+}
+
+func packageExtensionDirectory(sourceDir string, targetZIPPath string) error {
+	target, err := os.Create(targetZIPPath)
+	if err != nil {
+		return err
+	}
+	writer := zip.NewWriter(target)
+	walkErr := filepath.WalkDir(sourceDir, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		relativePath, err := filepath.Rel(sourceDir, path)
+		if err != nil {
+			return err
+		}
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		header.Name = filepath.ToSlash(relativePath)
+		header.Method = zip.Deflate
+		destination, err := writer.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+		source, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		_, copyErr := io.Copy(destination, source)
+		closeErr := source.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		return closeErr
+	})
+	closeWriterErr := writer.Close()
+	closeTargetErr := target.Close()
+	if walkErr != nil {
+		return walkErr
+	}
+	if closeWriterErr != nil {
+		return closeWriterErr
+	}
+	return closeTargetErr
 }
 
 func defaultUnpackedExtensionDir() (string, error) {

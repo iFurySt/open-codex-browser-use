@@ -4,6 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
+| 2026-05-09 | Guided Manual Install | 审核期手动安装不会因为 release ZIP 缺少稳定 key 而生成错误 extension id，native host allowed origin 与浏览器实际安装 id 保持一致。 | 发布 `0.1.13` patch 版本，`setup release/offline` 会从已写入稳定 key 的 unpacked 目录重新生成 `*-manual.zip`，并只定位这个 keyed ZIP 给用户拖入安装。 |
 | 2026-05-09 | Guided Setup Status | 用户直接运行 `open-browser-use` 或执行 `setup` 后，可以看到 CLI 版本、浏览器插件安装/连接状态、插件版本和下一步操作；审核期手动安装也会打开扩展页和定位 ZIP，提示拖入安装。 | 发布 `0.1.12` patch 版本，将 no-arg 输出改为状态检查页，并把 `setup` / `setup release` 输出改为带 emoji 的步骤化引导；`setup release/offline` 会打开 `chrome://extensions/` 和 Finder/文件管理器，提示用户拖入 ZIP 手动安装。 |
 | 2026-05-09 | Guided Chrome Setup | Chrome Web Store 审核期的安装路径不再依赖 Chrome Stable 会拒绝的自分发 CRX；用户可以下载 release zip 后按 Chrome 官方手动安装流程完成安装。 | 发布 `0.1.11` patch 版本，`setup release/offline` 改为下载 release zip、展开到 Application Support、写入稳定 unpacked extension key、注册对应 native host allowed origin，并打开 `chrome://extensions/` 引导用户拖入 ZIP；GitHub Release 仍保留 CRX 作为制品归档。 |
 | 2026-05-09 | CI Reliability | Release 后的 main 分支 CI 不会再因为 relay notification 测试竞态卡到超时，发布验证反馈更快。 | 发布 `0.1.10` patch 版本，修复 relay broadcast 测试等待 client accept 的竞态，并给 notification read 加 deadline。 |

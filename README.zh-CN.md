@@ -54,8 +54,9 @@ open-browser-use setup release
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
 下载最新的 `open-browser-use-chrome-extension-*.zip`，展开到 Application
 Support，写入稳定 unpacked extension id，并用该 id 注册 native host，然后打开
-`chrome://extensions/`，同时在 Finder 或系统文件管理器中定位下载好的 ZIP。打开
-Developer mode 后，把 ZIP 拖到 Chrome 扩展页面即可手动安装。
+`chrome://extensions/`，同时在 Finder 或系统文件管理器中定位已写入稳定 key 的
+手动安装 ZIP。打开 Developer mode 后，把这个 ZIP 拖到 Chrome 扩展页面即可用同
+一个 id 手动安装。
 `open-browser-use setup offline` 也作为这个非商店安装路径的别名可用。
 
 如果只需要修复 native messaging host 注册，运行：

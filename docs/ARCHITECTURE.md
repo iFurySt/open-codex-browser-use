@@ -97,9 +97,10 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - `open-browser-use setup release`：审核期或非 Web Store 路径，注册 native
   host 后从 GitHub Releases 下载最新
   `open-browser-use-chrome-extension-*.zip`，展开为 unpacked extension，写入稳定
-  public key 生成固定 extension id，用该 id 注册 native host allowed origin，并打开
-  `chrome://extensions/` 和 Finder/文件管理器，引导用户把 ZIP 拖到扩展页面手动
-  安装；`setup offline` 是这个 release 路径的别名。
+  public key 生成固定 extension id，用该 id 注册 native host allowed origin，再
+  从 keyed unpacked 目录生成手动安装 ZIP，并打开 `chrome://extensions/` 和
+  Finder/文件管理器，引导用户把这个 ZIP 拖到扩展页面手动安装；
+  `setup offline` 是这个 release 路径的别名。
 - manifest 的 `path` 默认统一写入稳定 native host link：
   macOS 为
   `~/Library/Application Support/OpenBrowserUse/native-host/open-browser-use`，

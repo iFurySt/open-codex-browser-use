@@ -26,12 +26,16 @@
 - **[Manual Install]**: `setup release/offline` 在默认路径下打开
   `chrome://extensions/`，并在 Finder/文件管理器中定位 release ZIP，提示用户
   拖入 Chrome 扩展页面手动安装。
+- **[Manual ZIP Key Fix]**: `setup release/offline` 现在会从已写入稳定 key 的
+  unpacked 目录重新生成 `*-manual.zip`，避免用户拖入原始 release ZIP 后生成与
+  native host allowed origin 不一致的 extension id。
 - **[Detection]**: 复用 `getInfo` 做权威运行态版本检测，并在无法连接时 best-effort
   扫描 Chrome profile 中的扩展 manifest 版本。
 - **[Docs]**: 同步 README、架构、安全、Chrome Web Store 发布、skill 安装和
   npm CLI 包说明。
 - **[Release]**: 将 CLI、Chrome extension、JS SDK、Python SDK、protocol package
-  和 npm CLI package 版本提升到 `0.1.12`。
+  和 npm CLI package 版本提升到 `0.1.12`，并跟进发布 `0.1.13` 修复 keyed manual
+  ZIP 安装路径。
 
 ### 🧠 Design Intent (Why)
 

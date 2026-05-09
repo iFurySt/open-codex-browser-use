@@ -58,10 +58,10 @@ open-browser-use setup release
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
 and unpacks it under Application Support. It pins a stable unpacked extension
 id, registers the native host for that id, opens `chrome://extensions/`, and
-reveals the downloaded ZIP in Finder or the system file manager. Enable
-Developer mode, then drag the ZIP file into the Chrome extensions page to
-install it manually. The alias `open-browser-use setup offline` is also
-available for this non-Web-Store path.
+reveals a keyed manual-install ZIP in Finder or the system file manager. Enable
+Developer mode, then drag that ZIP file into the Chrome extensions page to
+install it manually with the same id. The alias `open-browser-use setup offline`
+is also available for this non-Web-Store path.
 
 If you only need to repair the native messaging host registration, run:
 

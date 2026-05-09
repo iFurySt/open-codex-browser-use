@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -264,9 +266,13 @@ func TestCobraSetupOfflineAliasUsesProvidedZIP(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
+	manualZIPPath := manualInstallZIPPath(zipPath)
 	got := output.String()
-	if !strings.Contains(got, "ZIP:") || !strings.Contains(got, zipPath) {
-		t.Fatalf("expected setup offline output to mention ZIP path, got %q", got)
+	if !strings.Contains(got, "ZIP:") || !strings.Contains(got, manualZIPPath) {
+		t.Fatalf("expected setup offline output to mention manual ZIP path, got %q", got)
+	}
+	if strings.Contains(got, "ZIP: "+zipPath) {
+		t.Fatalf("expected setup offline output to avoid the raw release ZIP path, got %q", got)
 	}
 	if !strings.Contains(got, "Extension id: "+expectedExtensionID) {
 		t.Fatalf("expected setup offline output to mention unpacked extension id, got %q", got)
@@ -295,6 +301,13 @@ func TestCobraSetupOfflineAliasUsesProvidedZIP(t *testing.T) {
 	}
 	if !strings.Contains(string(unpackedManifest), offlineExtensionPublicKey) {
 		t.Fatalf("expected unpacked manifest to include stable key, got %s", unpackedManifest)
+	}
+	manualManifest, err := readManifestFromZIP(manualZIPPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(manualManifest), offlineExtensionPublicKey) {
+		t.Fatalf("expected manual ZIP manifest to include stable key, got %s", manualManifest)
 	}
 }
 
@@ -333,9 +346,9 @@ func TestCompareChromeVersions(t *testing.T) {
 		right string
 		want  int
 	}{
-		{left: "0.1.12", right: "0.1.11", want: 1},
-		{left: "0.1.12", right: "0.1.12", want: 0},
-		{left: "0.1.11", right: "0.1.12", want: -1},
+		{left: "0.1.13", right: "0.1.11", want: 1},
+		{left: "0.1.13", right: "0.1.13", want: 0},
+		{left: "0.1.11", right: "0.1.13", want: -1},
 		{left: "0.1", right: "0.1.0", want: 0},
 	}
 	for _, test := range tests {
@@ -447,4 +460,28 @@ func writeTestExtensionZIP(path string) error {
 		}
 	}
 	return writer.Close()
+}
+
+func readManifestFromZIP(path string) ([]byte, error) {
+	reader, err := zip.OpenReader(path)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	for _, file := range reader.File {
+		if file.Name != "manifest.json" {
+			continue
+		}
+		source, err := file.Open()
+		if err != nil {
+			return nil, err
+		}
+		payload, readErr := io.ReadAll(source)
+		closeErr := source.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		return payload, closeErr
+	}
+	return nil, errors.New("manifest.json not found in ZIP")
 }

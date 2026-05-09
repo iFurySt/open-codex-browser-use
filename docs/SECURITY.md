@@ -27,7 +27,8 @@
 - `open-browser-use setup` 会写入 Chrome External Extensions JSON，让 Chrome
   从 Chrome Web Store 安装正式扩展；用户仍需要接受 Chrome 的扩展启用提示。
   `setup release` 只用于审核期或非商店路径，会下载 GitHub Release zip，展开为
-  unpacked extension，并要求用户在 Chrome 扩展页显式拖入 ZIP 完成手动安装。
+  unpacked extension，写入稳定 key 后重新生成手动安装 ZIP，并要求用户在 Chrome
+  扩展页显式拖入该 ZIP 完成手动安装。
 - MV3 extension 使用 `chrome.debugger`、`tabs`、`tabGroups`、`history` 和
   `downloads` 等高权限 API；真实安装前必须让用户明确知道它会操作真实
   Chrome profile。
