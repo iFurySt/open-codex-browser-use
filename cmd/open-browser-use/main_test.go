@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -70,6 +73,69 @@ func TestCobraVersionFlag(t *testing.T) {
 	}
 	if got := strings.TrimSpace(output.String()); got != version {
 		t.Fatalf("expected version %q, got %q", version, got)
+	}
+}
+
+func TestNativeManifestDefaultsToStoreExtensionAndStableHostPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	manifest, err := nativeManifest("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	origins, ok := manifest["allowed_origins"].([]string)
+	if !ok || len(origins) != 1 {
+		t.Fatalf("expected one allowed origin, got %#v", manifest["allowed_origins"])
+	}
+	if origins[0] != "chrome-extension://"+defaultChromeExtensionID+"/" {
+		t.Fatalf("expected default extension origin, got %q", origins[0])
+	}
+	hostPath, err := stableNativeHostPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest["path"] != hostPath {
+		t.Fatalf("expected manifest path %q, got %#v", hostPath, manifest["path"])
+	}
+}
+
+func TestInstallNativeManifestCreatesStableLink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stable native host link is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	targetPath := filepath.Join(t.TempDir(), "open-browser-use")
+	if err := os.WriteFile(targetPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	manifestPath, err := installNativeManifest("", targetPath, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostPath, err := stableNativeHostPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	linkTarget, err := os.Readlink(hostPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if linkTarget != targetPath {
+		t.Fatalf("expected stable link to point at %q, got %q", targetPath, linkTarget)
+	}
+	payload, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(payload, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest["path"] != hostPath {
+		t.Fatalf("expected manifest path %q, got %#v", hostPath, manifest["path"])
 	}
 }
 

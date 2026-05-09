@@ -18,6 +18,7 @@ import (
 )
 
 const version = "0.1.4"
+const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -106,30 +107,27 @@ func runHost(socketDir string, socketPath string) error {
 }
 
 func newManifestCommand() *cobra.Command {
-	var extensionID string
-	var binaryPath string
+	extensionID := defaultChromeExtensionID
+	var hostPath string
 	cmd := &cobra.Command{
 		Use:   "manifest",
 		Short: "Print a Chrome native messaging host manifest",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			if extensionID == "" {
-				return errors.New("manifest requires --extension-id")
-			}
-			manifest, err := nativeManifest(extensionID, binaryPath)
+			manifest, err := nativeManifest(extensionID, hostPath)
 			if err != nil {
 				return err
 			}
 			return writeJSON(manifest)
 		},
 	}
-	cmd.Flags().StringVar(&extensionID, "extension-id", "", "Chrome extension id for allowed_origins")
-	cmd.Flags().StringVar(&binaryPath, "path", "", "absolute path to open-browser-use binary")
+	cmd.Flags().StringVar(&extensionID, "extension-id", defaultChromeExtensionID, "Chrome extension id for allowed_origins")
+	cmd.Flags().StringVar(&hostPath, "path", "", "native host path written to manifest; defaults to the stable host link")
 	return cmd
 }
 
 func newInstallManifestCommand() *cobra.Command {
-	var extensionID string
+	extensionID := defaultChromeExtensionID
 	var binaryPath string
 	var outputPath string
 	cmd := &cobra.Command{
@@ -137,9 +135,6 @@ func newInstallManifestCommand() *cobra.Command {
 		Short: "Install the Chrome native messaging host manifest",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if extensionID == "" {
-				return errors.New("install-manifest requires --extension-id")
-			}
 			path, err := installNativeManifest(extensionID, binaryPath, outputPath)
 			if err != nil {
 				return err
@@ -148,14 +143,25 @@ func newInstallManifestCommand() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&extensionID, "extension-id", "", "Chrome extension id for allowed_origins")
-	cmd.Flags().StringVar(&binaryPath, "path", "", "absolute path to open-browser-use binary")
+	cmd.Flags().StringVar(&extensionID, "extension-id", defaultChromeExtensionID, "Chrome extension id for allowed_origins")
+	cmd.Flags().StringVar(&binaryPath, "path", "", "native host binary target for the stable host link")
 	cmd.Flags().StringVar(&outputPath, "output", "", "native host manifest output path")
 	return cmd
 }
 
 func installNativeManifest(extensionID string, binaryPath string, outputPath string) (string, error) {
-	manifest, err := nativeManifest(extensionID, binaryPath)
+	targetPath, err := resolveNativeHostTarget(binaryPath)
+	if err != nil {
+		return "", err
+	}
+	hostPath, err := stableNativeHostPath()
+	if err != nil {
+		return "", err
+	}
+	if err := installStableNativeHostLink(targetPath, hostPath); err != nil {
+		return "", err
+	}
+	manifest, err := nativeManifest(extensionID, hostPath)
 	if err != nil {
 		return "", err
 	}
@@ -568,14 +574,15 @@ func writeJSON(value any) error {
 	return encoder.Encode(value)
 }
 
-func nativeManifest(extensionID string, binaryPath string) (map[string]any, error) {
-	path := binaryPath
+func nativeManifest(extensionID string, hostPath string) (map[string]any, error) {
+	allowedExtensionID := strings.TrimSpace(extensionID)
+	if allowedExtensionID == "" {
+		allowedExtensionID = defaultChromeExtensionID
+	}
+	path := hostPath
 	if path == "" {
-		executable, err := os.Executable()
-		if err != nil {
-			return nil, err
-		}
-		path, err = filepath.Abs(executable)
+		var err error
+		path, err = stableNativeHostPath()
 		if err != nil {
 			return nil, err
 		}
@@ -592,9 +599,60 @@ func nativeManifest(extensionID string, binaryPath string) (map[string]any, erro
 		"type":        "stdio",
 		"path":        path,
 		"allowed_origins": []string{
-			fmt.Sprintf("chrome-extension://%s/", extensionID),
+			fmt.Sprintf("chrome-extension://%s/", allowedExtensionID),
 		},
 	}, nil
+}
+
+func resolveNativeHostTarget(binaryPath string) (string, error) {
+	path := binaryPath
+	if path == "" {
+		executable, err := os.Executable()
+		if err != nil {
+			return "", err
+		}
+		path = executable
+	}
+	absolutePath, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	info, err := os.Stat(absolutePath)
+	if err != nil {
+		return "", err
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("native host binary target is a directory: %s", absolutePath)
+	}
+	if info.Mode()&0o111 == 0 {
+		return "", fmt.Errorf("native host binary target is not executable: %s", absolutePath)
+	}
+	return absolutePath, nil
+}
+
+func stableNativeHostPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		return filepath.Join(home, "Library/Application Support/OpenBrowserUse/native-host/open-browser-use"), nil
+	case "linux":
+		return filepath.Join(home, ".local/share/open-browser-use/native-host/open-browser-use"), nil
+	default:
+		return "", fmt.Errorf("stable native host link path is not implemented for %s", runtime.GOOS)
+	}
+}
+
+func installStableNativeHostLink(targetPath string, linkPath string) error {
+	if err := os.MkdirAll(filepath.Dir(linkPath), 0o700); err != nil {
+		return err
+	}
+	if err := os.Remove(linkPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return os.Symlink(targetPath, linkPath)
 }
 
 func defaultNativeHostManifestPath() (string, error) {
