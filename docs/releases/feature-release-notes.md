@@ -4,6 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
+| 2026-05-09 | CI Reliability | Release 后的 main 分支 CI 不会再因为 relay notification 测试竞态卡到超时，发布验证反馈更快。 | 发布 `0.1.10` patch 版本，修复 relay broadcast 测试等待 client accept 的竞态，并给 notification read 加 deadline。 |
 | 2026-05-09 | Guided Chrome Setup | `open-browser-use setup release` 不再依赖 GitHub Releases API，减少 unauthenticated API rate limit 或 403 导致审核期安装失败的风险。 | 发布 `0.1.9` patch 版本，把 release CRX 下载改为直接拉取当前 CLI 版本对应的 GitHub Release asset。 |
 | 2026-05-09 | Guided Chrome Setup | 用户通过 npm 或 Homebrew 安装 CLI 后，可以显式运行 `open-browser-use setup` 完成 native host 注册和 Chrome 扩展安装引导；Chrome Web Store 审核期也可以用 `open-browser-use setup release` 拉取 GitHub Release CRX。 | 发布 `0.1.8` patch 版本，新增 `setup` CLI、Chrome External Extensions 写入、GitHub Release CRX 下载/打开流程、CRX3 extension id 读取和 `setup offline` 别名，并把 npm `postinstall` 与 Homebrew caveats 改为提示显式 setup。 |
 | 2026-05-09 | Browser Use Command Coverage | Agent-facing Chrome automation commands now line up with the Codex Chrome plugin surface, so existing agents can rely on download wait/path, DOM CUA, element screenshots/info, bulk locator reads, clipboard helpers, browser history, and tab export without bespoke fallbacks. | 发布 `0.1.7` patch 版本，补齐 browser-client rewrite handlers、MV3 backend clipboard/download RPC、JS/Python SDK wrappers，并新增 metadata-to-handler regression guard 和对应安全/架构/命令面文档。 |

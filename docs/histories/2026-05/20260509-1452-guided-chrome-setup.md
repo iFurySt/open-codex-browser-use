@@ -30,6 +30,9 @@
   `0.1.8`，用于发布 guided setup 变更；安装验证发现 GitHub API 403 后，再
   发布 `0.1.9`，把 release CRX 下载改为直接拉当前 CLI 版本的 GitHub Release
   asset。
+- **[CI Reliability]**: 远端 CI 暴露 relay notification 测试竞态后，等待
+  accept loop 登记两个 SDK client，并给 notification read 加 deadline；发布
+  `0.1.10` 修复 CI 超时。
 
 ### 🧠 Design Intent (Why)
 
@@ -50,6 +53,7 @@ Native Messaging `allowed_origins` 失配。
 - `packages/browser-use-protocol/package.json`
 - `packages/browser-client-rewrite/package.json`
 - `apps/chrome-extension/manifest.json`
+- `internal/host/relay_test.go`
 - `scripts/render-homebrew-formula.sh`
 - `README.md`
 - `README.zh-CN.md`

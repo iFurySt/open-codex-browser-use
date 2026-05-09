@@ -105,6 +105,7 @@ func TestRelayBroadcastsExtensionNotificationsToSDKClients(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer secondClient.Close()
+	waitForClients(t, relay, 2)
 
 	notification := map[string]any{
 		"jsonrpc": "2.0",
@@ -116,6 +117,7 @@ func TestRelayBroadcastsExtensionNotificationsToSDKClients(t *testing.T) {
 	}
 
 	for index, client := range []net.Conn{firstClient, secondClient} {
+		_ = client.SetReadDeadline(time.Now().Add(time.Second))
 		var received map[string]any
 		if err := wire.ReadJSON(client, &received); err != nil {
 			t.Fatalf("client %d did not receive notification: %v", index+1, err)
@@ -199,6 +201,24 @@ func waitForSocket(t *testing.T, path string) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("socket was not created: %s", path)
+}
+
+func waitForClients(t *testing.T, relay *Relay, count int) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		relay.mu.Lock()
+		got := len(relay.clients)
+		relay.mu.Unlock()
+		if got >= count {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	relay.mu.Lock()
+	got := len(relay.clients)
+	relay.mu.Unlock()
+	t.Fatalf("relay accepted %d clients, want %d", got, count)
 }
 
 func shortSocketDir(t *testing.T) string {
