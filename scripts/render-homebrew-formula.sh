@@ -2,26 +2,46 @@
 
 set -euo pipefail
 
-if [ "$#" -ne 2 ]; then
-  echo "usage: $0 <version> <sha256>" >&2
+if [ "$#" -ne 5 ]; then
+  echo "usage: $0 <version> <darwin-amd64-sha256> <darwin-arm64-sha256> <linux-amd64-sha256> <linux-arm64-sha256>" >&2
   exit 1
 fi
 
 version="$1"
-sha256="$2"
+darwin_amd64_sha256="$2"
+darwin_arm64_sha256="$3"
+linux_amd64_sha256="$4"
+linux_arm64_sha256="$5"
 
 cat <<EOF
 class OpenBrowserUse < Formula
   desc "Browser automation native host and CLI"
   homepage "https://github.com/iFurySt/open-codex-browser-use"
-  url "https://github.com/iFurySt/open-codex-browser-use/archive/refs/tags/v${version}.tar.gz"
-  sha256 "${sha256}"
   license "MIT"
+  version "${version}"
 
-  depends_on "go" => :build
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/iFurySt/open-codex-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-darwin-arm64.tar.gz"
+      sha256 "${darwin_arm64_sha256}"
+    else
+      url "https://github.com/iFurySt/open-codex-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-darwin-amd64.tar.gz"
+      sha256 "${darwin_amd64_sha256}"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "https://github.com/iFurySt/open-codex-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-linux-arm64.tar.gz"
+      sha256 "${linux_arm64_sha256}"
+    else
+      url "https://github.com/iFurySt/open-codex-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-linux-amd64.tar.gz"
+      sha256 "${linux_amd64_sha256}"
+    end
+  end
 
   def install
-    system "go", "build", *std_go_args(ldflags: "-s -w"), "./cmd/open-browser-use"
+    bin.install "open-browser-use"
     bin.install_symlink "open-browser-use" => "obu"
   end
 

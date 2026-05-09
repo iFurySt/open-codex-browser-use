@@ -8,7 +8,7 @@
   打包、脚本语法、Go 测试、JS/TypeScript package 测试和 Python SDK smoke。
 - `supply-chain-security.yml`：在 PR 上做依赖变更检查，并在 PR、定时任务和手动触发时运行 OSV 扫描。
 - `release.yml`：tag `v*` 推送或手动触发的 release 流水线，用来打包仓库级制品、
-  Chrome extension zip、内部 CRX evidence、Open Browser Use skill 包、
+  CLI 预编译 tarball、Chrome extension zip、内部 CRX evidence、Open Browser Use skill 包、
   生成 provenance，并创建 GitHub Release；Release 页面暴露 extension zip/CRX
   和 skill 下载包，普通安装入口使用 zip/unpacked，其他 manifest、SBOM 和 repo
   metadata 留在 workflow artifact 里。手动触发时按输入参数可把
@@ -18,8 +18,9 @@
 - `npm-publish.yml`：tag `v*` 推送触发的 npm CLI 发布流水线，使用 npm
   trusted publishing/OIDC 发布 `packages/open-browser-use-cli`。该包是二进制
   CLI 分发入口，不发布 Chrome extension。
-- `homebrew-publish.yml`：tag `v*` 推送触发的 Homebrew tap 更新流水线，渲染
-  `open-browser-use` formula 并推送到 `iFurySt/homebrew-open-browser-use`。
+- `homebrew-publish.yml`：tag `v*` 推送触发的 Homebrew tap 更新流水线，等待
+  GitHub Release 中的 CLI 预编译 tarball 出现后，用真实 asset sha256 渲染
+  `open-browser-use` binary formula 并推送到 `iFurySt/homebrew-open-browser-use`。
 - `chrome-web-store-publish.yml`：手动触发的 Chrome Web Store 发布流水线，
   从已有 GitHub Release 下载 extension zip，再上传并可选提交审核；用于
   release 已经创建、只需要补跑商店发布的场景。
@@ -50,10 +51,14 @@
 
 当前 GitHub Release 页面面向用户暴露：
 
-- `chrome-extension/open-browser-use-chrome-extension-<version>.zip`
-- `chrome-extension/open-browser-use-chrome-extension-<version>.crx`
-- `skills/open-browser-use-skill.zip`
-- `skills/open-browser-use.skill`
+- `open-browser-use-cli-<version>-darwin-amd64.tar.gz`
+- `open-browser-use-cli-<version>-darwin-arm64.tar.gz`
+- `open-browser-use-cli-<version>-linux-amd64.tar.gz`
+- `open-browser-use-cli-<version>-linux-arm64.tar.gz`
+- `open-browser-use-chrome-extension-<version>.zip`
+- `open-browser-use-chrome-extension-<version>.crx`
+- `open-browser-use-skill.zip`
+- `open-browser-use.skill`
 
 `open-browser-use-skill.zip` 和 `open-browser-use.skill` 都是
 `skills/open-browser-use/` 的可安装 skill 包，解压后的顶层目录固定为
@@ -64,6 +69,7 @@ workflow 还会在 `release-evidence` artifact 中保留内部追溯材料：
 
 - `release-manifest.json`
 - `repo-metadata.tgz`
+- `cli/open-browser-use-cli-<version>-*.tar.gz`
 - `chrome-extension/package-manifest.json`
 - `chrome-extension/crx-manifest.json`
 - `skills/package-manifest.json`

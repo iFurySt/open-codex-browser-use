@@ -20,6 +20,8 @@ jobs:
           persist-credentials: false
 
       - name: Render and publish Homebrew formula
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ -z "${HOMEBREW_TAP_TOKEN}" ]; then
             echo "HOMEBREW_TAP_TOKEN is required to update ${HOMEBREW_TAP_REPOSITORY}" >&2
@@ -27,14 +29,58 @@ jobs:
           fi
 
           version="${GITHUB_REF_NAME#v}"
-          archive_url="https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz"
-          sha256="$(curl -fsSL "${archive_url}" | sha256sum | awk '{print $1}')"
+          assets_dir="$(mktemp -d)"
+          required_assets=(
+            "open-browser-use-cli-${version}-darwin-amd64.tar.gz"
+            "open-browser-use-cli-${version}-darwin-arm64.tar.gz"
+            "open-browser-use-cli-${version}-linux-amd64.tar.gz"
+            "open-browser-use-cli-${version}-linux-arm64.tar.gz"
+          )
+          for attempt in $(seq 1 60); do
+            rm -f "${assets_dir}"/*.tar.gz
+            if gh release download "${GITHUB_REF_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --pattern "open-browser-use-cli-${version}-*.tar.gz" \
+              --dir "${assets_dir}" \
+              --clobber >/dev/null 2>&1; then
+              all_assets_ready=true
+              for asset in "${required_assets[@]}"; do
+                if [ ! -f "${assets_dir}/${asset}" ]; then
+                  all_assets_ready=false
+                  break
+                fi
+              done
+              if [ "${all_assets_ready}" = true ]; then
+                break
+              fi
+            fi
+            if [ "${attempt}" -eq 60 ]; then
+              echo "Timed out waiting for CLI release archives on ${GITHUB_REF_NAME}" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+
+          sha_for() {
+            sha256sum "${assets_dir}/$1" | awk '{print $1}'
+          }
+
+          darwin_amd64_sha256="$(sha_for "open-browser-use-cli-${version}-darwin-amd64.tar.gz")"
+          darwin_arm64_sha256="$(sha_for "open-browser-use-cli-${version}-darwin-arm64.tar.gz")"
+          linux_amd64_sha256="$(sha_for "open-browser-use-cli-${version}-linux-amd64.tar.gz")"
+          linux_arm64_sha256="$(sha_for "open-browser-use-cli-${version}-linux-arm64.tar.gz")"
 
           tmp_dir="$(mktemp -d)"
-          trap 'rm -rf "${tmp_dir}"' EXIT
+          trap 'rm -rf "${tmp_dir}" "${assets_dir}"' EXIT
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${HOMEBREW_TAP_REPOSITORY}.git" "${tmp_dir}/tap"
           mkdir -p "${tmp_dir}/tap/Formula"
-          ./scripts/render-homebrew-formula.sh "${version}" "${sha256}" > "${tmp_dir}/tap/Formula/open-browser-use.rb"
+          ./scripts/render-homebrew-formula.sh \
+            "${version}" \
+            "${darwin_amd64_sha256}" \
+            "${darwin_arm64_sha256}" \
+            "${linux_amd64_sha256}" \
+            "${linux_arm64_sha256}" \
+            > "${tmp_dir}/tap/Formula/open-browser-use.rb"
 
           cd "${tmp_dir}/tap"
           git config user.name "github-actions[bot]"

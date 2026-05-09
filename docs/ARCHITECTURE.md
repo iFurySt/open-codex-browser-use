@@ -108,8 +108,9 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - npm 包 `open-browser-use` 是 CLI 二进制分发入口，安装后提供
   `open-browser-use` 和 `obu`；Chrome Web Store 上架前，`postinstall` 只提示
   用户运行显式 `open-browser-use setup beta`。
-- Homebrew formula 安装后提供 `open-browser-use` 和 `obu`，并在
-  caveats 中提示用户运行显式 `open-browser-use setup beta`。
+- Homebrew formula 从 GitHub Release 下载平台匹配的预编译 CLI tarball，
+  安装后提供 `open-browser-use` 和 `obu`，并在 caveats 中提示用户运行显式
+  `open-browser-use setup beta`；安装阶段不依赖 Go，也不在用户机器上编译。
 - CLI 命令层使用 Cobra 实现；Chrome native messaging
   `chrome-extension://...` origin 参数启动时会绕过 Cobra，直接进入 host mode。
   这依赖 Chrome Native Messaging 的标准启动形状：MV3 service worker 调用
