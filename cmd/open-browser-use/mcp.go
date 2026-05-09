@@ -42,7 +42,7 @@ type mcpError struct {
 }
 
 func newMCPCommand() *cobra.Command {
-	var options socketOptions
+	options := socketOptions{sessionID: defaultMCPSessionID}
 	cmd := &cobra.Command{
 		Use:   "mcp",
 		Short: "Run an MCP stdio server for Open Browser Use",
@@ -67,6 +67,9 @@ func newMCPServer(options socketOptions) *mcpServer {
 	}
 	if options.timeout == 0 {
 		options.timeout = 10 * time.Second
+	}
+	if options.sessionID == "" {
+		options.sessionID = defaultMCPSessionID
 	}
 	return &mcpServer{
 		options: options,

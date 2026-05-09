@@ -127,7 +127,10 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - `open-browser-use run`：line-oriented action plan 入口，支持一次执行多条
   CLI action，保留同一个 session/turn，并让 `open-tab`/`claim-tab` 设置默认
   tab，供后续 `wait-load`、`page-info`、`navigate`、`cdp` 等 tab-scoped action
-  复用；它不是通用编程语言，适合 shell、CI 和轻量 agent 编排。
+  复用；默认和普通 CLI 子命令使用同一个 `obu-cli` browser session，因此
+  一次 `finalize-tabs` 可以清理两种调用方式打开的 tabs；需要隔离 tab group
+  和清理范围时可以显式传 `--session-id`。它不是通用编程语言，适合 shell、
+  CI 和轻量 agent 编排。
 - `open-browser-use mcp` / `obu mcp`：stdio MCP server 入口，使用
   newline-delimited JSON-RPC，完成 `initialize` 生命周期握手，并暴露
   `tools/list` 与 `tools/call`。MCP tools 复用 CLI/runner 能力，包括

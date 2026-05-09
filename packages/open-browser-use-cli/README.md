@@ -64,6 +64,10 @@ open-browser-use finalize-tabs --keep '[]'
 
 Use `--socket <path>` when a runtime gives you a specific Open Browser Use
 socket. Otherwise the CLI discovers `/tmp/open-browser-use/active.json`.
+Direct subcommands and `run` use the same default browser session,
+`obu-cli`, so a final `open-browser-use finalize-tabs --keep '[]'` cleans up
+tabs opened by either style. Pass `--session-id <id>` only when you intentionally
+want a separate tab group and cleanup scope.
 
 ## Action Plans
 

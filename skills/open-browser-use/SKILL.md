@@ -27,6 +27,7 @@ Open Browser Use connects an MV3 Chrome extension, a local native messaging host
 - Do not guess tab ids. List tabs first, then use ids returned by `tabs`, `user-tabs`, `open-tab`, or SDK calls.
 - Prefer `claim-tab` / `claimUserTab` for existing user tabs. Claiming should be based on the current `user-tabs` result and visible evidence such as URL, title, recency, or group.
 - Use `--socket` only when the user or runtime provides an explicit socket. Otherwise let the CLI and SDKs discover the active socket registry.
+- Direct CLI subcommands and `open-browser-use run` share the default `obu-cli` browser session. Use `--session-id` only when you intentionally want a separate tab group, and finalize that same session before ending browser work.
 - Use `call --method <method> --params '<json>'` only when no safer convenience command or SDK wrapper exists.
 
 ## Common CLI Actions

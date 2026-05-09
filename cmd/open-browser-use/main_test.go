@@ -664,9 +664,12 @@ finalize-tabs []
 	}
 
 	var methods []string
+	var sessions []string
 	for request := range requests {
 		method, _ := request["method"].(string)
 		params, _ := request["params"].(map[string]any)
+		sessionID, _ := params["session_id"].(string)
+		sessions = append(sessions, sessionID)
 		if cdpMethod, _ := params["method"].(string); cdpMethod != "" {
 			method += ":" + cdpMethod
 		}
@@ -686,6 +689,63 @@ finalize-tabs []
 	}
 	if strings.Join(methods, ",") != strings.Join(want, ",") {
 		t.Fatalf("expected methods %v, got %v", want, methods)
+	}
+	for _, sessionID := range sessions {
+		if sessionID != defaultCLISessionID {
+			t.Fatalf("expected run action plan to use CLI session %q, got %q", defaultCLISessionID, sessionID)
+		}
+	}
+}
+
+func TestInvokeWithOptionsUsesSessionID(t *testing.T) {
+	socketPath := filepath.Join(os.TempDir(), fmt.Sprintf("obu-test-%d.sock", time.Now().UnixNano()))
+	defer os.Remove(socketPath)
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	requests := make(chan map[string]any, 1)
+	serverDone := make(chan error, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			serverDone <- err
+			return
+		}
+		defer conn.Close()
+		var request map[string]any
+		if err := wire.ReadJSON(conn, &request); err != nil {
+			serverDone <- err
+			return
+		}
+		requests <- request
+		if err := wire.WriteJSON(conn, map[string]any{
+			"jsonrpc": "2.0",
+			"id":      request["id"],
+			"result":  []any{},
+		}); err != nil {
+			serverDone <- err
+			return
+		}
+		serverDone <- nil
+	}()
+
+	if _, err := invokeWithOptions(socketOptions{
+		socketPath: socketPath,
+		timeout:    time.Second,
+		sessionID:  "custom-cli-session",
+	}, "getTabs", map[string]any{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-serverDone; err != nil {
+		t.Fatal(err)
+	}
+	request := <-requests
+	params, _ := request["params"].(map[string]any)
+	if params["session_id"] != "custom-cli-session" {
+		t.Fatalf("expected custom session id, got %#v", params["session_id"])
 	}
 }
 

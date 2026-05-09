@@ -26,8 +26,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.22"
+const version = "0.1.23"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
+const defaultCLISessionID = "obu-cli"
+const defaultMCPSessionID = "obu-mcp"
 const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
 const betaExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
 
@@ -643,12 +645,17 @@ type socketOptions struct {
 	socketPath string
 	socketDir  string
 	timeout    time.Duration
+	sessionID  string
 }
 
 func addSocketFlags(cmd *cobra.Command, options *socketOptions) {
+	if options.sessionID == "" {
+		options.sessionID = defaultCLISessionID
+	}
 	cmd.Flags().StringVar(&options.socketPath, "socket", "", "open-browser-use Unix socket path")
 	cmd.Flags().StringVar(&options.socketDir, "socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
 	cmd.Flags().DurationVar(&options.timeout, "timeout", 10*time.Second, "request timeout")
+	cmd.Flags().StringVar(&options.sessionID, "session-id", options.sessionID, "browser session id used for tab grouping and cleanup")
 }
 
 func newCallCommand() *cobra.Command {
@@ -848,7 +855,7 @@ func newCdpCommand() *cobra.Command {
 			target := map[string]any{}
 			if tabID > 0 {
 				target["tabId"] = tabID
-				_, _ = invoke(options.socketPath, options.socketDir, "attach", map[string]any{"tabId": tabID}, options.timeout)
+				_, _ = invokeWithOptions(options, "attach", map[string]any{"tabId": tabID})
 			}
 			return invokeAndWrite(options, "executeCdp", map[string]any{
 				"target":        target,
@@ -951,7 +958,7 @@ func newOpenTabCommand() *cobra.Command {
 		Short: "Open a new browser session tab",
 		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			tabResponse, err := invoke(options.socketPath, options.socketDir, "createTab", map[string]any{}, options.timeout)
+			tabResponse, err := invokeWithOptions(options, "createTab", map[string]any{})
 			if err != nil {
 				return err
 			}
@@ -962,12 +969,12 @@ func newOpenTabCommand() *cobra.Command {
 			}
 			output := map[string]any{"tab": result}
 			if url != "" {
-				_, _ = invoke(options.socketPath, options.socketDir, "attach", map[string]any{"tabId": tabID}, options.timeout)
-				navigateResponse, err := invoke(options.socketPath, options.socketDir, "executeCdp", map[string]any{
+				_, _ = invokeWithOptions(options, "attach", map[string]any{"tabId": tabID})
+				navigateResponse, err := invokeWithOptions(options, "executeCdp", map[string]any{
 					"target":        map[string]any{"tabId": tabID},
 					"method":        "Page.navigate",
 					"commandParams": map[string]any{"url": url},
-				}, options.timeout)
+				})
 				if err != nil {
 					return err
 				}
@@ -996,7 +1003,7 @@ func newNavigateCommand() *cobra.Command {
 			if url == "" {
 				return errors.New("navigate requires --url")
 			}
-			_, _ = invoke(options.socketPath, options.socketDir, "attach", map[string]any{"tabId": tabID}, options.timeout)
+			_, _ = invokeWithOptions(options, "attach", map[string]any{"tabId": tabID})
 			return invokeAndWrite(options, "executeCdp", map[string]any{
 				"target":        map[string]any{"tabId": tabID},
 				"method":        "Page.navigate",
@@ -1042,10 +1049,14 @@ type actionStepOutput struct {
 }
 
 func newActionRunner(options socketOptions) *actionRunner {
+	sessionID := options.sessionID
+	if sessionID == "" {
+		sessionID = defaultCLISessionID
+	}
 	return &actionRunner{
 		options:   options,
-		sessionID: "obu-cli-run",
-		turnID:    fmt.Sprintf("obu-cli-run-%d", time.Now().UnixNano()),
+		sessionID: sessionID,
+		turnID:    fmt.Sprintf("%s-%d", sessionID, time.Now().UnixNano()),
 	}
 }
 
@@ -1555,11 +1566,16 @@ func runtimeEvaluateString(response map[string]any) string {
 }
 
 func invokeAndWrite(options socketOptions, method string, params map[string]any) error {
-	response, err := invoke(options.socketPath, options.socketDir, method, params, options.timeout)
+	response, err := invokeWithOptions(options, method, params)
 	if err != nil {
 		return err
 	}
 	return writeJSON(response)
+}
+
+func invokeWithOptions(options socketOptions, method string, params map[string]any) (map[string]any, error) {
+	applySessionDefaults(params, options.sessionID)
+	return invoke(options.socketPath, options.socketDir, method, params, options.timeout)
 }
 
 func invoke(socketPath string, socketDir string, method string, params map[string]any, timeout time.Duration) (map[string]any, error) {
@@ -1569,12 +1585,7 @@ func invoke(socketPath string, socketDir string, method string, params map[strin
 	}
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(timeout))
-	if _, ok := params["session_id"]; !ok {
-		params["session_id"] = "obu-cli"
-	}
-	if _, ok := params["turn_id"]; !ok {
-		params["turn_id"] = fmt.Sprintf("obu-cli-%d", time.Now().UnixNano())
-	}
+	applySessionDefaults(params, defaultCLISessionID)
 	request := map[string]any{
 		"jsonrpc": "2.0",
 		"id":      "cli-1",
@@ -1589,6 +1600,18 @@ func invoke(socketPath string, socketDir string, method string, params map[strin
 		return nil, err
 	}
 	return response, nil
+}
+
+func applySessionDefaults(params map[string]any, sessionID string) {
+	if sessionID == "" {
+		sessionID = defaultCLISessionID
+	}
+	if _, ok := params["session_id"]; !ok {
+		params["session_id"] = sessionID
+	}
+	if _, ok := params["turn_id"]; !ok {
+		params["turn_id"] = fmt.Sprintf("%s-%d", sessionID, time.Now().UnixNano())
+	}
 }
 
 func dialBrowserSocket(socketPath string, socketDir string, timeout time.Duration) (net.Conn, error) {

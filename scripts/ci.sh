@@ -3,6 +3,17 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+python_bin="${PYTHON:-}"
+if [[ -z "${python_bin}" ]]; then
+  if command -v python >/dev/null 2>&1; then
+    python_bin="python"
+  elif command -v python3 >/dev/null 2>&1; then
+    python_bin="python3"
+  else
+    echo "python or python3 is required" >&2
+    exit 127
+  fi
+fi
 
 "${repo_root}/scripts/check-docs.sh"
 "${repo_root}/scripts/check-repo-hygiene.sh"
@@ -17,7 +28,7 @@ node "${repo_root}/scripts/generate-chrome-extension-icons.mjs"
 )
 (
   cd "${repo_root}/packages/open-browser-use-python"
-  python -m unittest
+  "${python_bin}" -m unittest
 )
 node --check "${repo_root}/scripts/chrome-web-store-oauth.mjs"
 node --check "${repo_root}/scripts/generate-chrome-extension-icons.mjs"

@@ -4,6 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
+| 2026-05-09 | CLI Session Cleanup | Agent 混用 `open-browser-use run` 和普通 CLI 子命令后，结束时一次默认 `finalize-tabs` 就能清理同一轮打开的 tab group，避免残留任务组。 | 发布 `0.1.23` patch 版本，统一 direct CLI 与 action runner 的默认 browser session 为 `obu-cli`，新增 `--session-id` 用于显式隔离 cleanup scope，并保留 MCP 默认 `obu-mcp` session。 |
 | 2026-05-09 | CLI Socket Recovery | CLI 在 `active.json` 缺失或过期时仍能连接已存活的 native host，并自动清理不可连接的旧 socket，减少用户手工传 `--socket` 或重启 Chrome 的需要。 | 发布 `0.1.22` patch 版本，CLI 改为 registry 优先、socket-dir fallback，fallback 成功后修复 active registry，并在扫描时清理 stale `.sock` 文件。 |
 | 2026-05-09 | Homebrew Binary Install | Homebrew 用户不再因为安装 `open-browser-use` 被迫下载 Go bottle 并在本机编译，安装路径更快也更符合二进制 CLI 分发预期。 | 发布 `0.1.21` patch 版本，release workflow 新增 darwin/linux x amd64/arm64 CLI tarball，Homebrew tap workflow 改为等待 release asset、计算真实 sha256 并渲染 binary formula，formula 不再声明 Go build dependency。 |
 | 2026-05-09 | Skill Release Bundle | Agent 用户可以直接从 GitHub Release 下载 Open Browser Use skill，不需要从源码仓库手工拷贝 `skills/open-browser-use/`。 | 发布 `0.1.20` patch 版本，release workflow 新增 `open-browser-use-skill.zip` 和 `open-browser-use.skill` 两个产物，二者解压后都是 `open-browser-use/` 顶层目录，并纳入 release manifest、evidence artifact 和 provenance。 |
