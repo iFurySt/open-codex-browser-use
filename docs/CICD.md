@@ -8,9 +8,10 @@
   打包、脚本语法、Go 测试、JS/TypeScript package 测试和 Python SDK smoke。
 - `supply-chain-security.yml`：在 PR 上做依赖变更检查，并在 PR、定时任务和手动触发时运行 OSV 扫描。
 - `release.yml`：tag `v*` 推送或手动触发的 release 流水线，用来打包仓库级制品、
-  Chrome extension zip、内部 CRX evidence、生成 provenance，并创建 GitHub
-  Release；Release 页面暴露 zip 和 CRX，普通安装入口使用 zip/unpacked，其他
-  manifest、SBOM 和 repo metadata 留在 workflow artifact 里。手动触发时按输入参数可把
+  Chrome extension zip、内部 CRX evidence、Open Browser Use skill 包、
+  生成 provenance，并创建 GitHub Release；Release 页面暴露 extension zip/CRX
+  和 skill 下载包，普通安装入口使用 zip/unpacked，其他 manifest、SBOM 和 repo
+  metadata 留在 workflow artifact 里。手动触发时按输入参数可把
   extension 上传并提交到 Chrome Web Store。新建 GitHub Release 时使用
   `gh release create --generate-notes`，交给 GitHub 自动生成 `What's Changed`、
   `New Contributors` 和 `Full Changelog`。
@@ -51,6 +52,13 @@
 
 - `chrome-extension/open-browser-use-chrome-extension-<version>.zip`
 - `chrome-extension/open-browser-use-chrome-extension-<version>.crx`
+- `skills/open-browser-use-skill.zip`
+- `skills/open-browser-use.skill`
+
+`open-browser-use-skill.zip` 和 `open-browser-use.skill` 都是
+`skills/open-browser-use/` 的可安装 skill 包，解压后的顶层目录固定为
+`open-browser-use/`。`.skill` 文件和 zip 内容一致，只是使用 agent skill
+installer 更容易识别的扩展名。
 
 workflow 还会在 `release-evidence` artifact 中保留内部追溯材料：
 
@@ -58,7 +66,8 @@ workflow 还会在 `release-evidence` artifact 中保留内部追溯材料：
 - `repo-metadata.tgz`
 - `chrome-extension/package-manifest.json`
 - `chrome-extension/crx-manifest.json`
+- `skills/package-manifest.json`
 - `sbom.spdx.json`
-- 对 zip 和 CRX 生成的 GitHub artifact attestation
+- 对 extension zip/CRX 和 skill 包生成的 GitHub artifact attestation
 
 也就是说，即使项目还没进入真实部署阶段，这个模板也已经把“可追溯的制品封装”这一步准备好了。

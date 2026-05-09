@@ -82,15 +82,21 @@ open-browser-use setup beta --extension-id <extensionId>
 ## GitHub Release
 
 推送 `v*` tag 或手动触发 `.github/workflows/release.yml` 后，GitHub Release
-页面放两个 extension 制品：
+页面放两个 extension 制品和两个 agent skill 制品：
 
 - `dist/chrome-extension/open-browser-use-chrome-extension-<version>.zip`
 - `dist/chrome-extension/open-browser-use-chrome-extension-<version>.crx`
+- `dist/skills/open-browser-use-skill.zip`
+- `dist/skills/open-browser-use.skill`
+
+skill 两种文件名内容一致，解压后顶层目录都是 `open-browser-use/`。提供
+`.zip` 是为了通用下载和手工解压；提供 `.skill` 是为了让支持 skill bundle
+扩展名的 agent installer 可以直接识别。
 
 `release-manifest.json`、`package-manifest.json`、`crx-manifest.json`、
-`repo-metadata.tgz` 和 `sbom.spdx.json` 会保留在 workflow 的
+`skills/package-manifest.json`、`repo-metadata.tgz` 和 `sbom.spdx.json` 会保留在 workflow 的
 `release-evidence` artifact 中，用于追溯和排查，不作为用户下载项展示。
-release workflow 会对 Chrome extension zip 和 CRX 生成 provenance attestation。
+release workflow 会对 Chrome extension zip/CRX 和 skill 包生成 provenance attestation。
 
 workflow 新建 GitHub Release 时使用 `gh release create --generate-notes`，由
 GitHub 自动生成 `What's Changed`、`New Contributors` 和 `Full Changelog`。

@@ -9,6 +9,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 "${repo_root}/scripts/check-action-pinning.sh"
 node "${repo_root}/scripts/generate-chrome-extension-icons.mjs"
 "${repo_root}/scripts/package-chrome-extension.sh" >/dev/null
+"${repo_root}/scripts/package-skill.sh" >/dev/null
 (
   cd "${repo_root}"
   go test ./...

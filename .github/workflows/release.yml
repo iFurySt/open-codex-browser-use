@@ -88,8 +88,20 @@ jobs:
             echo "Chrome extension crx not found" >&2
             exit 1
           fi
+          skill_zip="dist/skills/open-browser-use-skill.zip"
+          if [ ! -f "${skill_zip}" ]; then
+            echo "Open Browser Use skill zip not found" >&2
+            exit 1
+          fi
+          skill_bundle="dist/skills/open-browser-use.skill"
+          if [ ! -f "${skill_bundle}" ]; then
+            echo "Open Browser Use .skill bundle not found" >&2
+            exit 1
+          fi
           echo "chrome_extension_zip=${chrome_extension_zip}" >> "${GITHUB_OUTPUT}"
           echo "chrome_extension_crx=${chrome_extension_crx}" >> "${GITHUB_OUTPUT}"
+          echo "skill_zip=${skill_zip}" >> "${GITHUB_OUTPUT}"
+          echo "skill_bundle=${skill_bundle}" >> "${GITHUB_OUTPUT}"
 
       - name: 生成 SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
@@ -109,6 +121,9 @@ jobs:
             dist/chrome-extension/*.zip
             dist/chrome-extension/*.crx
             dist/chrome-extension/*.json
+            dist/skills/*.zip
+            dist/skills/*.skill
+            dist/skills/*.json
             dist/sbom.spdx.json
 
       - name: 生成 build provenance
@@ -118,6 +133,8 @@ jobs:
           subject-path: |
             dist/chrome-extension/*.zip
             dist/chrome-extension/*.crx
+            dist/skills/*.zip
+            dist/skills/*.skill
 
       - name: 创建 GitHub Release
         env:
@@ -125,7 +142,12 @@ jobs:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           RELEASE_TITLE: ${{ steps.release.outputs.title }}
         run: |
-          assets=(dist/chrome-extension/*.zip dist/chrome-extension/*.crx)
+          assets=(
+            dist/chrome-extension/*.zip
+            dist/chrome-extension/*.crx
+            dist/skills/*.zip
+            dist/skills/*.skill
+          )
 
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
