@@ -119,9 +119,11 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   自身不承载额外自定义 argv，因此 Chrome extension 专用启动信号使用这个
   Chrome 提供的 origin argv。
 - `open-browser-use call`：unrestricted JSON-RPC 入口，允许上层应用发送
-  任意 method/params；未显式传入 `--socket` 时会读取 active socket registry。
-  如果 registry 指向不可连接的旧 socket，CLI 会移除 stale registry entry
-  并返回明确错误，避免后续命令持续命中同一个失效 socket。
+  任意 method/params；未显式传入 `--socket` 时会优先读取 active socket
+  registry。registry 缺失时，CLI 会按修改时间扫描 `--socket-dir` 下的
+  `*.sock` 并连接最新可用 socket，连接成功后修复 active registry；如果
+  registry 指向不可连接的旧 socket，CLI 会移除 stale registry entry 和对应
+  stale socket file，再尝试目录扫描，避免后续命令持续命中同一个失效 socket。
 - `open-browser-use run`：line-oriented action plan 入口，支持一次执行多条
   CLI action，保留同一个 session/turn，并让 `open-tab`/`claim-tab` 设置默认
   tab，供后续 `wait-load`、`page-info`、`navigate`、`cdp` 等 tab-scoped action

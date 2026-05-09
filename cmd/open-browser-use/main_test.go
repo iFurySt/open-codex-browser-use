@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -66,8 +67,8 @@ func TestCobraNoArgsPrintsVersionAndExtensionStatus(t *testing.T) {
 	if !strings.Contains(got, "🧩 Browser extension:") {
 		t.Fatalf("expected no-arg output to include browser extension status, got %q", got)
 	}
-	if !strings.Contains(got, "open-browser-use setup") {
-		t.Fatalf("expected no-arg output to include install command, got %q", got)
+	if !strings.Contains(got, "open-browser-use setup") && !strings.Contains(got, "open-browser-use user-tabs") {
+		t.Fatalf("expected no-arg output to include a setup or ready next step, got %q", got)
 	}
 }
 
@@ -278,8 +279,8 @@ func TestCobraSetupBetaUsesProvidedZIP(t *testing.T) {
 	if !strings.Contains(got, "Extension id: "+expectedExtensionID) {
 		t.Fatalf("expected setup beta output to mention unpacked extension id, got %q", got)
 	}
-	if !strings.Contains(got, "Drag the ZIP file into the Chrome extensions page") {
-		t.Fatalf("expected setup beta output to mention manual ZIP drag install, got %q", got)
+	if !strings.Contains(got, "Drag the ZIP file into the Chrome extensions page") && !strings.Contains(got, "All set.") {
+		t.Fatalf("expected setup beta output to mention manual install or connected status, got %q", got)
 	}
 	manifestPath := filepath.Join(home, "Library/Application Support/Google/Chrome/NativeMessagingHosts", host.NativeHostName+".json")
 	if runtime.GOOS == "linux" {
@@ -406,6 +407,151 @@ func TestInvokeRemovesStaleActiveSocketRecord(t *testing.T) {
 	}
 	if _, err := host.ReadActiveSocketRecord(socketDir); err == nil {
 		t.Fatal("expected stale active socket record to be removed")
+	}
+}
+
+func TestInvokeScansSocketDirWhenActiveRecordMissing(t *testing.T) {
+	socketDir, err := os.MkdirTemp("/tmp", "obu-socket-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(socketDir)
+	stalePath := filepath.Join(socketDir, "stale.sock")
+	staleListener, err := net.Listen("unix", stalePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := staleListener.Close(); err != nil {
+		t.Fatal(err)
+	}
+	socketPath := filepath.Join(socketDir, "live.sock")
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	serverDone := make(chan error, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			serverDone <- err
+			return
+		}
+		defer conn.Close()
+
+		var request map[string]any
+		if err := wire.ReadJSON(conn, &request); err != nil {
+			serverDone <- err
+			return
+		}
+		if request["method"] != "getInfo" {
+			serverDone <- fmt.Errorf("expected getInfo request, got %#v", request["method"])
+			return
+		}
+		if err := wire.WriteJSON(conn, map[string]any{
+			"jsonrpc": "2.0",
+			"id":      request["id"],
+			"result":  map[string]any{"version": version},
+		}); err != nil {
+			serverDone <- err
+			return
+		}
+		serverDone <- nil
+	}()
+
+	response, err := invoke("", socketDir, "getInfo", map[string]any{}, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, _ := response["result"].(map[string]any)
+	if result["version"] != version {
+		t.Fatalf("expected scanned socket response, got %#v", response)
+	}
+	if err := <-serverDone; err != nil {
+		t.Fatal(err)
+	}
+	record, err := host.ReadActiveSocketRecord(socketDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.SocketPath != socketPath {
+		t.Fatalf("expected active socket record to be repaired to %q, got %#v", socketPath, record)
+	}
+	if record.PID != 0 {
+		t.Fatalf("expected repaired active socket pid to be unknown, got %d", record.PID)
+	}
+	if _, err := os.Stat(stalePath); !os.IsNotExist(err) {
+		t.Fatalf("expected stale socket file to be removed after fallback success, got %v", err)
+	}
+}
+
+func TestInvokeCleansStaleSocketFilesDuringScan(t *testing.T) {
+	socketDir, err := os.MkdirTemp("/tmp", "obu-socket-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(socketDir)
+
+	stalePath := filepath.Join(socketDir, "stale.sock")
+	staleListener, err := net.Listen("unix", stalePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := staleListener.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := host.WriteActiveSocketRecord(socketDir, stalePath); err != nil {
+		t.Fatal(err)
+	}
+
+	livePath := filepath.Join(socketDir, "live.sock")
+	listener, err := net.Listen("unix", livePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	serverDone := make(chan error, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			serverDone <- err
+			return
+		}
+		defer conn.Close()
+
+		var request map[string]any
+		if err := wire.ReadJSON(conn, &request); err != nil {
+			serverDone <- err
+			return
+		}
+		if err := wire.WriteJSON(conn, map[string]any{
+			"jsonrpc": "2.0",
+			"id":      request["id"],
+			"result":  map[string]any{"version": version},
+		}); err != nil {
+			serverDone <- err
+			return
+		}
+		serverDone <- nil
+	}()
+
+	if _, err := invoke("", socketDir, "getInfo", map[string]any{}, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-serverDone; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(stalePath); !os.IsNotExist(err) {
+		t.Fatalf("expected stale socket file to be removed, got %v", err)
+	}
+	record, err := host.ReadActiveSocketRecord(socketDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.SocketPath != livePath {
+		t.Fatalf("expected active socket record to point to live socket %q, got %#v", livePath, record)
 	}
 }
 

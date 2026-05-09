@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.21"
+const version = "0.1.22"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
 const betaExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
@@ -1561,22 +1562,8 @@ func invokeAndWrite(options socketOptions, method string, params map[string]any)
 }
 
 func invoke(socketPath string, socketDir string, method string, params map[string]any, timeout time.Duration) (map[string]any, error) {
-	resolvedSocketPath := socketPath
-	fromRegistry := false
-	if resolvedSocketPath == "" {
-		record, err := host.ReadActiveSocketRecord(socketDir)
-		if err != nil {
-			return nil, fmt.Errorf("socket not provided and active socket registry is unavailable: %w", err)
-		}
-		resolvedSocketPath = record.SocketPath
-		fromRegistry = true
-	}
-	conn, err := net.DialTimeout("unix", resolvedSocketPath, timeout)
+	conn, err := dialBrowserSocket(socketPath, socketDir, timeout)
 	if err != nil {
-		if fromRegistry {
-			_ = host.RemoveActiveSocketRecord(socketDir, resolvedSocketPath)
-			return nil, fmt.Errorf("active socket registry points to unavailable socket %q; removed stale registry entry: %w", resolvedSocketPath, err)
-		}
 		return nil, err
 	}
 	defer conn.Close()
@@ -1601,6 +1588,153 @@ func invoke(socketPath string, socketDir string, method string, params map[strin
 		return nil, err
 	}
 	return response, nil
+}
+
+func dialBrowserSocket(socketPath string, socketDir string, timeout time.Duration) (net.Conn, error) {
+	if socketPath != "" {
+		return net.DialTimeout("unix", socketPath, timeout)
+	}
+
+	record, err := host.ReadActiveSocketRecord(socketDir)
+	if err == nil {
+		conn, dialErr := net.DialTimeout("unix", record.SocketPath, timeout)
+		if dialErr == nil {
+			return conn, nil
+		}
+		_ = host.RemoveActiveSocketRecord(socketDir, record.SocketPath)
+		removeSocketPathIfInDir(socketDir, record.SocketPath)
+		conn, scanErr := scanSocketDir(socketDir, record.SocketPath, timeout)
+		if scanErr == nil {
+			return conn, nil
+		}
+		return nil, fmt.Errorf("active socket registry points to unavailable socket %q; removed stale registry entry; no connectable socket found by scanning: %w", record.SocketPath, dialErr)
+	}
+
+	conn, scanErr := scanSocketDir(socketDir, "", timeout)
+	if scanErr == nil {
+		return conn, nil
+	}
+	return nil, fmt.Errorf("socket not provided and active socket registry is unavailable; no connectable socket found by scanning: %w", err)
+}
+
+type socketCandidate struct {
+	path    string
+	modTime time.Time
+}
+
+func scanSocketDir(socketDir string, skipPath string, timeout time.Duration) (net.Conn, error) {
+	dir := socketDir
+	if dir == "" {
+		dir = host.DefaultSocketDir
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var candidates []socketCandidate
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sock") {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		candidates = append(candidates, socketCandidate{
+			path:    filepath.Join(dir, entry.Name()),
+			modTime: info.ModTime(),
+		})
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].modTime.Equal(candidates[j].modTime) {
+			return candidates[i].path > candidates[j].path
+		}
+		return candidates[i].modTime.After(candidates[j].modTime)
+	})
+	if len(candidates) == 0 {
+		return nil, fmt.Errorf("no socket files in %q", dir)
+	}
+
+	probeTimeout := timeout
+	if probeTimeout > 500*time.Millisecond {
+		probeTimeout = 500 * time.Millisecond
+	}
+	var lastErr error
+	for _, candidate := range candidates {
+		if candidate.path == skipPath {
+			continue
+		}
+		conn, err := net.DialTimeout("unix", candidate.path, probeTimeout)
+		if err == nil {
+			repairActiveSocketRecord(dir, candidate)
+			cleanupStaleSocketCandidates(dir, candidates, candidate.path, probeTimeout)
+			return conn, nil
+		}
+		removeSocketPathIfInDir(dir, candidate.path)
+		lastErr = err
+	}
+	if lastErr == nil {
+		return nil, fmt.Errorf("no socket files in %q after filtering", dir)
+	}
+	return nil, lastErr
+}
+
+func cleanupStaleSocketCandidates(socketDir string, candidates []socketCandidate, keepPath string, timeout time.Duration) {
+	cleanupTimeout := timeout
+	if cleanupTimeout > 100*time.Millisecond {
+		cleanupTimeout = 100 * time.Millisecond
+	}
+	for _, candidate := range candidates {
+		if candidate.path == keepPath {
+			continue
+		}
+		conn, err := net.DialTimeout("unix", candidate.path, cleanupTimeout)
+		if err == nil {
+			_ = conn.Close()
+			continue
+		}
+		removeSocketPathIfInDir(socketDir, candidate.path)
+	}
+}
+
+func repairActiveSocketRecord(socketDir string, candidate socketCandidate) {
+	record := host.ActiveSocketRecord{
+		SocketPath: candidate.path,
+		PID:        0,
+		StartedAt:  candidate.modTime.UTC(),
+	}
+	payload, err := json.MarshalIndent(record, "", "  ")
+	if err != nil {
+		return
+	}
+	path := host.ActiveSocketRecordPath(socketDir)
+	if err := os.WriteFile(path, append(payload, '\n'), 0o600); err != nil {
+		return
+	}
+	_ = os.Chmod(path, 0o600)
+}
+
+func removeSocketPathIfInDir(socketDir string, socketPath string) {
+	dir := socketDir
+	if dir == "" {
+		dir = host.DefaultSocketDir
+	}
+	dirAbs, err := filepath.Abs(dir)
+	if err != nil {
+		return
+	}
+	pathAbs, err := filepath.Abs(socketPath)
+	if err != nil {
+		return
+	}
+	rel, err := filepath.Rel(dirAbs, pathAbs)
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || rel == ".." {
+		return
+	}
+	if filepath.Dir(rel) != "." || !strings.HasSuffix(rel, ".sock") {
+		return
+	}
+	_ = os.Remove(pathAbs)
 }
 
 func writeJSON(value any) error {

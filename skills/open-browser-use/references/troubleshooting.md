@@ -24,7 +24,11 @@ Do not silently install, enable, or repair browser integration when the action n
 
 ## Stale Socket Or Missing Active Host
 
-The CLI discovers the active socket from the registry. If the registry points to a stale socket, recent CLI versions remove the stale entry and report a clear connection error.
+The CLI first discovers the active socket from the registry. If the registry is
+missing, recent CLI versions scan `--socket-dir` for `*.sock` files and connect
+to the newest usable socket, then repair the registry. If the registry points to
+a stale socket, the CLI removes the stale entry and stale socket file, then tries
+the same socket-dir scan.
 
 Useful flags:
 
