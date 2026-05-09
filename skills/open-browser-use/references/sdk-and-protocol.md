@@ -56,18 +56,51 @@ const unsubscribe = browser.onNotification((event) => {
 ## Python SDK Pattern
 
 ```py
+import json
+from pathlib import Path
+
+from open_browser_use import connect_open_browser_use
+
+registry = json.loads(Path("/tmp/open-browser-use/active.json").read_text())
+browser = connect_open_browser_use(
+    socket_path=registry["socketPath"],
+    session_id="my-agent",
+)
+
+try:
+    browser.client.name_session("Issue scan - OBU")
+    tab = browser.new_tab()
+    tab.goto("https://github.com/iFurySt/open-codex-computer-use/issues", wait_until="domcontentloaded")
+    tab.playwright.wait_for_load_state(state="domcontentloaded", timeout=15)
+    tab.playwright.wait_for_timeout(1500)
+
+    text = tab.playwright.locator("body").inner_text(timeout_ms=10000)
+    result = {
+        "title": tab.title(),
+        "url": tab.url(),
+        "text": text[:4000],
+    }
+    print(result)
+finally:
+    browser.client.finalize_tabs([])
+    browser.close()
+```
+
+Use the low-level client when you need raw JSON-RPC/CDP calls:
+
+```py
 from open_browser_use import OpenBrowserUseClient
 
-browser = OpenBrowserUseClient(
+client = OpenBrowserUseClient(
     socket_path="/tmp/open-browser-use/example.sock",
     session_id="my-agent",
 )
 
-browser.name_session("Task - OBU")
-tab = browser.create_tab()
-browser.execute_cdp(tab["id"], "Page.navigate", {"url": "https://example.com"})
-browser.finalize_tabs([])
-browser.close()
+client.name_session("Task - OBU")
+tab = client.create_tab()
+client.execute_cdp(tab["id"], "Page.navigate", {"url": "https://example.com"})
+client.finalize_tabs([])
+client.close()
 ```
 
 ## Core Methods

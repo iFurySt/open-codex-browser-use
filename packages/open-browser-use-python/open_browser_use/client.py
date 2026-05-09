@@ -259,6 +259,22 @@ class OpenBrowserUseTab:
     def evaluate(self, expression: str, await_promise: bool | None = None) -> Any:
         return self.browser.cdp.evaluate(self.id, expression, await_promise=await_promise)
 
+    def title(self) -> str:
+        value = self.evaluate("document.title ?? ''")
+        return "" if value is None else str(value)
+
+    def url(self) -> str:
+        value = self.evaluate("location.href")
+        return "" if value is None else str(value)
+
+    def wait_for_timeout(self, timeout_ms: float) -> None:
+        if timeout_ms < 0:
+            raise ValueError("timeout_ms must be non-negative")
+        time.sleep(timeout_ms / 1000)
+
+    def locator(self, selector: str) -> "OpenBrowserUseLocator":
+        return OpenBrowserUseLocator(self, selector)
+
     def close(self) -> Any:
         return self.browser.cdp.call(self.id, "Page.close")
 
@@ -276,6 +292,33 @@ class OpenBrowserUseTabPlaywright:
 
     def dom_snapshot(self) -> str:
         return self.tab.dom_snapshot()
+
+    def title(self) -> str:
+        return self.tab.title()
+
+    def url(self) -> str:
+        return self.tab.url()
+
+    def wait_for_timeout(self, timeout_ms: float) -> None:
+        self.tab.wait_for_timeout(timeout_ms)
+
+    def locator(self, selector: str) -> "OpenBrowserUseLocator":
+        return self.tab.locator(selector)
+
+
+class OpenBrowserUseLocator:
+    def __init__(self, tab: OpenBrowserUseTab, selector: str) -> None:
+        if not selector:
+            raise ValueError("locator requires a selector")
+        self.tab = tab
+        self.selector = selector
+
+    def inner_text(self, timeout_ms: int | None = None) -> str:
+        value = self.tab.evaluate(
+            _locator_inner_text_expression(self.selector, timeout_ms),
+            await_promise=True,
+        )
+        return "" if value is None else str(value)
 
 
 class OpenBrowserUseCdp:
@@ -411,3 +454,24 @@ def _assert_supported_load_state(state: str) -> None:
 def _document_state_matches(document_state: JsonObject | None, state: LoadState) -> bool:
     ready_state = document_state.get("readyState") if isinstance(document_state, dict) else None
     return ready_state == "complete" or (state == "domcontentloaded" and ready_state == "interactive")
+
+
+def _locator_inner_text_expression(selector: str, timeout_ms: int | None) -> str:
+    timeout = DEFAULT_NAVIGATION_TIMEOUT * 1000 if timeout_ms is None else timeout_ms
+    if timeout < 0:
+        raise ValueError("timeout_ms must be non-negative")
+    selector_json = json.dumps(selector)
+    return f"""(async () => {{
+  const selector = {selector_json};
+  const deadline = performance.now() + {timeout};
+  while (true) {{
+    const element = document.querySelector(selector);
+    if (element) {{
+      return element.innerText ?? element.textContent ?? "";
+    }}
+    if (performance.now() >= deadline) {{
+      throw new Error(`Timed out waiting for locator ${{selector}}`);
+    }}
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }}
+}})()"""

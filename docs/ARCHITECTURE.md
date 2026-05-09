@@ -155,7 +155,9 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   两个 SDK 都在原子 client 之外提供高层 browser/tab API，可直接使用
   `tab.goto`、`tab.waitForLoadState`/`tab.wait_for_load_state` 和
   `tab.playwright.domSnapshot`/`tab.playwright.dom_snapshot` 这类 Browser Use
-  风格封装；同时提供核心 Browser Use method wrappers、download/clipboard
+  风格封装；Python SDK 还提供 `title`、`url`、`wait_for_timeout` 和
+  `locator(...).inner_text(...)` 等适合 Jupyter/Python REPL 编排的薄封装。
+  两个 SDK 同时提供核心 Browser Use method wrappers、download/clipboard
   convenience wrappers，也保留 unrestricted `request`。
 
 当前 SDK 不内置 Codex 风格的站点限制、turn policy 或二次确认。上层应用

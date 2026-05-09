@@ -177,6 +177,12 @@ class OpenBrowserUseClientTest(unittest.TestCase):
                                         }
                                     }
                                 }
+                            elif "document.title" in expression:
+                                result = {"result": {"value": "Issues - open-codex-computer-use"}}
+                            elif "location.href" in expression:
+                                result = {"result": {"value": "https://example.test/issues"}}
+                            elif "document.querySelector" in expression:
+                                result = {"result": {"value": "Open\nClosed\nIssues\nStarred"}}
                             else:
                                 result = {"result": {"value": "Open\nClosed\nIssues\nStarred"}}
                         conn.sendall(encode_frame({"jsonrpc": "2.0", "id": request["id"], "result": result}))
@@ -191,7 +197,11 @@ class OpenBrowserUseClientTest(unittest.TestCase):
                 tab = browser.new_tab()
                 tab.goto("https://example.test/issues", wait_until="domcontentloaded", timeout=1)
                 tab.playwright.wait_for_load_state(state="domcontentloaded", timeout=1)
+                tab.playwright.wait_for_timeout(1)
+                self.assertEqual(tab.title(), "Issues - open-codex-computer-use")
+                self.assertEqual(tab.playwright.url(), "https://example.test/issues")
                 self.assertEqual(tab.playwright.dom_snapshot(), "Open\nClosed\nIssues\nStarred")
+                self.assertEqual(tab.playwright.locator("body").inner_text(timeout_ms=1000), "Open\nClosed\nIssues\nStarred")
                 self.assertEqual(notifications[0]["method"], "onCDPEvent")
                 self.assertEqual(
                     calls,
@@ -203,6 +213,9 @@ class OpenBrowserUseClientTest(unittest.TestCase):
                         ("executeCdp", "Page.enable"),
                         ("executeCdp", "Runtime.evaluate"),
                         ("executeCdp", "Page.enable"),
+                        ("executeCdp", "Runtime.evaluate"),
+                        ("executeCdp", "Runtime.evaluate"),
+                        ("executeCdp", "Runtime.evaluate"),
                         ("executeCdp", "Runtime.evaluate"),
                         ("executeCdp", "Runtime.evaluate"),
                     ],
