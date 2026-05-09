@@ -7,90 +7,45 @@
 
 ---
 
-`open-browser-use` 是一套开源 Chrome 自动化基础设施，面向 AI Agent 使用。它把
-Chrome MV3 扩展、Go native messaging host 和本地 SDK 串起来，让 Agent 可以通过
-可读、可自托管的链路控制真实 Chrome profile。
-
-这个项目聚焦一个很小的核心：安装浏览器插件，安装本地 host，然后通过 CLI 或
-SDK 查看标签页、打开页面、执行 CDP 命令，并把浏览器状态交还给上层 Agent runtime。
+`open-browser-use` 是平台中立的浏览器操作方案，也是Codex.app最新发布的Chrome Browser Use的开源替代方案。背后的故事可以看这篇Browser Use详解文章。 技术方案采用的是浏览器插件和open-computer-use cli结合，可通过JS/PYTHON SDK或CLI的方式接入。
 
 ## Quick Start
-
-### 安装 CLI
-
-通过 npm 安装 native host 和 CLI：
-
+第一次安装可以无脑运行：
 ```bash
-npm install -g open-browser-use
-```
-
-或通过 Homebrew 安装：
-
-```bash
-brew install iFurySt/open-browser-use/open-browser-use
-```
-
-### 配置 Chrome
-
-随时直接运行 `open-browser-use`，可以看到当前 CLI 版本、是否检测到浏览器插件、
-插件版本，以及下一步安装或升级命令。
-
-CLI 安装完成后，注册 native host，并让 Chrome 安装 Web Store 插件：
-
-```bash
-open-browser-use setup
-```
-
-重启 Chrome，并在 Chrome 提示时确认启用 Open Browser Use 插件。
-
-Chrome Web Store 条目还在审核时，可以改用最新 GitHub Release zip，以
-unpacked extension 方式安装：
-
-```bash
+brew tap iFurySt/open-browser-use
+brew install open-browser-use
 open-browser-use setup beta
 ```
 
-`setup beta` 会从
-[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
-下载最新的 `open-browser-use-chrome-extension-*.zip`，使用其中的稳定 extension
-key 注册 native host，然后打开 `chrome://extensions/`，同时在 Finder 或系统文件
-管理器中定位同一个 ZIP。打开 Developer mode 后，把这个 ZIP 拖到 Chrome 扩展
-页面即可用同一个 id 手动安装。
+### 安装 CLI
+```bash
+# npm安装
+npm i -g open-browser-use
 
-如果只需要修复 native messaging host 注册，运行：
+# Homebrew安装
+brew tap iFurySt/open-browser-use && brew install open-browser-use
+
+# 升级
+brew upgrade open-browser-use
+```
+
+### 配置 Chrome
+注册绑定到该插件的 native host，然后安装对应的浏览器插件
 
 ```bash
-open-browser-use install-manifest
+# 目前插件在上架商店中，暂时不要用这个命令
+# open-browser-use setup
+
+# 通过zip/crx包直接导入安装插件，打开的文件里直接拖包到chrome://extensions/页面
+open-browser-use setup beta
 ```
+
+*也可以手动到[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)里下载最新的包安装*
 
 ### 使用
+直接下载`open-browser-use`的[skill](./skills/open-browser-use)并安装，就可以愉快的开始使用了🚀
 
-检查插件和 native host 是否可以连通：
-
-```bash
-open-browser-use ping
-```
-
-查看浏览器和 session 状态：
-
-```bash
-open-browser-use info
-open-browser-use tabs
-open-browser-use user-tabs
-```
-
-打开并控制标签页：
-
-```bash
-open-browser-use open-tab --url https://example.com
-open-browser-use navigate --tab-id <tab-id> --url https://github.com/iFurySt/open-codex-browser-use
-```
-
-CLI 也提供底层 Browser Use 风格调用入口：
-
-```bash
-open-browser-use call --method <method> --params '<json>'
-```
+*[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)里有可下载的.skill/.zip包*
 
 ## License
 

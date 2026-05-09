@@ -7,110 +7,60 @@
 
 ---
 
-`open-browser-use` is an open-source Chrome automation stack for AI agents. It
-connects a Chrome MV3 extension, a Go native messaging host, and local SDKs so
-agents can control a real Chrome profile through a readable, self-hosted route.
+`open-browser-use` is a browser automation layer that stays neutral across
+agent runtimes. It is also an open-source alternative to the Chrome Browser Use
+capability recently shipped in Codex.app. For the story behind it, see the
+Browser Use deep dive.
 
-The project focuses on a small core: install the browser extension, install the
-local host, then use the CLI or SDKs to inspect tabs, open pages, run CDP
-commands, and hand browser state back to an upper-layer agent runtime.
+Under the hood, it pairs a browser extension with the `open-browser-use` CLI.
+You can integrate it through the JavaScript SDK, the Python SDK, or the CLI.
 
 ## Quick Start
 
-### Install the CLI
-
-Install the native host and CLI with npm:
-
 ```bash
-npm install -g open-browser-use
+brew tap iFurySt/open-browser-use
+brew install open-browser-use
+open-browser-use setup beta
 ```
 
-Or install with Homebrew:
+### Install the CLI
 
 ```bash
-brew install iFurySt/open-browser-use/open-browser-use
+# npm
+npm i -g open-browser-use
+
+# Homebrew
+brew tap iFurySt/open-browser-use && brew install open-browser-use
+
+# Upgrade
+brew upgrade open-browser-use
 ```
 
 ### Set Up Chrome
 
-Run `open-browser-use` by itself at any time to see the CLI version, whether the
-browser extension was detected, the extension version when available, and the
-next install or upgrade command.
-
-After installing the CLI, register the native host and ask Chrome to install the
-Web Store extension:
+Register the native host for the extension, then install the matching Chrome
+extension.
 
 ```bash
-open-browser-use setup
-```
+# The Chrome Web Store listing is still under review, so skip this for now.
+# open-browser-use setup
 
-Restart Chrome and approve the Open Browser Use extension prompt if Chrome asks.
-
-While the Chrome Web Store item is pending review, use the latest GitHub
-Release zip as an unpacked extension instead:
-
-```bash
+# Install from the zip/crx package instead. Drag the opened package into
+# chrome://extensions/.
 open-browser-use setup beta
 ```
 
-`setup beta` downloads the latest
-`open-browser-use-chrome-extension-*.zip` from
+You can also download the latest package directly from
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
-and uses its stable extension key to register the native host. It opens
-`chrome://extensions/` and reveals that same ZIP in Finder or the system file
-manager. Enable Developer mode, then drag the ZIP file into the Chrome
-extensions page to install it manually with the same id.
-
-If you only need to repair the native messaging host registration, run:
-
-```bash
-open-browser-use install-manifest
-```
+and install it manually.
 
 ### Use It
 
-Check that the extension and native host can talk to each other:
+Download and install the [`open-browser-use` skill](./skills/open-browser-use),
+then you are ready to use Open Browser Use from your agent.
 
-```bash
-open-browser-use ping
-```
-
-List browser and session state:
-
-```bash
-open-browser-use info
-open-browser-use tabs
-open-browser-use user-tabs
-```
-
-Open and control a tab:
-
-```bash
-open-browser-use open-tab --url https://example.com
-open-browser-use navigate --tab-id <tab-id> --url https://github.com/iFurySt/open-codex-browser-use
-```
-
-Run a small action plan when you want CLI-level orchestration without writing
-JavaScript or Python:
-
-```bash
-open-browser-use run -c '
-name-session "Docs scan - OBU"
-open-tab https://docs.browser-use.com
-wait-load domcontentloaded
-page-info
-finalize-tabs []
-'
-```
-
-Each line is a supported browser action. `open-tab` and `claim-tab` set the
-default tab for later tab-scoped actions.
-
-The CLI also exposes lower-level Browser Use style calls through:
-
-```bash
-open-browser-use call --method <method> --params '<json>'
-```
+Downloadable `.skill` and `.zip` packages are available in
+[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases).
 
 ## License
 
