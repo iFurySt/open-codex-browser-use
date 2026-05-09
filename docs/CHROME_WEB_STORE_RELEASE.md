@@ -67,8 +67,9 @@ dist/chrome-extension/crx-manifest.json
 ```
 
 `.zip` 是 Chrome Web Store 上传包，也是 `setup release` 下载并展开的审核期安装包。
-`.crx` 只保留在 workflow evidence 里用于打包追溯；Chrome Stable 对非 Web Store
-CRX 会报 `CRX_REQUIRED_PROOF_MISSING`，不要把它作为用户安装入口。
+`.crx` 会保留在 GitHub Release 里用于制品归档、Chromium/企业策略/自托管更新等
+场景；Chrome Stable 对非 Web Store CRX 会报 `CRX_REQUIRED_PROOF_MISSING`，
+不要把它作为普通用户安装入口。
 
 `setup release` 默认会用 CLI 内置的 unpacked public key 计算 extension id；如果需要
 手工覆盖 native host allowed origin，可以运行：
@@ -80,15 +81,15 @@ open-browser-use setup release --extension-id <extensionId>
 ## GitHub Release
 
 推送 `v*` tag 或手动触发 `.github/workflows/release.yml` 后，GitHub Release
-页面只放一个用户下载项：
+页面放两个 extension 制品：
 
 - `dist/chrome-extension/open-browser-use-chrome-extension-<version>.zip`
+- `dist/chrome-extension/open-browser-use-chrome-extension-<version>.crx`
 
 `release-manifest.json`、`package-manifest.json`、`crx-manifest.json`、
 `repo-metadata.tgz` 和 `sbom.spdx.json` 会保留在 workflow 的
 `release-evidence` artifact 中，用于追溯和排查，不作为用户下载项展示。
-release workflow 会对 Chrome extension zip 和内部 CRX evidence 生成 provenance
-attestation。
+release workflow 会对 Chrome extension zip 和 CRX 生成 provenance attestation。
 
 workflow 新建 GitHub Release 时使用 `gh release create --generate-notes`，由
 GitHub 自动生成 `What's Changed`、`New Contributors` 和 `Full Changelog`。

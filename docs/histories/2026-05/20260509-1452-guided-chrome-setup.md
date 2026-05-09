@@ -36,6 +36,8 @@
 - **[Offline Install Fix]**: 实机安装发现 Chrome Stable 拒绝自分发 CRX
   `CRX_REQUIRED_PROOF_MISSING`，改为 `setup release` 下载 release zip、展开
   unpacked extension 并引导 Load unpacked；发布 `0.1.11`。
+- **[Release Artifact Correction]**: `v0.1.11` Release 补回 CRX asset；后续
+  release workflow 继续同时上传 zip 和 CRX，但普通安装入口仍是 zip/unpacked。
 
 ### 🧠 Design Intent (Why)
 

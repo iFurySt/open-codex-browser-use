@@ -125,7 +125,7 @@ jobs:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           RELEASE_TITLE: ${{ steps.release.outputs.title }}
         run: |
-          assets=(dist/chrome-extension/*.zip)
+          assets=(dist/chrome-extension/*.zip dist/chrome-extension/*.crx)
 
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
             gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
