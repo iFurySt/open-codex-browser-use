@@ -1,12 +1,11 @@
 {
-  "name": "codio",
+  "name": "open-browser-use",
   "version": "0.1.0",
   "private": true,
-  "description": "Codio desktop app with a Codex app-server chat surface and an Electron in-app browser.",
+  "description": "Open Browser Use Chrome extension, native host, and SDK workspace.",
   "type": "module",
   "packageManager": "pnpm@8.15.9",
   "scripts": {
-    "dev": "pnpm --filter @codio/desktop dev",
     "build": "pnpm -r --if-present build",
     "generate:chrome-extension-icons": "node scripts/generate-chrome-extension-icons.mjs",
     "package:chrome-extension": "./scripts/package-chrome-extension.sh",

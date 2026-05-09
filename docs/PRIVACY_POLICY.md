@@ -44,4 +44,4 @@ extension or clears browser extension data.
 
 For privacy or support questions, use the project issue tracker:
 
-<https://github.com/iFurySt/open-codex-browser-use/issues>
+<https://github.com/iFurySt/open-browser-use/issues>

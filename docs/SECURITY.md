@@ -12,19 +12,6 @@
 
 仓库级的依赖、SBOM 和 provenance 默认能力，统一写在 `docs/SUPPLY_CHAIN_SECURITY.md`。
 
-## Codio 当前安全边界
-
-- Renderer 禁用 Node，启用 `contextIsolation` 和 `sandbox`。
-- Preload 只暴露 `window.codio` 下的窄 IPC surface。
-- webview attach 必须携带 main process 已捕获的 route-bearing partition；
-  未知 route 会被拒绝。
-- guest webview 强制使用 `nodeIntegration=false`、`contextIsolation=true`、
-  `sandbox=true`。
-- shared browser partition 的 webview permission request 首版默认拒绝。
-- Browser Use native pipe 目录设置为 `0700`，socket 设置为 `0600`。
-- 首版 IAB capabilities 明确声明 downloads、file uploads、media downloads
-  为不支持。
-
 ## Open Browser Use Chrome Route 安全边界
 
 - Chrome route 首版面向开源 runtime/SDK，不复刻 Codex `node_repl` 的
@@ -44,7 +31,5 @@
 仍需补强：
 
 - 本地 socket token/peer 授权。
-- 细粒度 webview permission request 白名单。
-- 跨 turn route 校验。
 - 失败路径安全测试。
 - Chrome route native host 的 client token、peer 校验和审计日志。

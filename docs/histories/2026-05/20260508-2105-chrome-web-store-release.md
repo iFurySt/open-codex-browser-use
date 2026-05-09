@@ -32,7 +32,7 @@
   dashboard prerequisites, native host installation boundary, and release flow.
 - **[CI Green]**: Adjusted Markdown lint for accumulated history docs, skipped
   Dependency Review on private repositories that do not support it, and bumped
-  Go/Electron versions away from OSV-reported vulnerable baselines.
+  Go dependencies away from OSV-reported vulnerable baselines.
 - **[Private Release]**: Skipped GitHub artifact attestation for user-owned
   private repositories, where GitHub does not expose that feature.
 
@@ -55,7 +55,6 @@ upload and publish behavior.
 - `docs/releases/feature-release-notes.md`
 - `.markdownlint.json`
 - `.github/workflows/supply-chain-security.yml`
-- `apps/desktop/package.json`
 - `go.mod`
 - `pnpm-lock.yaml`
 - `package.json`

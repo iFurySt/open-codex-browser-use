@@ -322,14 +322,13 @@ the explicit native messaging bypass keeps Chrome startup behavior stable.
 
 ### 🛠 Changes Overview
 
-**Scope:** `cmd/open-browser-use`, `apps/chrome-extension`, `packages`,
-`apps/desktop`, `docs`
+**Scope:** `cmd/open-browser-use`, `apps/chrome-extension`, `packages`, `docs`
 
 **Key Actions:**
 
 - Bumped the Open Browser Use CLI, Chrome extension, JS SDK, Python SDK,
-  browser-use protocol package, desktop package, and runtime self-reported
-  versions from `0.1.0` to `0.1.1`.
+  browser-use protocol package, and runtime self-reported versions from
+  `0.1.0` to `0.1.1`.
 - Left external reference and reverse-engineering source versions unchanged.
 
 ### 🧠 Design Intent (Why)
@@ -365,14 +364,13 @@ surprising.
 
 ### 🛠 Changes Overview
 
-**Scope:** `cmd/open-browser-use`, `apps/chrome-extension`, `packages`,
-`apps/desktop`, `docs`
+**Scope:** `cmd/open-browser-use`, `apps/chrome-extension`, `packages`, `docs`
 
 **Key Actions:**
 
 - Bumped the Open Browser Use CLI, Chrome extension, JS SDK, Python SDK,
-  browser-use protocol package, desktop package, and runtime self-reported
-  versions from `0.1.1` to `0.1.2`.
+  browser-use protocol package, and runtime self-reported versions from
+  `0.1.1` to `0.1.2`.
 - Added a user-facing release note for the no-arg CLI help behavior.
 
 ### 🧠 Design Intent (Why)

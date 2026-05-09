@@ -13,9 +13,9 @@
 
 | 区域 | 评分 | 原因 | 下一步 |
 | --- | --- | --- | --- |
-| 产品面 | B | Codio 已能启动 Electron split UI，chat 已接入 `codex app-server` stdio thread/turn 通知流，支持历史会话、durable resume、steer 和 stop，右侧 IAB 可被 native pipe 驱动。 | 补 Codex plugin manifest，把 Browser Use 工具调用接入真实 turn。 |
-| 架构文档 | B | 已有 IAB 逆向 wiki、Codio active plan、app-server 集成文档和 IAB backend 文档。 | M6.5-M8 继续补插件、turn route、input/cursor 边界。 |
-| 桌面 UI | B | Electron/Vite/React split layout 已启动；smoke 通过 CDP 打开 `https://example.com/` 并读取标题。 | 补 UI 截图 smoke 和多 conversation 手工验收。 |
-| 测试 | B | `typecheck`、`build`、protocol frame 单测、registry 映射单测、native pipe CDP smoke 已可运行。 | 补失败路径测试和 Electron 自动启动集成测试。 |
-| 可观测性 | C | native pipe 连接和 RPC method 已有默认脱敏日志。 | 增加 request id、CDP event 分层日志和 renderer/webview 失败日志。 |
-| 安全 | C | Renderer Node 禁用、contextIsolation/sandbox、webview route gate、IAB socket `0700/0600` 已作为默认约束。 | 补 socket token/peer 授权、webview permission policy 和跨 turn 测试。 |
+| 产品面 | B | Chrome extension、Go native host/CLI、JS SDK、Python SDK 和 Chrome Web Store 发布链路已成形。 | 完成真实 Chrome 安装 smoke，并补首轮用户安装说明。 |
+| 架构文档 | B | Chrome route active plan、架构、安全、发布和 reference 文档已覆盖主要边界。 | 把 extension-host runtime 的状态机和错误恢复策略补成单独文档。 |
+| 插件 UI | B | MV3 popup、icons、content cursor 和基础打包校验已具备。 | 补 popup 截图 smoke 和权限状态展示验收。 |
+| 测试 | B | `make ci` 覆盖 docs/repo hygiene、action pinning、extension 打包、脚本语法、Go 测试和 SDK/协议测试。 | 补 fake native host/extension peer 集成测试。 |
+| 可观测性 | C | native host 和 extension 已有基础错误传播，但跨 Native Messaging、Unix socket 和 SDK 的关联日志仍不足。 | 增加 request id、事件分层日志和可脱敏 debug trace。 |
+| 安全 | C | Chrome route 明确不内置上层站点策略，manifest origin 限制和本地 socket 文件权限已有默认约束。 | 补 socket token/peer 授权、失败路径安全测试和安装权限审计说明。 |
