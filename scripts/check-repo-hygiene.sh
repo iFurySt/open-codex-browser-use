@@ -19,7 +19,6 @@ required_files=(
   ".github/workflows/ci.yml"
   ".github/workflows/release.yml"
   ".github/workflows/supply-chain-security.yml"
-  ".markdownlint.json"
   "scripts/check-action-pinning.sh"
 )
 

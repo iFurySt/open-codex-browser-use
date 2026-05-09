@@ -1,71 +1,81 @@
 # Open Browser Use
 
-Open Browser Use is an open-source Chrome automation stack built around a
-readable MV3 extension, a Go native messaging host, and SDKs for local runtime
-integration.
+[![English](https://img.shields.io/badge/English-Click-yellow)](./README.md)
+[![简体中文](https://img.shields.io/badge/简体中文-点击查看-orange)](./README.zh-CN.md)
+[![Release](https://img.shields.io/github/v/release/iFurySt/open-codex-browser-use)](https://github.com/iFurySt/open-codex-browser-use/releases)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iFurySt/open-codex-browser-use)
 
-## 简介
+---
 
-当前 `main` 分支聚焦一条干净的 Chrome route：
+`open-browser-use` is an open-source Chrome automation stack for AI agents. It
+connects a Chrome MV3 extension, a Go native messaging host, and local SDKs so
+agents can control a real Chrome profile through a readable, self-hosted route.
 
-- `apps/chrome-extension/`：Open Browser Use MV3 Chrome extension。
-- `cmd/open-browser-use/`：Go native messaging host 和 CLI。
-- `packages/open-browser-use-cli/`：发布到 npm 的二进制 CLI 包。
-- `packages/open-browser-use-js/`：JavaScript/TypeScript SDK。
-- `packages/open-browser-use-python/`：Python SDK。
-- `docs/references/` 和 `docs/wiki/browser-client/`：保留的参考资料与逆向笔记。
+The project focuses on a small core: install the browser extension, install the
+local host, then use the CLI or SDKs to inspect tabs, open pages, run CDP
+commands, and hand browser state back to an upper-layer agent runtime.
 
-## 快速开始
+## Quick Start
 
-安装依赖：
+### Install the Extension
 
-```sh
-pnpm install
-```
+Install the Chrome extension from either source:
 
-构建和检查：
+- [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases):
+  download the latest `open-browser-use-chrome-extension-*.crx` or `.zip`.
+- Chrome Web Store:
+  [Open Browser Use](https://chromewebstore.google.com/detail/open-browser-use/bgjoihaepiejlfjinojjfgokghnodnhd).
 
-```sh
-pnpm typecheck
-pnpm build
-pnpm test
-make ci
-```
+### Install the CLI
 
-打包 Chrome extension：
+Install the native host and CLI with npm:
 
-```sh
-pnpm package:chrome-extension
-```
-
-安装 CLI 会自动注册 Chrome native messaging host。用户从 Chrome Web Store 安装
-Open Browser Use extension 后，再通过 npm 或 Homebrew 安装 CLI 即可：
-
-```sh
+```bash
 npm install -g open-browser-use
 ```
 
-或：
+Or install with Homebrew:
 
-```sh
+```bash
 brew install iFurySt/open-browser-use/open-browser-use
 ```
 
-如果需要修复 native host 注册，直接运行：
+The CLI installer registers the Chrome native messaging host automatically. If
+you need to repair the registration, run:
 
-```sh
+```bash
 open-browser-use install-manifest
 ```
 
-开发 unpacked extension 时可显式指定当前 extension id：
+### Use It
 
-```sh
-open-browser-use install-manifest --extension-id <unpacked-extension-id> --path /path/to/open-browser-use
+Check that the extension and native host can talk to each other:
+
+```bash
+open-browser-use ping
 ```
 
-当前 Chrome route 执行计划在
-`docs/exec-plans/completed/2026-05-08-open-browser-use-chrome-route.md`。
+List browser and session state:
 
-## 许可证
+```bash
+open-browser-use info
+open-browser-use tabs
+open-browser-use user-tabs
+```
 
-[MIT](LICENSE)
+Open and control a tab:
+
+```bash
+open-browser-use open-tab --url https://example.com
+open-browser-use navigate --tab-id <tab-id> --url https://github.com/iFurySt/open-codex-browser-use
+```
+
+The CLI also exposes lower-level Browser Use style calls through:
+
+```bash
+open-browser-use call --method <method> --params '<json>'
+```
+
+## License
+
+[MIT](./LICENSE)
