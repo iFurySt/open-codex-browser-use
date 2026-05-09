@@ -40,7 +40,8 @@ open-browser-use setup
 
 重启 Chrome，并在 Chrome 提示时确认启用 Open Browser Use 插件。
 
-Chrome Web Store 条目还在审核时，可以改用最新 GitHub Release CRX：
+Chrome Web Store 条目还在审核时，可以改用最新 GitHub Release zip，以
+unpacked extension 方式安装：
 
 ```bash
 open-browser-use setup release
@@ -48,9 +49,11 @@ open-browser-use setup release
 
 `setup release` 会从
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
-下载最新的 `open-browser-use-chrome-extension-*.crx` 并用 Chrome 打开。
-它会读取 CRX 里的 extension id，并用该 id 注册 native host。
-`open-browser-use setup offline` 也作为这个非商店安装路径的别名可用。
+下载最新的 `open-browser-use-chrome-extension-*.zip`，展开到 Application
+Support，写入稳定 unpacked extension id，并用该 id 注册 native host，然后打开
+`chrome://extensions/`。打开 Developer mode，点击 **Load unpacked**，选择命令
+打印出来的 extension directory。`open-browser-use setup offline` 也作为这个非商店
+安装路径的别名可用。
 
 如果只需要修复 native messaging host 注册，运行：
 

@@ -42,19 +42,21 @@ open-browser-use setup
 
 Restart Chrome and approve the Open Browser Use extension prompt if Chrome asks.
 
-While the Chrome Web Store item is pending review, install the latest release
-CRX instead:
+While the Chrome Web Store item is pending review, use the latest GitHub
+Release zip as an unpacked extension instead:
 
 ```bash
 open-browser-use setup release
 ```
 
 `setup release` downloads the latest
-`open-browser-use-chrome-extension-*.crx` from
+`open-browser-use-chrome-extension-*.zip` from
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
-and opens it in Chrome. It reads the CRX extension id and registers the native
-host for that id. The alias `open-browser-use setup offline` is also available
-for this non-Web-Store path.
+and unpacks it under Application Support. It pins a stable unpacked extension
+id, registers the native host for that id, and opens `chrome://extensions/`.
+Enable Developer mode, choose **Load unpacked**, and select the printed
+extension directory. The alias `open-browser-use setup offline` is also
+available for this non-Web-Store path.
 
 If you only need to repair the native messaging host registration, run:
 

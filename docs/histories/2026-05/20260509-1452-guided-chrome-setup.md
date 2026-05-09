@@ -9,7 +9,7 @@
 ### 📥 User Query
 
 > 评估并实现通过 npm/Homebrew 安装 CLI 后统一运行 `open-browser-use setup`，
-> 同时在 Chrome Web Store 审核期支持从 GitHub Releases 安装最新 CRX。
+> 同时在 Chrome Web Store 审核期支持从 GitHub Releases 安装最新扩展包。
 
 ### 🛠 Changes Overview
 
@@ -19,9 +19,9 @@
 
 - **[CLI]**: 新增 `open-browser-use setup`，注册 native messaging host 并写入
   Chrome External Extensions JSON，引导 Chrome 安装 Web Store 扩展。
-- **[Release CRX]**: 新增 `open-browser-use setup release`，下载或打开 release
-  CRX，并从 CRX3 头读取真实 extension id 来注册 native host；`setup offline`
-  作为别名保留。
+- **[Release Extension]**: 新增 `open-browser-use setup release`，下载 release
+  zip 并展开成 unpacked extension，写入稳定 public key 生成固定 extension id 来
+  注册 native host；`setup offline` 作为别名保留。
 - **[Installers]**: npm `postinstall` 和 Homebrew caveats 改为提示用户显式运行
   `open-browser-use setup`，不再在安装阶段静默注册。
 - **[Docs]**: 更新 README、架构、Chrome Web Store 发布/Listing、安全和 release
@@ -33,18 +33,22 @@
 - **[CI Reliability]**: 远端 CI 暴露 relay notification 测试竞态后，等待
   accept loop 登记两个 SDK client，并给 notification read 加 deadline；发布
   `0.1.10` 修复 CI 超时。
+- **[Offline Install Fix]**: 实机安装发现 Chrome Stable 拒绝自分发 CRX
+  `CRX_REQUIRED_PROOF_MISSING`，改为 `setup release` 下载 release zip、展开
+  unpacked extension 并引导 Load unpacked；发布 `0.1.11`。
 
 ### 🧠 Design Intent (Why)
 
 浏览器扩展安装和高权限 native host 注册都应该是显式用户动作。`setup` 把安装后的
 一次性配置收口到可重复运行的 CLI 命令；`setup release` 解决商店审核期没有 Web
-Store 扩展可拉取的问题，并避免自分发 CRX id 与 Web Store id 不一致导致
+Store 扩展可拉取的问题，并避免 unpacked extension id 与 Web Store id 不一致导致
 Native Messaging `allowed_origins` 失配。
 
 ### 📁 Files Modified
 
 - `cmd/open-browser-use/main.go`
 - `cmd/open-browser-use/main_test.go`
+- `.github/workflows/release.yml`
 - `packages/open-browser-use-cli/cli/postinstall.js`
 - `packages/open-browser-use-cli/README.md`
 - `packages/open-browser-use-cli/package.json`

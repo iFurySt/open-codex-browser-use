@@ -8,8 +8,8 @@
   打包、脚本语法、Go 测试、JS/TypeScript package 测试和 Python SDK smoke。
 - `supply-chain-security.yml`：在 PR 上做依赖变更检查，并在 PR、定时任务和手动触发时运行 OSV 扫描。
 - `release.yml`：tag `v*` 推送或手动触发的 release 流水线，用来打包仓库级制品、
-  Chrome extension zip、可双击打开的 CRX 包、生成 provenance，并创建 GitHub
-  Release；Release 页面只暴露 zip 和 CRX 两个用户下载项，其他 manifest、
+  Chrome extension zip、内部 CRX evidence、生成 provenance，并创建 GitHub
+  Release；Release 页面只暴露 zip 用户下载项，其他 manifest、CRX evidence、
   SBOM 和 repo metadata 留在 workflow artifact 里。手动触发时按输入参数可把
   extension 上传并提交到 Chrome Web Store。新建 GitHub Release 时使用
   `gh release create --generate-notes`，交给 GitHub 自动生成 `What's Changed`、
@@ -50,7 +50,6 @@
 当前 GitHub Release 页面只面向用户暴露：
 
 - `chrome-extension/open-browser-use-chrome-extension-<version>.zip`
-- `chrome-extension/open-browser-use-chrome-extension-<version>.crx`
 
 workflow 还会在 `release-evidence` artifact 中保留内部追溯材料：
 
@@ -59,6 +58,6 @@ workflow 还会在 `release-evidence` artifact 中保留内部追溯材料：
 - `chrome-extension/package-manifest.json`
 - `chrome-extension/crx-manifest.json`
 - `sbom.spdx.json`
-- 对 zip 和 CRX 生成的 GitHub artifact attestation
+- 对 zip 和内部 CRX evidence 生成的 GitHub artifact attestation
 
 也就是说，即使项目还没进入真实部署阶段，这个模板也已经把“可追溯的制品封装”这一步准备好了。

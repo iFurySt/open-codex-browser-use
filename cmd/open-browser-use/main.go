@@ -1,7 +1,10 @@
 package main
 
 import (
+	"archive/zip"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -21,9 +24,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.10"
+const version = "0.1.11"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
+const offlineExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -141,60 +145,61 @@ func newSetupCommand() *cobra.Command {
 func newSetupReleaseCommand() *cobra.Command {
 	extensionID := defaultChromeExtensionID
 	var binaryPath string
-	var crxPath string
+	var zipPath string
 	var noOpen bool
 	cmd := &cobra.Command{
 		Use:     "release",
 		Aliases: []string{"offline"},
-		Short:   "Register the native host and open the latest release CRX",
+		Short:   "Register the native host and prepare the latest release extension",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			resolvedCRXPath := crxPath
-			if resolvedCRXPath == "" {
+			resolvedZIPPath := zipPath
+			if resolvedZIPPath == "" {
 				var err error
-				resolvedCRXPath, err = downloadLatestReleaseCRX()
+				resolvedZIPPath, err = downloadLatestReleaseZIP()
 				if err != nil {
 					return err
 				}
 			} else {
 				var err error
-				resolvedCRXPath, err = resolveExistingCRXPath(resolvedCRXPath)
+				resolvedZIPPath, err = resolveExistingExtensionZIP(resolvedZIPPath)
 				if err != nil {
 					return err
 				}
 			}
+			unpackedPath, unpackedExtensionID, err := installUnpackedExtension(resolvedZIPPath)
+			if err != nil {
+				return err
+			}
 			effectiveExtensionID := extensionID
 			if !cmd.Flags().Changed("extension-id") {
-				crxExtensionID, err := extensionIDFromCRX(resolvedCRXPath)
-				if err != nil {
-					return err
-				}
-				effectiveExtensionID = crxExtensionID
+				effectiveExtensionID = unpackedExtensionID
 			}
 			manifestPath, err := installNativeManifest(effectiveExtensionID, binaryPath, "")
 			if err != nil {
 				return err
 			}
 			if !noOpen {
-				if err := openFile(resolvedCRXPath); err != nil {
+				if err := openChromeExtensionsPage(); err != nil {
 					return err
 				}
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Native messaging host manifest: %s\n", manifestPath)
 			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension id: %s\n", effectiveExtensionID)
-			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension CRX: %s\n", resolvedCRXPath)
+			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension ZIP: %s\n", resolvedZIPPath)
+			fmt.Fprintf(cmd.OutOrStdout(), "Chrome extension directory: %s\n", unpackedPath)
 			if noOpen {
-				fmt.Fprintln(cmd.OutOrStdout(), "Open the CRX in Chrome to install the extension.")
+				fmt.Fprintln(cmd.OutOrStdout(), "Open chrome://extensions, enable Developer mode, choose Load unpacked, and select the extension directory.")
 			} else {
-				fmt.Fprintln(cmd.OutOrStdout(), "Approve the Chrome extension install prompt if Chrome asks.")
+				fmt.Fprintln(cmd.OutOrStdout(), "In chrome://extensions, enable Developer mode, choose Load unpacked, and select the extension directory.")
 			}
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&extensionID, "extension-id", defaultChromeExtensionID, "Chrome extension id for allowed_origins")
 	cmd.Flags().StringVar(&binaryPath, "path", "", "native host binary target for the stable host link")
-	cmd.Flags().StringVar(&crxPath, "crx", "", "existing CRX path; defaults to the latest GitHub Release CRX")
-	cmd.Flags().BoolVar(&noOpen, "no-open", false, "download or resolve the CRX without opening it")
+	cmd.Flags().StringVar(&zipPath, "zip", "", "existing extension zip path; defaults to the latest GitHub Release zip")
+	cmd.Flags().BoolVar(&noOpen, "no-open", false, "download and unpack the extension without opening Chrome")
 	return cmd
 }
 
@@ -831,8 +836,8 @@ func defaultNativeHostManifestPath() (string, error) {
 	}
 }
 
-func downloadLatestReleaseCRX() (string, error) {
-	assetName := fmt.Sprintf("open-browser-use-chrome-extension-%s.crx", version)
+func downloadLatestReleaseZIP() (string, error) {
+	assetName := fmt.Sprintf("open-browser-use-chrome-extension-%s.zip", version)
 	url := fmt.Sprintf(
 		"https://github.com/iFurySt/open-codex-browser-use/releases/download/v%s/%s",
 		version,
@@ -863,7 +868,7 @@ func downloadReleaseAsset(name string, url string) (string, error) {
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return "", fmt.Errorf("CRX download failed: %s", response.Status)
+		return "", fmt.Errorf("extension ZIP download failed: %s", response.Status)
 	}
 	tempPath := targetPath + ".tmp"
 	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
@@ -887,7 +892,7 @@ func downloadReleaseAsset(name string, url string) (string, error) {
 	return targetPath, nil
 }
 
-func resolveExistingCRXPath(path string) (string, error) {
+func resolveExistingExtensionZIP(path string) (string, error) {
 	absolutePath, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
@@ -897,9 +902,127 @@ func resolveExistingCRXPath(path string) (string, error) {
 		return "", err
 	}
 	if info.IsDir() {
-		return "", fmt.Errorf("CRX path is a directory: %s", absolutePath)
+		return "", fmt.Errorf("extension ZIP path is a directory: %s", absolutePath)
 	}
 	return absolutePath, nil
+}
+
+func installUnpackedExtension(zipPath string) (string, string, error) {
+	targetDir, err := defaultUnpackedExtensionDir()
+	if err != nil {
+		return "", "", err
+	}
+	if err := os.RemoveAll(targetDir); err != nil {
+		return "", "", err
+	}
+	if err := os.MkdirAll(targetDir, 0o700); err != nil {
+		return "", "", err
+	}
+	if err := unzipExtension(zipPath, targetDir); err != nil {
+		return "", "", err
+	}
+	extensionID, err := pinUnpackedExtensionKey(filepath.Join(targetDir, "manifest.json"))
+	if err != nil {
+		return "", "", err
+	}
+	return targetDir, extensionID, nil
+}
+
+func defaultUnpackedExtensionDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		return filepath.Join(home, "Library/Application Support/OpenBrowserUse/chrome-extension/release"), nil
+	case "linux":
+		return filepath.Join(home, ".local/share/open-browser-use/chrome-extension/release"), nil
+	default:
+		return "", fmt.Errorf("release extension setup is not implemented for %s", runtime.GOOS)
+	}
+}
+
+func unzipExtension(zipPath string, targetDir string) error {
+	reader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	cleanTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return err
+	}
+	for _, file := range reader.File {
+		targetPath := filepath.Join(cleanTargetDir, file.Name)
+		if targetPath != cleanTargetDir && !strings.HasPrefix(targetPath, cleanTargetDir+string(os.PathSeparator)) {
+			return fmt.Errorf("extension ZIP contains unsafe path: %s", file.Name)
+		}
+		if file.FileInfo().IsDir() {
+			if err := os.MkdirAll(targetPath, 0o700); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0o700); err != nil {
+			return err
+		}
+		source, err := file.Open()
+		if err != nil {
+			return err
+		}
+		destination, err := os.OpenFile(targetPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+		if err != nil {
+			_ = source.Close()
+			return err
+		}
+		_, copyErr := io.Copy(destination, source)
+		closeDestinationErr := destination.Close()
+		closeSourceErr := source.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		if closeDestinationErr != nil {
+			return closeDestinationErr
+		}
+		if closeSourceErr != nil {
+			return closeSourceErr
+		}
+	}
+	return nil
+}
+
+func pinUnpackedExtensionKey(manifestPath string) (string, error) {
+	payload, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return "", err
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(payload, &manifest); err != nil {
+		return "", err
+	}
+	key, _ := manifest["key"].(string)
+	if strings.TrimSpace(key) == "" {
+		key = offlineExtensionPublicKey
+		manifest["key"] = key
+		updated, err := json.MarshalIndent(manifest, "", "  ")
+		if err != nil {
+			return "", err
+		}
+		if err := os.WriteFile(manifestPath, append(updated, '\n'), 0o600); err != nil {
+			return "", err
+		}
+	}
+	return extensionIDFromPublicKey(key)
+}
+
+func extensionIDFromPublicKey(key string) (string, error) {
+	der, err := base64.StdEncoding.DecodeString(strings.TrimSpace(key))
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(der)
+	return extensionIDFromCRXID(sum[:16]), nil
 }
 
 func extensionIDFromCRX(path string) (string, error) {
@@ -1018,6 +1141,22 @@ func openFile(path string) error {
 		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", path)
 	default:
 		return fmt.Errorf("opening files is not implemented for %s", runtime.GOOS)
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
+}
+
+func openChromeExtensionsPage() error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", "-a", "Google Chrome", "chrome://extensions/")
+	case "linux":
+		cmd = exec.Command("xdg-open", "chrome://extensions/")
+	default:
+		return fmt.Errorf("opening Chrome extensions page is not implemented for %s", runtime.GOOS)
 	}
 	if err := cmd.Start(); err != nil {
 		return err

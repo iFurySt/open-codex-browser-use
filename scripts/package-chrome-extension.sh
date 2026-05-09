@@ -143,8 +143,8 @@ const payload = {
   version: manifest.version,
   artifact: zipPath,
   sha256: crypto.createHash("sha256").update(zip).digest("hex"),
-  installableArtifact: crxPath,
-  installableSha256: crypto.createHash("sha256").update(crx).digest("hex"),
+  internalCrxArtifact: crxPath,
+  internalCrxSha256: crypto.createHash("sha256").update(crx).digest("hex"),
   crxExtensionId: crxManifest.extensionId,
   crxKeySource: crxManifest.keySource,
   generatedAtUtc: new Date().toISOString()

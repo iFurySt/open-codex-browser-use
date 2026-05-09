@@ -1,6 +1,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"os"
@@ -228,7 +229,7 @@ func TestCobraSetupWritesNativeAndExternalManifests(t *testing.T) {
 	}
 }
 
-func TestCobraSetupOfflineAliasUsesProvidedCRX(t *testing.T) {
+func TestCobraSetupOfflineAliasUsesProvidedZIP(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("stable native host link is not implemented on windows")
 	}
@@ -238,26 +239,28 @@ func TestCobraSetupOfflineAliasUsesProvidedCRX(t *testing.T) {
 	if err := os.WriteFile(targetPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	crxPath := filepath.Join(t.TempDir(), "open-browser-use-chrome-extension.crx")
-	crxID := []byte{0xed, 0x76, 0xae, 0x2d, 0xae, 0xf3, 0x92, 0xe3, 0xc0, 0x93, 0xc0, 0x75, 0xc0, 0x4e, 0xfb, 0x48}
-	expectedExtensionID := extensionIDFromCRXID(crxID)
-	if err := os.WriteFile(crxPath, testCRX(crxID), 0o600); err != nil {
+	zipPath := filepath.Join(t.TempDir(), "open-browser-use-chrome-extension.zip")
+	expectedExtensionID, err := extensionIDFromPublicKey(offlineExtensionPublicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := writeTestExtensionZIP(zipPath); err != nil {
 		t.Fatal(err)
 	}
 
 	cmd := newRootCommand()
 	var output bytes.Buffer
 	cmd.SetOut(&output)
-	cmd.SetArgs([]string{"setup", "offline", "--path", targetPath, "--crx", crxPath, "--no-open"})
+	cmd.SetArgs([]string{"setup", "offline", "--path", targetPath, "--zip", zipPath, "--no-open"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
 	got := output.String()
-	if !strings.Contains(got, "Chrome extension CRX:") || !strings.Contains(got, crxPath) {
-		t.Fatalf("expected setup offline output to mention CRX path, got %q", got)
+	if !strings.Contains(got, "Chrome extension ZIP:") || !strings.Contains(got, zipPath) {
+		t.Fatalf("expected setup offline output to mention ZIP path, got %q", got)
 	}
 	if !strings.Contains(got, "Chrome extension id: "+expectedExtensionID) {
-		t.Fatalf("expected setup offline output to mention CRX extension id, got %q", got)
+		t.Fatalf("expected setup offline output to mention unpacked extension id, got %q", got)
 	}
 	manifestPath := filepath.Join(home, "Library/Application Support/Google/Chrome/NativeMessagingHosts", host.NativeHostName+".json")
 	if runtime.GOOS == "linux" {
@@ -268,7 +271,18 @@ func TestCobraSetupOfflineAliasUsesProvidedCRX(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(payload), "chrome-extension://"+expectedExtensionID+"/") {
-		t.Fatalf("expected native manifest to allow CRX extension id, got %s", payload)
+		t.Fatalf("expected native manifest to allow unpacked extension id, got %s", payload)
+	}
+	unpackedPath, err := defaultUnpackedExtensionDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	unpackedManifest, err := os.ReadFile(filepath.Join(unpackedPath, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(unpackedManifest), offlineExtensionPublicKey) {
+		t.Fatalf("expected unpacked manifest to include stable key, got %s", unpackedManifest)
 	}
 }
 
@@ -326,4 +340,29 @@ func testVarint(value uint64) []byte {
 		value >>= 7
 	}
 	return append(out, byte(value))
+}
+
+func writeTestExtensionZIP(path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	writer := zip.NewWriter(file)
+	files := map[string]string{
+		"manifest.json": `{"manifest_version":3,"name":"Open Browser Use","version":"0.1.0","background":{"service_worker":"background.js"},"permissions":["nativeMessaging"]}`,
+		"background.js": "chrome.runtime.onInstalled.addListener(() => {});\n",
+	}
+	for name, content := range files {
+		entry, err := writer.Create(name)
+		if err != nil {
+			_ = writer.Close()
+			return err
+		}
+		if _, err := entry.Write([]byte(content)); err != nil {
+			_ = writer.Close()
+			return err
+		}
+	}
+	return writer.Close()
 }

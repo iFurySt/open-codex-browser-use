@@ -19,8 +19,11 @@ open-browser-use setup
 ```
 
 While the Chrome Web Store item is pending review, use the latest GitHub Release
-CRX instead:
+zip as an unpacked extension instead:
 
 ```sh
 open-browser-use setup release
 ```
+
+That command prints the unpacked extension directory to select from
+`chrome://extensions/` after enabling Developer mode.

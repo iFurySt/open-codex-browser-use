@@ -36,7 +36,7 @@ class OpenBrowserUse < Formula
 
         open-browser-use setup
 
-      While the Chrome Web Store item is pending, install the latest release CRX with:
+      While the Chrome Web Store item is pending, prepare the latest release zip for Load unpacked with:
 
         open-browser-use setup release
     EOS

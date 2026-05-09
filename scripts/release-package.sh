@@ -21,7 +21,7 @@ cat > "${dist_dir}/release-manifest.json" <<EOF
   "artifacts": {
     "repo_metadata": "repo-metadata.tgz",
     "chrome_extension": "chrome-extension/${chrome_extension_artifact}",
-    "chrome_extension_installable": "chrome-extension/${chrome_extension_crx_artifact}"
+    "chrome_extension_internal_crx": "chrome-extension/${chrome_extension_crx_artifact}"
   }
 }
 EOF
