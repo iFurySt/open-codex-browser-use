@@ -139,6 +139,43 @@ func TestInstallNativeManifestCreatesStableLink(t *testing.T) {
 	}
 }
 
+func TestCobraInstallManifestDefaultsToStoreExtension(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stable native host link is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	targetPath := filepath.Join(t.TempDir(), "open-browser-use")
+	if err := os.WriteFile(targetPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRootCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{"install-manifest", "--path", targetPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	manifestPath := strings.TrimSpace(output.String())
+	payload, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(payload, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	origins, ok := manifest["allowed_origins"].([]any)
+	if !ok || len(origins) != 1 {
+		t.Fatalf("expected one allowed origin, got %#v", manifest["allowed_origins"])
+	}
+	if origins[0] != "chrome-extension://"+defaultChromeExtensionID+"/" {
+		t.Fatalf("expected default extension origin, got %#v", origins[0])
+	}
+}
+
 func TestCobraUnknownCommand(t *testing.T) {
 	cmd := newRootCommand()
 	cmd.SetArgs([]string{"does-not-exist"})

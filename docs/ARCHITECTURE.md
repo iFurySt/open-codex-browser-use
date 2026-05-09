@@ -85,11 +85,18 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   native host；手工启动 host 使用 `open-browser-use host`。
 - `open-browser-use manifest`：输出 Chrome native messaging host manifest。
 - `open-browser-use install-manifest`：把 native messaging host manifest
-  写入 Chrome 默认位置，或通过 `--output` 写到指定路径。
-- 本地安装后可以把 `obu` 指向同一个二进制，例如
-  `ln -sfn ~/.local/bin/open-browser-use ~/.local/bin/obu`。
-- npm 包 `open-browser-use` 也是 CLI 二进制分发入口，安装后提供
-  `open-browser-use` 和 `obu`；它不负责发布或安装 Chrome extension。
+  写入 Chrome 默认位置，或通过 `--output` 写到指定路径。默认 extension id
+  是 Chrome Web Store 版 `bgjoihaepiejlfjinojjfgokghnodnhd`。
+- manifest 的 `path` 默认统一写入稳定 native host link：
+  macOS 为
+  `~/Library/Application Support/OpenBrowserUse/native-host/open-browser-use`，
+  Linux 为 `~/.local/share/open-browser-use/native-host/open-browser-use`。
+  `install-manifest --path` 表示这个稳定 link 指向的真实二进制 target。
+- npm 包 `open-browser-use` 是 CLI 二进制分发入口，安装后提供
+  `open-browser-use` 和 `obu`，并在 `postinstall` 中 best-effort 自动注册
+  native host manifest。
+- Homebrew formula 安装后提供 `open-browser-use` 和 `obu`，并在
+  `post_install` 中 best-effort 自动注册 native host manifest。
 - CLI 命令层使用 Cobra 实现；Chrome native messaging
   `chrome-extension://...` origin 参数启动时会绕过 Cobra，直接进入 host mode。
   这依赖 Chrome Native Messaging 的标准启动形状：MV3 service worker 调用

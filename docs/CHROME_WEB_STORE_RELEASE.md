@@ -7,16 +7,21 @@
 
 Chrome Web Store 只分发 `apps/chrome-extension/` 里的 MV3 extension 包。
 宿主机二进制 `open-browser-use` 仍然需要用户通过项目安装包、脚本或二进制
-单独安装到本机，然后写入 Chrome Native Messaging manifest。
+单独安装到本机。npm 和 Homebrew 安装会 best-effort 自动写入 Chrome Native
+Messaging manifest。
 
-Chrome extension 不能自己安装 native messaging host manifest。正式扩展 ID
-确定后，host 安装命令需要使用同一个 ID：
+Chrome extension 不能自己安装 native messaging host manifest。正式扩展 ID 是
+`bgjoihaepiejlfjinojjfgokghnodnhd`，已经作为 CLI 默认值写入。需要手工修复时
+直接运行：
 
 ```bash
-open-browser-use install-manifest \
-  --extension-id <chrome-web-store-extension-id> \
-  --path /path/to/open-browser-use
+open-browser-use install-manifest
 ```
+
+`install-manifest` 会把 manifest 的 `path` 写成稳定 native host link：
+`~/Library/Application Support/OpenBrowserUse/native-host/open-browser-use`，并
+让该 link 指向当前安装的真实二进制。开发 unpacked extension 时，可以通过
+`--extension-id <unpacked-extension-id>` 覆盖 allowed origin。
 
 ## 本地打包
 
