@@ -34,6 +34,9 @@ bin/
 obj/
 .cache/
 
+# Generated npm CLI binary payloads
+packages/open-browser-use-cli/native/
+
 # Python
 __pycache__/
 *.pyc
