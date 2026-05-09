@@ -16,16 +16,18 @@
 
 **Key Actions:**
 
-- **Icon generator**: Updated `scripts/generate-chrome-extension-icons.mjs` to draw the selected logo direction: rounded browser window, white outlined cursor, and blue click rays.
-- **Extension assets**: Regenerated `apps/chrome-extension/icons/icon-{16,32,48,128}.png` from the deterministic generator.
+- **Logo source**: Added `apps/chrome-extension/icons/logo-source.png` as a direct crop of the selected generated logo concept.
+- **Icon generator**: Updated `scripts/generate-chrome-extension-icons.mjs` to resize the checked-in source image into Chrome extension icon sizes instead of redrawing an approximate vector version.
+- **Extension assets**: Regenerated `apps/chrome-extension/icons/icon-{16,32,48,128}.png` from the source logo.
 
 ### Design Intent (Why)
 
-The chosen logo makes the product purpose visible at small sizes: a full browser frame plus cursor clearly signals browser automation, while the outlined cursor matches the selected concept and avoids a generic AI or Chrome-copy visual.
+The chosen logo makes the product purpose visible at small sizes: a full browser frame plus cursor clearly signals browser automation, while the outlined cursor matches the selected concept and avoids a generic AI or Chrome-copy visual. Keeping the selected raster concept as the source preserves the original proportions and rendering details.
 
 ### Files Modified
 
 - `scripts/generate-chrome-extension-icons.mjs`
+- `apps/chrome-extension/icons/logo-source.png`
 - `apps/chrome-extension/icons/icon-16.png`
 - `apps/chrome-extension/icons/icon-32.png`
 - `apps/chrome-extension/icons/icon-48.png`
