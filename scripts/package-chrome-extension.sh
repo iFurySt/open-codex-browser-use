@@ -20,6 +20,8 @@ manifest_path="${extension_dir}/manifest.json"
 version="$(node -e 'const fs=require("fs"); const manifest=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(manifest.version);' "${manifest_path}")"
 package_name="open-browser-use-chrome-extension-${version}.zip"
 zip_path="${dist_dir}/${package_name}"
+crx_name="open-browser-use-chrome-extension-${version}.crx"
+crx_path="${dist_dir}/${crx_name}"
 
 node - "${manifest_path}" "${extension_dir}" <<'NODE'
 const fs = require("fs");
@@ -115,21 +117,36 @@ mkdir -p "${dist_dir}"
     popup.js
 )
 
-node - "${manifest_path}" "${zip_path}" "${dist_dir}/package-manifest.json" <<'NODE'
+node "${repo_root}/scripts/package-chrome-extension-crx.mjs" \
+  --zip "${zip_path}" \
+  --output "${crx_path}" \
+  --metadata "${dist_dir}/crx-manifest.json" \
+  >&2
+
+node - "${manifest_path}" "${zip_path}" "${crx_path}" "${dist_dir}/package-manifest.json" <<'NODE'
 const crypto = require("crypto");
 const fs = require("fs");
 
 const manifestPath = process.argv[2];
 const zipPath = process.argv[3];
-const outputPath = process.argv[4];
+const crxPath = process.argv[4];
+const outputPath = process.argv[5];
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 const zip = fs.readFileSync(zipPath);
+const crx = fs.readFileSync(crxPath);
+const crxManifest = JSON.parse(
+  fs.readFileSync(`${require("path").dirname(outputPath)}/crx-manifest.json`, "utf8")
+);
 
 const payload = {
   name: manifest.name,
   version: manifest.version,
   artifact: zipPath,
   sha256: crypto.createHash("sha256").update(zip).digest("hex"),
+  installableArtifact: crxPath,
+  installableSha256: crypto.createHash("sha256").update(crx).digest("hex"),
+  crxExtensionId: crxManifest.extensionId,
+  crxKeySource: crxManifest.keySource,
   generatedAtUtc: new Date().toISOString()
 };
 

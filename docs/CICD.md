@@ -7,9 +7,9 @@
 - `ci.yml`：仓库级检查，覆盖 docs、repo hygiene、action pinning、extension
   打包、脚本语法、Go 测试、JS/TypeScript package 测试和 Python SDK smoke。
 - `supply-chain-security.yml`：在 PR 上做依赖变更检查，并在 PR、定时任务和手动触发时运行 OSV 扫描。
-- `release.yml`：手动触发的 release 流水线，用来打包仓库级制品、
-  Chrome extension zip、生成 provenance，并创建 GitHub Release；按输入参数
-  可把 extension 上传并提交到 Chrome Web Store。
+- `release.yml`：tag `v*` 推送或手动触发的 release 流水线，用来打包仓库级制品、
+  Chrome extension zip、可双击打开的 CRX 包、生成 provenance，并创建 GitHub
+  Release；手动触发时按输入参数可把 extension 上传并提交到 Chrome Web Store。
 - `npm-publish.yml`：tag `v*` 推送触发的 npm CLI 发布流水线，使用 npm
   trusted publishing/OIDC 发布 `packages/open-browser-use-cli`。该包是二进制
   CLI 分发入口，不发布 Chrome extension。
@@ -48,7 +48,9 @@
 - `release-manifest.json`
 - `repo-metadata.tgz`
 - `chrome-extension/open-browser-use-chrome-extension-<version>.zip`
+- `chrome-extension/open-browser-use-chrome-extension-<version>.crx`
 - `chrome-extension/package-manifest.json`
+- `chrome-extension/crx-manifest.json`
 - `sbom.spdx.json`
 - 对 release artifact 生成的 GitHub artifact attestation
 

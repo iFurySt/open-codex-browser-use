@@ -1,6 +1,9 @@
 name: 发布
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
@@ -47,8 +50,32 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: 解析 release 元数据
+        id: release
+        env:
+          DISPATCH_TAG: ${{ github.event.inputs.tag }}
+          DISPATCH_TITLE: ${{ github.event.inputs.title }}
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            release_tag="${DISPATCH_TAG}"
+            release_title="${DISPATCH_TITLE:-${release_tag}}"
+          else
+            release_tag="${GITHUB_REF_NAME}"
+            release_title="${GITHUB_REF_NAME}"
+          fi
+
+          if [ -z "${release_tag}" ]; then
+            echo "Release tag is required" >&2
+            exit 1
+          fi
+
+          echo "tag=${release_tag}" >> "${GITHUB_OUTPUT}"
+          echo "title=${release_title}" >> "${GITHUB_OUTPUT}"
+
       - name: 打包 release 制品
         id: package
+        env:
+          CHROME_EXTENSION_PRIVATE_KEY: ${{ secrets.CHROME_EXTENSION_PRIVATE_KEY }}
         run: |
           ./scripts/release-package.sh
           chrome_extension_zip="$(find dist/chrome-extension -maxdepth 1 -type f -name '*.zip' -print -quit)"
@@ -56,7 +83,13 @@ jobs:
             echo "Chrome extension zip not found" >&2
             exit 1
           fi
+          chrome_extension_crx="$(find dist/chrome-extension -maxdepth 1 -type f -name '*.crx' -print -quit)"
+          if [ -z "${chrome_extension_crx}" ]; then
+            echo "Chrome extension crx not found" >&2
+            exit 1
+          fi
           echo "chrome_extension_zip=${chrome_extension_zip}" >> "${GITHUB_OUTPUT}"
+          echo "chrome_extension_crx=${chrome_extension_crx}" >> "${GITHUB_OUTPUT}"
 
       - name: 生成 SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
@@ -74,6 +107,7 @@ jobs:
             dist/repo-metadata.tgz
             dist/release-manifest.json
             dist/chrome-extension/*.zip
+            dist/chrome-extension/*.crx
             dist/chrome-extension/*.json
             dist/sbom.spdx.json
 
@@ -84,21 +118,24 @@ jobs:
           subject-path: |
             dist/repo-metadata.tgz
             dist/chrome-extension/*.zip
+            dist/chrome-extension/*.crx
 
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
-          tag_name: ${{ inputs.tag }}
-          name: ${{ inputs.title || inputs.tag }}
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: ${{ steps.release.outputs.title }}
           files: |
             dist/repo-metadata.tgz
             dist/release-manifest.json
             dist/chrome-extension/*.zip
+            dist/chrome-extension/*.crx
             dist/chrome-extension/package-manifest.json
+            dist/chrome-extension/crx-manifest.json
             dist/sbom.spdx.json
 
       - name: 上传并提交 Chrome Web Store 审核
-        if: ${{ inputs.publish_chrome_web_store }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_chrome_web_store }}
         env:
           CWS_ACCESS_TOKEN: ${{ secrets.CWS_ACCESS_TOKEN }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}

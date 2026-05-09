@@ -21,7 +21,8 @@ node --check apps/chrome-extension/content-cursor.js
 ```
 
 打包脚本会校验 manifest、icons、background/content/popup 脚本基础语法，并
-输出 `dist/chrome-extension/open-browser-use-chrome-extension-<version>.zip`。
+输出 `dist/chrome-extension/open-browser-use-chrome-extension-<version>.zip` 和
+`dist/chrome-extension/open-browser-use-chrome-extension-<version>.crx`。
 
 ## 设计约束
 

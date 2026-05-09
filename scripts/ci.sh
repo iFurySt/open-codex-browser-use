@@ -20,6 +20,7 @@ node "${repo_root}/scripts/generate-chrome-extension-icons.mjs"
 )
 node --check "${repo_root}/scripts/chrome-web-store-oauth.mjs"
 node --check "${repo_root}/scripts/generate-chrome-extension-icons.mjs"
+node --check "${repo_root}/scripts/package-chrome-extension-crx.mjs"
 node --check "${repo_root}/scripts/publish-chrome-web-store.mjs"
 
 while IFS= read -r file; do

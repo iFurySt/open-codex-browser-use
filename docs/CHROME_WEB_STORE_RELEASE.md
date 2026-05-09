@@ -42,21 +42,38 @@ pnpm package:chrome-extension
 
 ```text
 dist/chrome-extension/open-browser-use-chrome-extension-<version>.zip
+dist/chrome-extension/open-browser-use-chrome-extension-<version>.crx
 dist/chrome-extension/package-manifest.json
+dist/chrome-extension/crx-manifest.json
+```
+
+`.zip` 是 Chrome Web Store 上传包；`.crx` 是 GitHub Release 上给用户直接打开
+安装的 CRX3 包。CI 默认会用临时 RSA key 生成可安装 CRX；如果需要让自分发 CRX
+跨版本保持同一个 extension id，可以在 GitHub secret 中配置 PEM 或 base64 PEM
+格式的 `CHROME_EXTENSION_PRIVATE_KEY`。
+
+自分发 CRX 的 extension id 会写入 `crx-manifest.json` 和
+`package-manifest.json`。如果这个 id 不等于 Chrome Web Store extension id，
+用户安装 native host 时需要用对应 id 运行：
+
+```bash
+open-browser-use install-manifest --extension-id <crxExtensionId>
 ```
 
 ## GitHub Release
 
-手动触发 `.github/workflows/release.yml` 会生成：
+推送 `v*` tag 或手动触发 `.github/workflows/release.yml` 会生成：
 
 - `dist/repo-metadata.tgz`
 - `dist/release-manifest.json`
 - `dist/chrome-extension/open-browser-use-chrome-extension-<version>.zip`
+- `dist/chrome-extension/open-browser-use-chrome-extension-<version>.crx`
 - `dist/chrome-extension/package-manifest.json`
+- `dist/chrome-extension/crx-manifest.json`
 - `dist/sbom.spdx.json`
 
-release workflow 会把 Chrome extension zip 纳入 artifact upload、GitHub
-Release assets 和 provenance attestation。
+release workflow 会把 Chrome extension zip 和 CRX 纳入 artifact upload、
+GitHub Release assets 和 provenance attestation。
 
 ## 自动提交 Chrome Web Store
 
