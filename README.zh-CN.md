@@ -52,7 +52,7 @@ open-browser-use setup beta
 # 安装到codex
 npx skills add iFurySt/open-codex-browser-use -g -a codex --skill open-browser-use --copy -y
 npx skills ls -g -a codex | rg 'open-browser-use'
-codex exec "Use open-browser-use to check today’s Hacker News and summarize the most worth-reading posts."
+codex exec --skip-git-repo-check "用open-browser-use查看下今天Hacker News有什么值得关注的"
 
 # 安装到claude code
 npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-browser-use --copy -y

@@ -64,7 +64,7 @@ Install the skill directly:
 # Install for Codex
 npx skills add iFurySt/open-codex-browser-use -g -a codex --skill open-browser-use --copy -y
 npx skills ls -g -a codex | rg 'open-browser-use'
-codex exec "Use open-browser-use to check today’s Hacker News and summarize the most worth-reading posts."
+codex exec --skip-git-repo-check "Use open-browser-use to check today’s Hacker News and summarize the most worth-reading posts."
 
 # Install for Claude Code
 npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-browser-use --copy -y
