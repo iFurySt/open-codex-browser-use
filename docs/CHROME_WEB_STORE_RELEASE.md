@@ -62,18 +62,16 @@ open-browser-use install-manifest --extension-id <crxExtensionId>
 
 ## GitHub Release
 
-推送 `v*` tag 或手动触发 `.github/workflows/release.yml` 会生成：
+推送 `v*` tag 或手动触发 `.github/workflows/release.yml` 后，GitHub Release
+页面只放两个用户下载项：
 
-- `dist/repo-metadata.tgz`
-- `dist/release-manifest.json`
 - `dist/chrome-extension/open-browser-use-chrome-extension-<version>.zip`
 - `dist/chrome-extension/open-browser-use-chrome-extension-<version>.crx`
-- `dist/chrome-extension/package-manifest.json`
-- `dist/chrome-extension/crx-manifest.json`
-- `dist/sbom.spdx.json`
 
-release workflow 会把 Chrome extension zip 和 CRX 纳入 artifact upload、
-GitHub Release assets 和 provenance attestation。
+`release-manifest.json`、`package-manifest.json`、`crx-manifest.json`、
+`repo-metadata.tgz` 和 `sbom.spdx.json` 会保留在 workflow 的
+`release-evidence` artifact 中，用于追溯和排查，不作为用户下载项展示。
+release workflow 会对 Chrome extension zip 和 CRX 生成 provenance attestation。
 
 ## 自动提交 Chrome Web Store
 

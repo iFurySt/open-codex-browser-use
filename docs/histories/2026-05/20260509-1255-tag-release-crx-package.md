@@ -17,7 +17,8 @@
 **Key Actions:**
 
 - **[CRX Packaging]**: Added a CRX3 packer that wraps the validated extension zip with a signed CRX header and emits `crx-manifest.json`.
-- **[Tag Release]**: Updated `release.yml` so `v*` tag pushes create GitHub Releases with zip, CRX, manifests, SBOM, and provenance.
+- **[Tag Release]**: Updated `release.yml` so `v*` tag pushes create GitHub Releases with zip, CRX, and provenance.
+- **[Release UX]**: Kept GitHub Release downloads to only the user-facing `.crx` and `.zip`; internal manifests, SBOM, and repo metadata stay in the workflow artifact.
 - **[Version]**: Bumped Open Browser Use runtime, package, SDK, Python, and extension versions from `0.1.5` to `0.1.6`.
 - **[Docs]**: Updated CI/CD, Chrome release, frontend, supply-chain, listing, and release-note docs for the CRX artifact.
 

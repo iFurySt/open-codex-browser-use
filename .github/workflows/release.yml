@@ -99,10 +99,10 @@ jobs:
           output-file: dist/sbom.spdx.json
           upload-artifact: false
 
-      - name: 上传 release 产物
+      - name: 上传内部 release 证据
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: release-assets
+          name: release-evidence
           path: |
             dist/repo-metadata.tgz
             dist/release-manifest.json
@@ -116,7 +116,6 @@ jobs:
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: |
-            dist/repo-metadata.tgz
             dist/chrome-extension/*.zip
             dist/chrome-extension/*.crx
 
@@ -126,13 +125,8 @@ jobs:
           tag_name: ${{ steps.release.outputs.tag }}
           name: ${{ steps.release.outputs.title }}
           files: |
-            dist/repo-metadata.tgz
-            dist/release-manifest.json
             dist/chrome-extension/*.zip
             dist/chrome-extension/*.crx
-            dist/chrome-extension/package-manifest.json
-            dist/chrome-extension/crx-manifest.json
-            dist/sbom.spdx.json
 
       - name: 上传并提交 Chrome Web Store 审核
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_chrome_web_store }}
