@@ -47,6 +47,42 @@ class OpenBrowserUseClientTest(unittest.TestCase):
                 client.close()
             thread.join(timeout=1)
 
+    def test_file_chooser_wrapper(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            socket_path = str(Path(directory) / "obu.sock")
+            server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            server.bind(socket_path)
+            server.listen(1)
+
+            def serve_once() -> None:
+                conn, _ = server.accept()
+                with conn:
+                    header = conn.recv(4)
+                    (length,) = struct.unpack("=I", header)
+                    payload = conn.recv(length)
+                    request = json.loads(payload)
+                    self.assertEqual(request["method"], "waitForFileChooser")
+                    self.assertEqual(request["params"]["tabId"], 123)
+                    response = {
+                        "jsonrpc": "2.0",
+                        "id": request["id"],
+                        "result": {"fileChooserId": "chooser-1", "isMultiple": False},
+                    }
+                    conn.sendall(encode_frame(response))
+                server.close()
+
+            thread = threading.Thread(target=serve_once)
+            thread.start()
+            client = OpenBrowserUseClient(socket_path=socket_path)
+            try:
+                self.assertEqual(
+                    client.wait_for_file_chooser(123),
+                    {"fileChooserId": "chooser-1", "isMultiple": False},
+                )
+            finally:
+                client.close()
+            thread.join(timeout=1)
+
 
 if __name__ == "__main__":
     unittest.main()

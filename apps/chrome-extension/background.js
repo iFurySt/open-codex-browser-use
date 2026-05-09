@@ -198,6 +198,8 @@ class BrowserBackend {
     this.downloadUrlsById = new Map();
     this.downloadChangeListeners = new Set();
     this.cursorArrivalWaitersByKey = new Map();
+    this.fileChoosersById = new Map();
+    this.fileChooserWaitersByTabId = new Map();
     this.nextCursorMoveSequence = 1;
     chrome.debugger.onDetach.addListener((source) => {
       if (typeof source.tabId === "number") {
@@ -467,6 +469,59 @@ class BrowserBackend {
     }
   }
 
+  async waitForFileChooser(params) {
+    await this.requireSessionTab(params, "waitForFileChooser");
+    const tabId = requireTabId(params, "waitForFileChooser");
+    if (!this.attachedTabs.has(tabId)) {
+      await this.attach(params);
+    }
+    const timeoutMs =
+      typeof params.timeoutMs === "number" && params.timeoutMs > 0
+        ? params.timeoutMs
+        : DEFAULT_CDP_TIMEOUT_MS;
+    const waitForEvent = this.waitForFileChooserEvent(tabId);
+    try {
+      await chrome.debugger.sendCommand({ tabId }, "Page.setInterceptFileChooserDialog", {
+        enabled: true
+      });
+      return await withTimeout(timeoutMs, () => waitForEvent);
+    } finally {
+      this.fileChooserWaitersByTabId.delete(tabId);
+      await chrome.debugger
+        .sendCommand({ tabId }, "Page.setInterceptFileChooserDialog", { enabled: false })
+        .catch(() => {});
+    }
+  }
+
+  async setFileChooserFiles(params) {
+    await this.requireSession(params);
+    if (typeof params.fileChooserId !== "string" || params.fileChooserId === "") {
+      throw new Error("setFileChooserFiles requires fileChooserId");
+    }
+    const chooser = this.fileChoosersById.get(params.fileChooserId);
+    if (!chooser) {
+      throw new Error(`Unknown file chooser id "${params.fileChooserId}"`);
+    }
+    await this.requireSessionTab({ ...params, tabId: chooser.tabId }, "setFileChooserFiles");
+    if (!Array.isArray(params.files) || params.files.length === 0) {
+      throw new Error("setFileChooserFiles requires at least one file");
+    }
+    const files = params.files.map((file) => {
+      if (typeof file !== "string" || file === "") {
+        throw new Error("setFileChooserFiles files must be non-empty strings");
+      }
+      return file;
+    });
+    if (!chooser.isMultiple && files.length > 1) {
+      throw new Error("File chooser does not accept multiple files");
+    }
+    await chrome.debugger.sendCommand({ tabId: chooser.tabId }, "DOM.setFileInputFiles", {
+      backendNodeId: chooser.backendNodeId,
+      files
+    });
+    this.fileChoosersById.delete(params.fileChooserId);
+  }
+
   async turnEnded(params) {
     const session = await this.requireSession(params);
     const tabs = await this.getSessionTabs(session.sessionId);
@@ -540,6 +595,42 @@ class BrowserBackend {
     const waiter = this.cursorArrivalWaitersByKey.get(cursorArrivalKey(params.sessionId, params.turnId, moveSequence));
     waiter?.();
     return Boolean(waiter);
+  }
+
+  handleCdpEvent(source, method, params) {
+    if (method !== "Page.fileChooserOpened" || typeof source?.tabId !== "number") {
+      return;
+    }
+    const waiter = this.fileChooserWaitersByTabId.get(source.tabId);
+    waiter?.resolve(params ?? {});
+  }
+
+  waitForFileChooserEvent(tabId) {
+    if (this.fileChooserWaitersByTabId.has(tabId)) {
+      throw new Error(`Already waiting for file chooser in tab ${tabId}`);
+    }
+    return new Promise((resolve, reject) => {
+      this.fileChooserWaitersByTabId.set(tabId, {
+        resolve: (event) => {
+          this.fileChooserWaitersByTabId.delete(tabId);
+          if (!Number.isInteger(event.backendNodeId)) {
+            reject(new Error("File chooser event did not include backendNodeId"));
+            return;
+          }
+          const fileChooserId = crypto.randomUUID();
+          const chooser = {
+            tabId,
+            backendNodeId: event.backendNodeId,
+            isMultiple: event.mode === "selectMultiple"
+          };
+          this.fileChoosersById.set(fileChooserId, chooser);
+          resolve({
+            fileChooserId,
+            isMultiple: chooser.isMultiple
+          });
+        }
+      });
+    });
   }
 
   readCursorOverlayState(tabId) {
@@ -705,6 +796,11 @@ class BrowserBackend {
       await chrome.debugger.detach({ tabId });
     } finally {
       this.attachedTabs.delete(tabId);
+      for (const [fileChooserId, chooser] of this.fileChoosersById) {
+        if (chooser.tabId === tabId) {
+          this.fileChoosersById.delete(fileChooserId);
+        }
+      }
     }
   }
 
@@ -896,6 +992,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 chrome.debugger.onEvent.addListener((source, method, params) => {
+  backend.handleCdpEvent(source, method, params);
   safeSendNotification(peer, "onCDPEvent", { source, method, params });
 });
 backend.addDownloadChangeListener((change) => {

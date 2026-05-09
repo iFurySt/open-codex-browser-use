@@ -111,6 +111,15 @@ export class OpenBrowserUseClient {
     moveMouse(tabId, x, y, waitForArrival = true) {
         return this.request("moveMouse", { tabId, x, y, waitForArrival });
     }
+    waitForFileChooser(tabId, timeoutMs) {
+        return this.request("waitForFileChooser", {
+            tabId,
+            ...(timeoutMs === undefined ? {} : { timeoutMs })
+        });
+    }
+    setFileChooserFiles(fileChooserId, files) {
+        return this.request("setFileChooserFiles", { fileChooserId, files });
+    }
     turnEnded() {
         return this.request("turnEnded");
     }

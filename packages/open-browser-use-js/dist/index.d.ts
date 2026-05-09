@@ -38,6 +38,8 @@ export declare class OpenBrowserUseClient {
     detach(tabId: number): Promise<JsonValue>;
     executeCdp(tabId: number, method: string, commandParams?: BrowserUseRequestParams): Promise<JsonValue>;
     moveMouse(tabId: number, x: number, y: number, waitForArrival?: boolean): Promise<JsonValue>;
+    waitForFileChooser(tabId: number, timeoutMs?: number): Promise<JsonValue>;
+    setFileChooserFiles(fileChooserId: string, files: string[]): Promise<JsonValue>;
     turnEnded(): Promise<JsonValue>;
 }
 export declare function encodeFrame(value: JsonValue | Record<string, unknown>): Buffer;

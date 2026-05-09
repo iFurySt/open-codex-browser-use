@@ -161,6 +161,17 @@ export class OpenBrowserUseClient {
     return this.request("moveMouse", { tabId, x, y, waitForArrival });
   }
 
+  waitForFileChooser(tabId: number, timeoutMs?: number): Promise<JsonValue> {
+    return this.request("waitForFileChooser", {
+      tabId,
+      ...(timeoutMs === undefined ? {} : { timeoutMs })
+    });
+  }
+
+  setFileChooserFiles(fileChooserId: string, files: string[]): Promise<JsonValue> {
+    return this.request("setFileChooserFiles", { fileChooserId, files });
+  }
+
   turnEnded(): Promise<JsonValue> {
     return this.request("turnEnded");
   }

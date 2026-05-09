@@ -377,3 +377,35 @@ surprising.
 
 The version bump marks the CLI startup behavior fix as a distinct patch release
 after the previous Chrome route milestone.
+
+## [2026-05-09 10:50] | Update: close remaining Chrome route targets
+
+### Changes Overview
+
+**Scope:** `apps/chrome-extension`, `cmd/open-browser-use`, `internal/host`,
+`packages/open-browser-use-*`, `scripts`, `docs`
+
+**Key Actions:**
+
+- Added file chooser interception and file setting support through
+  `waitForFileChooser` and `setFileChooserFiles` in the MV3 service worker.
+- Added matching CLI commands, JS SDK wrappers, and Python SDK wrappers for
+  file chooser workflows.
+- Hardened CLI active socket discovery by removing stale
+  `/tmp/open-browser-use/active.json` entries when the recorded socket cannot
+  be reached.
+- Added fake native host/extension peer relay coverage for JSON-RPC
+  notification broadcast to SDK clients.
+- Expanded `make ci` to run Go tests, JS/TypeScript package tests, Python SDK
+  smoke tests, extension packaging, and extension/script syntax checks.
+- Moved the Chrome route execution plan from `active/` to `completed/` after
+  final verification, and bumped Open Browser Use runtime/package versions to
+  `0.1.4`.
+
+### Design Intent
+
+The Chrome route already had the main transport and real Chrome smoke path.
+This update closes the remaining plan items that were still weakly verified:
+file uploads, stale socket recovery, fake peer integration coverage, and a CI
+entry point that actually exercises the code paths needed to declare the route
+complete.

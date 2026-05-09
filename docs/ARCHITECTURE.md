@@ -7,9 +7,9 @@ Chrome 浏览器自动化基础设施。
 messaging host + SDK。这条路线用于接管用户真实 Chrome profile 中的 tabs、
 debugger、history 和 tab groups。
 
-当前长期执行计划：
+已完成的 Chrome route 执行计划：
 
-- `docs/exec-plans/active/2026-05-08-open-browser-use-chrome-route.md`
+- `docs/exec-plans/completed/2026-05-08-open-browser-use-chrome-route.md`
 
 已有 Browser Use / Codex extension 逆向知识沉淀在：
 
@@ -29,6 +29,9 @@ debugger、history 和 tab groups。
   和协议行为参考。
 - `packages/browser-use-protocol/`：Browser Use JSON-RPC native pipe frame、
   请求/响应类型和测试工具。
+- `packages/open-browser-use-cli/`：npm 上发布的 `open-browser-use` 二进制
+  CLI 包，暴露 `open-browser-use` 和 `obu` 两个命令，发布时只打包 Go CLI
+  预构建二进制，不打包 Chrome extension。
 - `packages/open-browser-use-js/`：JavaScript/TypeScript SDK。
 - `packages/open-browser-use-python/`：Python SDK。
 - `packages/`：其他跨应用复用的库、契约和共享能力。
@@ -85,6 +88,8 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。
 - 本地安装后可以把 `obu` 指向同一个二进制，例如
   `ln -sfn ~/.local/bin/open-browser-use ~/.local/bin/obu`。
+- npm 包 `open-browser-use` 也是 CLI 二进制分发入口，安装后提供
+  `open-browser-use` 和 `obu`；它不负责发布或安装 Chrome extension。
 - CLI 命令层使用 Cobra 实现；Chrome native messaging
   `chrome-extension://...` origin 参数启动时会绕过 Cobra，直接进入 host mode。
   这依赖 Chrome Native Messaging 的标准启动形状：MV3 service worker 调用
@@ -94,13 +99,16 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   Chrome 提供的 origin argv。
 - `open-browser-use call`：unrestricted JSON-RPC 入口，允许上层应用发送
   任意 method/params；未显式传入 `--socket` 时会读取 active socket registry。
+  如果 registry 指向不可连接的旧 socket，CLI 会移除 stale registry entry
+  并返回明确错误，避免后续命令持续命中同一个失效 socket。
 - CLI 便捷子命令覆盖当前 SDK 核心能力：`ping`、`info`、`tabs`、
   `user-tabs`、`history`、`open-tab`、`navigate`、`claim-tab`、
-  `finalize-tabs`、`name-session`、`cdp`、`move-mouse`、`turn-ended`。
+  `finalize-tabs`、`name-session`、`cdp`、`move-mouse`、
+  `wait-file-chooser`、`set-file-chooser-files`、`turn-ended`。
 - MV3 extension core handlers：`getInfo`、`createTab`、`getTabs`、
   `getUserTabs`、`getUserHistory`、`claimUserTab`、`finalizeTabs`、
   `nameSession`、`attach`、`detach`、`executeCdp`、`moveMouse`、
-  `turnEnded`。
+  `waitForFileChooser`、`setFileChooserFiles`、`turnEnded`。
 - Session state persists the Chrome tab group id, tab origins, group title,
   deliverable group id, and logical active tab id in `chrome.storage.local` so
   MV3 service worker restarts can recover session tab listing semantics.
@@ -109,7 +117,9 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - MV3 extension event forwarding：`chrome.debugger.onEvent` 转发为
   `onCDPEvent`，`chrome.downloads` 创建/变更转发为 `onDownloadChange`，
   cursor content script 会回报 cursor arrival 以支持 `moveMouse`
-  等待落点。
+  等待落点。file chooser 通过 CDP `Page.setInterceptFileChooserDialog` 和
+  `Page.fileChooserOpened` 事件截获，再使用 `DOM.setFileInputFiles` 写入
+  本地文件路径。
 - JS 和 Python SDK：直接连接 Unix socket 发送 Browser Use JSON-RPC。
   JS SDK 支持订阅 native socket 上的 JSON-RPC notification；两个 SDK 都
   提供核心 Browser Use method wrappers，也保留 unrestricted `request`。

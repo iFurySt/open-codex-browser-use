@@ -21,7 +21,7 @@ func TestRelayRemapsRequestIDs(t *testing.T) {
 	defer extensionToHostReader.Close()
 	defer extensionToHostWriter.Close()
 
-	socketDir := t.TempDir()
+	socketDir := shortSocketDir(t)
 	socketPath := filepath.Join(socketDir, "obu.sock")
 	relay := NewRelay(Config{SocketDir: socketDir, SocketPath: socketPath}, extensionToHostReader, hostToExtensionWriter)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -68,6 +68,62 @@ func TestRelayRemapsRequestIDs(t *testing.T) {
 	if response["id"].(float64) != 7 {
 		encoded, _ := json.Marshal(response)
 		t.Fatalf("expected original client id, got %s", encoded)
+	}
+
+	cancel()
+	select {
+	case <-errCh:
+	case <-time.After(time.Second):
+		t.Fatal("relay did not stop")
+	}
+}
+
+func TestRelayBroadcastsExtensionNotificationsToSDKClients(t *testing.T) {
+	hostToExtensionReader, hostToExtensionWriter := net.Pipe()
+	defer hostToExtensionReader.Close()
+	defer hostToExtensionWriter.Close()
+	extensionToHostReader, extensionToHostWriter := net.Pipe()
+	defer extensionToHostReader.Close()
+	defer extensionToHostWriter.Close()
+
+	socketDir := shortSocketDir(t)
+	socketPath := filepath.Join(socketDir, "obu.sock")
+	relay := NewRelay(Config{SocketDir: socketDir, SocketPath: socketPath}, extensionToHostReader, hostToExtensionWriter)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	errCh := make(chan error, 1)
+	go func() { errCh <- relay.Serve(ctx) }()
+	waitForSocket(t, socketPath)
+
+	firstClient, err := net.Dial("unix", socketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer firstClient.Close()
+	secondClient, err := net.Dial("unix", socketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer secondClient.Close()
+
+	notification := map[string]any{
+		"jsonrpc": "2.0",
+		"method":  "onDownloadChange",
+		"params":  map[string]any{"id": "download-1", "status": "started"},
+	}
+	if err := wire.WriteJSON(extensionToHostWriter, notification); err != nil {
+		t.Fatal(err)
+	}
+
+	for index, client := range []net.Conn{firstClient, secondClient} {
+		var received map[string]any
+		if err := wire.ReadJSON(client, &received); err != nil {
+			t.Fatalf("client %d did not receive notification: %v", index+1, err)
+		}
+		if received["method"] != "onDownloadChange" {
+			encoded, _ := json.Marshal(received)
+			t.Fatalf("client %d received unexpected payload: %s", index+1, encoded)
+		}
 	}
 
 	cancel()
@@ -143,4 +199,16 @@ func waitForSocket(t *testing.T, path string) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("socket was not created: %s", path)
+}
+
+func shortSocketDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "obu-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.RemoveAll(dir)
+	})
+	return dir
 }

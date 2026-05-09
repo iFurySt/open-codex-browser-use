@@ -115,6 +115,21 @@ class OpenBrowserUseClient:
             },
         )
 
+    def wait_for_file_chooser(self, tab_id: int, timeout_ms: int | None = None) -> Any:
+        params: JsonObject = {"tabId": tab_id}
+        if timeout_ms is not None:
+            params["timeoutMs"] = timeout_ms
+        return self.request("waitForFileChooser", params)
+
+    def set_file_chooser_files(self, file_chooser_id: str, files: list[str]) -> Any:
+        return self.request(
+            "setFileChooserFiles",
+            {
+                "fileChooserId": file_chooser_id,
+                "files": files,
+            },
+        )
+
     def turn_ended(self) -> Any:
         return self.request("turnEnded")
 

@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.3"
+const version = "0.1.4"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -73,6 +73,8 @@ func newRootCommand() *cobra.Command {
 		newNameSessionCommand(),
 		newCdpCommand(),
 		newMoveMouseCommand(),
+		newWaitFileChooserCommand(),
+		newSetFileChooserFilesCommand(),
 		newSimpleRPCCommand("turn-ended", "turnEnded", "End the current browser turn"),
 		newVersionCommand(),
 	)
@@ -381,6 +383,55 @@ func newMoveMouseCommand() *cobra.Command {
 	return cmd
 }
 
+func newWaitFileChooserCommand() *cobra.Command {
+	var options socketOptions
+	var tabID int
+	cmd := &cobra.Command{
+		Use:   "wait-file-chooser",
+		Short: "Wait for a browser session tab to open a file chooser",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if tabID <= 0 {
+				return errors.New("wait-file-chooser requires --tab-id")
+			}
+			return invokeAndWrite(options, "waitForFileChooser", map[string]any{
+				"tabId":     tabID,
+				"timeoutMs": int(options.timeout.Milliseconds()),
+			})
+		},
+	}
+	addSocketFlags(cmd, &options)
+	cmd.Flags().IntVar(&tabID, "tab-id", 0, "tab id expected to open a file chooser")
+	return cmd
+}
+
+func newSetFileChooserFilesCommand() *cobra.Command {
+	var options socketOptions
+	var fileChooserID string
+	var files []string
+	cmd := &cobra.Command{
+		Use:   "set-file-chooser-files",
+		Short: "Set files for an intercepted browser file chooser",
+		Args:  cobra.NoArgs,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			if fileChooserID == "" {
+				return errors.New("set-file-chooser-files requires --file-chooser-id")
+			}
+			if len(files) == 0 {
+				return errors.New("set-file-chooser-files requires at least one --file")
+			}
+			return invokeAndWrite(options, "setFileChooserFiles", map[string]any{
+				"fileChooserId": fileChooserID,
+				"files":         files,
+			})
+		},
+	}
+	addSocketFlags(cmd, &options)
+	cmd.Flags().StringVar(&fileChooserID, "file-chooser-id", "", "file chooser id returned by wait-file-chooser")
+	cmd.Flags().StringSliceVar(&files, "file", nil, "file path to set; repeat or comma-separate for multiple files")
+	return cmd
+}
+
 func newOpenTabCommand() *cobra.Command {
 	var options socketOptions
 	var url string
@@ -470,15 +521,21 @@ func invokeAndWrite(options socketOptions, method string, params map[string]any)
 
 func invoke(socketPath string, socketDir string, method string, params map[string]any, timeout time.Duration) (map[string]any, error) {
 	resolvedSocketPath := socketPath
+	fromRegistry := false
 	if resolvedSocketPath == "" {
 		record, err := host.ReadActiveSocketRecord(socketDir)
 		if err != nil {
 			return nil, fmt.Errorf("socket not provided and active socket registry is unavailable: %w", err)
 		}
 		resolvedSocketPath = record.SocketPath
+		fromRegistry = true
 	}
 	conn, err := net.DialTimeout("unix", resolvedSocketPath, timeout)
 	if err != nil {
+		if fromRegistry {
+			_ = host.RemoveActiveSocketRecord(socketDir, resolvedSocketPath)
+			return nil, fmt.Errorf("active socket registry points to unavailable socket %q; removed stale registry entry: %w", resolvedSocketPath, err)
+		}
 		return nil, err
 	}
 	defer conn.Close()

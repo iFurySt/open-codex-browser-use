@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ifuryst/open-browser-use/internal/host"
 )
@@ -76,5 +78,24 @@ func TestCobraUnknownCommand(t *testing.T) {
 	cmd.SetArgs([]string{"does-not-exist"})
 	if err := cmd.Execute(); err == nil {
 		t.Fatal("expected unknown command to fail")
+	}
+}
+
+func TestInvokeRemovesStaleActiveSocketRecord(t *testing.T) {
+	socketDir := t.TempDir()
+	socketPath := filepath.Join(socketDir, "missing.sock")
+	if err := host.WriteActiveSocketRecord(socketDir, socketPath); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := invoke("", socketDir, "getInfo", map[string]any{}, 10*time.Millisecond)
+	if err == nil {
+		t.Fatal("expected stale active socket to fail")
+	}
+	if !strings.Contains(err.Error(), "removed stale registry entry") {
+		t.Fatalf("expected stale registry cleanup error, got %v", err)
+	}
+	if _, err := host.ReadActiveSocketRecord(socketDir); err == nil {
+		t.Fatal("expected stale active socket record to be removed")
 	}
 }

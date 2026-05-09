@@ -1,0 +1,32 @@
+{
+  "name": "open-browser-use",
+  "version": "0.1.4",
+  "description": "Open Browser Use native host and CLI binary.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "open-browser-use": "cli/open-browser-use.js",
+    "obu": "cli/open-browser-use.js"
+  },
+  "files": [
+    "cli/",
+    "native/",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iFurySt/open-codex-browser-use.git",
+    "directory": "packages/open-browser-use-cli"
+  },
+  "bugs": {
+    "url": "https://github.com/iFurySt/open-codex-browser-use/issues"
+  },
+  "homepage": "https://github.com/iFurySt/open-codex-browser-use#readme",
+  "scripts": {
+    "prepack": "../../scripts/build-npm-cli-package.sh",
+    "test": "../../scripts/build-npm-cli-package.sh && node cli/open-browser-use.js version"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -10,6 +10,7 @@ integration.
 
 - `apps/chrome-extension/`：Open Browser Use MV3 Chrome extension。
 - `cmd/open-browser-use/`：Go native messaging host 和 CLI。
+- `packages/open-browser-use-cli/`：发布到 npm 的二进制 CLI 包。
 - `packages/open-browser-use-js/`：JavaScript/TypeScript SDK。
 - `packages/open-browser-use-python/`：Python SDK。
 - `docs/references/` 和 `docs/wiki/browser-client/`：保留的参考资料与逆向笔记。
@@ -46,8 +47,15 @@ open-browser-use install-manifest \
   --path ~/.local/bin/open-browser-use
 ```
 
+通过 npm 安装 CLI 二进制：
+
+```sh
+npm install -g open-browser-use
+obu version
+```
+
 当前 Chrome route 执行计划在
-`docs/exec-plans/active/2026-05-08-open-browser-use-chrome-route.md`。
+`docs/exec-plans/completed/2026-05-08-open-browser-use-chrome-route.md`。
 
 ## 许可证
 

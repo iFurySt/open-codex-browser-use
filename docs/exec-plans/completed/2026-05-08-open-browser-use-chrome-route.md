@@ -1,5 +1,7 @@
 # Open Browser Use Chrome Route
 
+Status: completed on 2026-05-09.
+
 ## Goal
 
 Build an open implementation of the Browser Use Chrome route under the project
@@ -63,6 +65,16 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
 - `node --check apps/chrome-extension/background.js`
 - Real Chrome unpacked extension smoke before declaring the goal complete.
 
+Final verification on 2026-05-09:
+
+- `go test ./...`
+- `pnpm -r --if-present test`
+- `python -m unittest` from `packages/open-browser-use-python/`
+- `node --check apps/chrome-extension/background.js`
+- `node --check apps/chrome-extension/content-cursor.js`
+- `node --check apps/chrome-extension/popup.js`
+- `make ci`
+
 ## Risks
 
 - MV3 service workers can suspend, so session state must be persisted enough to
@@ -100,3 +112,6 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
 - 2026-05-08: Open Browser Use package, extension, CLI, SDK, and runtime
   self-reported versions bumped to `0.1.3` for the Chrome Web Store icon-ready
   patch release.
+- 2026-05-09: M2/M3 closeout landed file chooser interception and file setting,
+  stale active socket cleanup, fake native host/extension peer relay coverage,
+  full local CI coverage for Go/JS/Python/extension checks, and version `0.1.4`.

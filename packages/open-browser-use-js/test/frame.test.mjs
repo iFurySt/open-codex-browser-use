@@ -51,3 +51,40 @@ test("dispatches JSON-RPC notifications from the native socket", async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("sends file chooser wrapper requests", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "obu-sdk-js-"));
+  const socketPath = join(directory, "obu.sock");
+  const server = createServer((socket) => {
+    socket.once("data", (chunk) => {
+      const length = endianness() === "LE" ? chunk.readUInt32LE(0) : chunk.readUInt32BE(0);
+      const request = JSON.parse(chunk.subarray(4, 4 + length).toString("utf8"));
+      assert.equal(request.method, "waitForFileChooser");
+      assert.equal(request.params.tabId, 123);
+      socket.write(
+        encodeFrame({
+          jsonrpc: "2.0",
+          id: request.id,
+          result: { fileChooserId: "chooser-1", isMultiple: false }
+        })
+      );
+    });
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(socketPath, resolve);
+  });
+
+  const client = new OpenBrowserUseClient({ socketPath });
+  try {
+    assert.deepEqual(await client.waitForFileChooser(123), {
+      fileChooserId: "chooser-1",
+      isMultiple: false
+    });
+  } finally {
+    client.close();
+    server.close();
+    await new Promise((resolve) => server.once("close", resolve));
+    await rm(directory, { recursive: true, force: true });
+  }
+});
