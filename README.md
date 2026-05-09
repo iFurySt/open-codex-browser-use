@@ -15,6 +15,8 @@ capability recently shipped in Codex.app. For the story behind it, see the
 Under the hood, it pairs a browser extension with the `open-browser-use` CLI.
 You can integrate it through the JavaScript SDK, the Python SDK, or the CLI.
 
+https://github.com/user-attachments/assets/bcfba878-f6a8-44b9-b84b-29c7e0285687
+
 ## Quick Start
 
 ```bash
