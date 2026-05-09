@@ -34,6 +34,8 @@ debugger、history 和 tab groups。
   预构建二进制，不打包 Chrome extension。
 - `packages/open-browser-use-js/`：JavaScript/TypeScript SDK。
 - `packages/open-browser-use-python/`：Python SDK。
+- `skills/open-browser-use/`：面向 AI Agent 的 Open Browser Use skill，说明
+  如何安装、验证和使用浏览器插件、CLI、SDK 与 Browser Use 风格协议。
 - `packages/`：其他跨应用复用的库、契约和共享能力。
 - `infra/`：部署、基础设施和环境定义。
 - `scripts/`：仓库级自动化脚本，供人和 Agent 直接调用。
