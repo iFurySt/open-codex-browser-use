@@ -56,6 +56,8 @@ and install it manually.
 
 ### Use It
 
+#### Skill
+
 Install the skill directly:
 
 ```bash
@@ -75,9 +77,16 @@ your agent.
 Downloadable `.skill` and `.zip` packages are available in
 [GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases).
 
-### MCP
+#### MCP
 
-Agent runtimes with local MCP stdio support can run Open Browser Use directly:
+Install the MCP server into all supported global agent configs:
+
+```bash
+npx add-mcp "obu mcp" --name open_browser_use --all -g -y
+npx add-mcp list -g
+```
+
+You can also configure an agent runtime with local MCP stdio support manually:
 
 ```toml
 [mcp_servers.open_browser_use]

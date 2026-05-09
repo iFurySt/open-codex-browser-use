@@ -43,7 +43,11 @@ open-browser-use setup beta
 *也可以手动到[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)里下载最新的包安装*
 
 ### 使用
-一键安装skill
+
+#### Skill
+
+一键安装 skill：
+
 ```bash
 # 安装到codex
 npx skills add iFurySt/open-codex-browser-use -g -a codex --skill open-browser-use --copy -y
@@ -58,9 +62,16 @@ npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-bro
 
 *[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)里有可下载的.skill/.zip包*
 
-### MCP
+#### MCP
 
-支持本地 stdio MCP 的 Agent runtime 可以直接配置：
+一键安装 MCP server 到所有支持的全局 Agent 配置：
+
+```bash
+npx add-mcp "obu mcp" --name open_browser_use --all -g -y
+npx add-mcp list -g
+```
+
+也可以手动配置到支持本地 stdio MCP 的 Agent runtime：
 
 ```toml
 [mcp_servers.open_browser_use]
