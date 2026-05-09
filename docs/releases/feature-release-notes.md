@@ -4,7 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
-| 2026-05-09 | SDK High-Level Browser API | JS/Python SDK 用户可以保留底层 JSON-RPC/CDP 原子调用，同时用 browser/tab/playwright-like helper 编排常见浏览器自动化流程。 | 新增 JS `connectOpenBrowserUse` 与 Python `connect_open_browser_use` 高层 browser/tab API；覆盖 `goto`、load-state wait、DOM snapshot 和 Python notification 插队读取。 |
+| 2026-05-09 | SDK High-Level Browser API | JS/Python SDK 用户可以保留底层 JSON-RPC/CDP 原子调用，同时用 browser/tab/playwright-like helper 编排常见浏览器自动化流程。 | 发布 `0.1.15` patch 版本，新增 JS `connectOpenBrowserUse` 与 Python `connect_open_browser_use` 高层 browser/tab API；覆盖 `goto`、load-state wait、DOM snapshot 和 Python notification 插队读取。 |
 | 2026-05-09 | Homebrew Setup Guidance | Homebrew 安装后的提示文案和当前审核期手动安装路径一致，用户会被引导生成 keyed manual-install ZIP，而不是旧的 Load unpacked 表述。 | 发布 `0.1.14` patch 版本，同步 Homebrew formula caveat 模板，并把 CLI、扩展、SDK 和 npm CLI 包版本提升到 `0.1.14`。 |
 | 2026-05-09 | Guided Manual Install | 审核期手动安装不会因为 release ZIP 缺少稳定 key 而生成错误 extension id，native host allowed origin 与浏览器实际安装 id 保持一致。 | 发布 `0.1.13` patch 版本，`setup release/offline` 会从已写入稳定 key 的 unpacked 目录重新生成 `*-manual.zip`，并只定位这个 keyed ZIP 给用户拖入安装。 |
 | 2026-05-09 | Guided Setup Status | 用户直接运行 `open-browser-use` 或执行 `setup` 后，可以看到 CLI 版本、浏览器插件安装/连接状态、插件版本和下一步操作；审核期手动安装也会打开扩展页和定位 ZIP，提示拖入安装。 | 发布 `0.1.12` patch 版本，将 no-arg 输出改为状态检查页，并把 `setup` / `setup release` 输出改为带 emoji 的步骤化引导；`setup release/offline` 会打开 `chrome://extensions/` 和 Finder/文件管理器，提示用户拖入 ZIP 手动安装。 |

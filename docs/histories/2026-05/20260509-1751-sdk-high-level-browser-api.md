@@ -35,6 +35,9 @@
 - Covered the Python high-level flow with a fake native socket test that
   verifies notification interleaving, `goto`, load-state polling, and DOM
   snapshot behavior.
+- Bumped Open Browser Use runtime, Chrome extension, JS SDK, Python SDK,
+  protocol package, and npm CLI package versions to `0.1.15` for the patch
+  release.
 
 ### Design Intent (Why)
 
@@ -53,5 +56,13 @@ it has a background notification reader comparable to the JS SDK.
 - `packages/open-browser-use-python/open_browser_use/__init__.py`
 - `packages/open-browser-use-python/open_browser_use/client.py`
 - `packages/open-browser-use-python/test_client.py`
+- `apps/chrome-extension/manifest.json`
+- `cmd/open-browser-use/main.go`
+- `cmd/open-browser-use/main_test.go`
+- `packages/browser-client-rewrite/package.json`
+- `packages/browser-use-protocol/package.json`
+- `packages/open-browser-use-cli/package.json`
+- `packages/open-browser-use-js/package.json`
+- `packages/open-browser-use-python/pyproject.toml`
 - `docs/ARCHITECTURE.md`
 - `docs/releases/feature-release-notes.md`
