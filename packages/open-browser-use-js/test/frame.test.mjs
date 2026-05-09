@@ -5,7 +5,7 @@ import { endianness, tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { OpenBrowserUseClient, encodeFrame } from "../dist/index.js";
+import { OpenBrowserUseClient, connectOpenBrowserUse, encodeFrame } from "../dist/index.js";
 
 test("encodes native-endian length-prefixed JSON frames", () => {
   const frame = encodeFrame({ id: 1, method: "getInfo" });
@@ -46,6 +46,76 @@ test("dispatches JSON-RPC notifications from the native socket", async () => {
     });
   } finally {
     client.close();
+    server.close();
+    await new Promise((resolve) => server.once("close", resolve));
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("high-level browser tabs can goto, wait for load state, and read a DOM snapshot", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "obu-sdk-js-"));
+  const socketPath = join(directory, "obu.sock");
+  const calls = [];
+  const server = createServer((socket) => {
+    let pending = Buffer.alloc(0);
+    socket.on("data", (chunk) => {
+      pending = Buffer.concat([pending, chunk]);
+      while (pending.length >= 4) {
+        const length = endianness() === "LE" ? pending.readUInt32LE(0) : pending.readUInt32BE(0);
+        if (pending.length < 4 + length) {
+          return;
+        }
+        const request = JSON.parse(pending.subarray(4, 4 + length).toString("utf8"));
+        pending = pending.subarray(4 + length);
+        calls.push([request.method, request.params.method ?? null]);
+        let result = {};
+        if (request.method === "createTab") {
+          result = { id: 123 };
+        } else if (request.method === "executeCdp" && request.params.method === "Page.navigate") {
+          socket.write(
+            encodeFrame({
+              jsonrpc: "2.0",
+              method: "onCDPEvent",
+              params: {
+                source: { tabId: 123 },
+                method: "Page.domContentEventFired",
+                params: {}
+              }
+            })
+          );
+          result = { frameId: "frame-1" };
+        } else if (request.method === "executeCdp" && request.params.method === "Runtime.evaluate") {
+          const expression = request.params.commandParams.expression;
+          result = expression.includes("readyState")
+            ? { result: { value: { href: "https://example.test/issues", readyState: "interactive" } } }
+            : { result: { value: "Open\nClosed\nIssues\nStarred" } };
+        }
+        socket.write(encodeFrame({ jsonrpc: "2.0", id: request.id, result }));
+      }
+    });
+  });
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(socketPath, resolve);
+  });
+
+  const browser = await connectOpenBrowserUse({ socketPath });
+  try {
+    const tab = await browser.newTab();
+    await tab.goto("https://example.test/issues", { waitUntil: "domcontentloaded", timeoutMs: 1000 });
+    await tab.playwright.waitForLoadState({ state: "domcontentloaded", timeoutMs: 1000 });
+    assert.equal(await tab.playwright.domSnapshot(), "Open\nClosed\nIssues\nStarred");
+    assert.deepEqual(calls, [
+      ["createTab", null],
+      ["attach", null],
+      ["executeCdp", "Page.enable"],
+      ["executeCdp", "Page.navigate"],
+      ["executeCdp", "Page.enable"],
+      ["executeCdp", "Runtime.evaluate"],
+      ["executeCdp", "Runtime.evaluate"]
+    ]);
+  } finally {
+    browser.close();
     server.close();
     await new Promise((resolve) => server.once("close", resolve));
     await rm(directory, { recursive: true, force: true });

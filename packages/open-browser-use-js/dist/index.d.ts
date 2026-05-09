@@ -15,6 +15,18 @@ export type OpenBrowserUseNotification = {
     params?: JsonValue;
 };
 export type NotificationHandler = (notification: OpenBrowserUseNotification) => void;
+export type OpenBrowserUseLoadState = "domcontentloaded" | "load";
+export type OpenBrowserUseGotoOptions = {
+    waitUntil?: OpenBrowserUseLoadState;
+    timeoutMs?: number;
+};
+export type OpenBrowserUseWaitForLoadStateOptions = {
+    state?: OpenBrowserUseLoadState;
+    timeoutMs?: number;
+};
+export type OpenBrowserUseBrowserOptions = OpenBrowserUseClientOptions | {
+    client: OpenBrowserUseClient;
+};
 export declare class OpenBrowserUseClient {
     #private;
     readonly socketPath: string;
@@ -48,5 +60,60 @@ export declare class OpenBrowserUseClient {
     readClipboard(tabId: number): Promise<JsonValue>;
     writeClipboard(tabId: number, items: JsonValue[]): Promise<JsonValue>;
     turnEnded(): Promise<JsonValue>;
+}
+export declare function connectOpenBrowserUse(options: OpenBrowserUseBrowserOptions): Promise<OpenBrowserUseBrowser>;
+export declare class OpenBrowserUseBrowser {
+    readonly client: OpenBrowserUseClient;
+    readonly cdp: OpenBrowserUseCdp;
+    constructor(options: OpenBrowserUseBrowserOptions);
+    connect(): Promise<this>;
+    close(): void;
+    newTab(options?: OpenBrowserUseGotoOptions & {
+        url?: string;
+    }): Promise<OpenBrowserUseTab>;
+    tab(tabId: number): OpenBrowserUseTab;
+    getTabs(): Promise<JsonValue>;
+}
+export declare class OpenBrowserUseTab {
+    readonly browser: OpenBrowserUseBrowser;
+    readonly id: number;
+    readonly playwright: OpenBrowserUseTabPlaywright;
+    constructor(browser: OpenBrowserUseBrowser, id: number);
+    goto(url: string, options?: OpenBrowserUseGotoOptions): Promise<JsonValue>;
+    waitForLoadState(options?: OpenBrowserUseWaitForLoadStateOptions): Promise<void>;
+    domSnapshot(): Promise<string>;
+    evaluate(expression: string, options?: {
+        awaitPromise?: boolean;
+    }): Promise<JsonValue>;
+    close(): Promise<JsonValue>;
+}
+export declare class OpenBrowserUseTabPlaywright {
+    readonly tab: OpenBrowserUseTab;
+    constructor(tab: OpenBrowserUseTab);
+    waitForLoadState(options?: OpenBrowserUseWaitForLoadStateOptions): Promise<void>;
+    domSnapshot(): Promise<string>;
+}
+export declare class OpenBrowserUseCdp {
+    #private;
+    readonly client: OpenBrowserUseClient;
+    constructor(client: OpenBrowserUseClient);
+    call(tabId: number, method: string, commandParams?: BrowserUseRequestParams, options?: {
+        timeoutMs?: number;
+    }): Promise<JsonValue>;
+    evaluate(tabId: number, expression: string, options?: {
+        awaitPromise?: boolean;
+    }): Promise<JsonValue>;
+    navigate(tabId: number, url: string, options?: OpenBrowserUseGotoOptions): Promise<JsonValue>;
+    waitForLoadState(tabId: number, options?: OpenBrowserUseWaitForLoadStateOptions): Promise<void>;
+    readDocumentState(tabId: number): Promise<{
+        href?: string;
+        readyState?: string;
+    } | undefined>;
+    waitForEvent(tabId: number, predicate: (notification: OpenBrowserUseNotification) => boolean, options?: {
+        timeoutMs?: number;
+        timeoutMessage?: string;
+    }): Promise<OpenBrowserUseNotification>;
+    waitForLoadEvent(tabId: number, state: OpenBrowserUseLoadState, timeoutMs: number): Promise<void>;
+    ensureAttached(tabId: number): Promise<void>;
 }
 export declare function encodeFrame(value: JsonValue | Record<string, unknown>): Buffer;
