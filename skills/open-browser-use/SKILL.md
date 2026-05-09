@@ -43,6 +43,23 @@ open-browser-use cdp --tab-id <tab-id> --method Runtime.evaluate --params '{"exp
 open-browser-use finalize-tabs --keep '[]'
 ```
 
+For CLI-level orchestration without a JS/Python runtime, use a line-oriented
+action plan:
+
+```sh
+open-browser-use run -c '
+name-session "Docs scan - OBU"
+open-tab https://docs.browser-use.com
+wait-load domcontentloaded
+page-info
+finalize-tabs []
+'
+```
+
+Each action line shares one session/turn. `open-tab` and `claim-tab` set the
+default tab for later tab-scoped actions such as `wait-load`, `page-info`,
+`navigate`, `cdp`, `move-mouse`, and `wait-file-chooser`.
+
 Use `obu` as the short alias when available.
 
 ## Tab Lifecycle

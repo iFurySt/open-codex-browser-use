@@ -121,6 +121,10 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   任意 method/params；未显式传入 `--socket` 时会读取 active socket registry。
   如果 registry 指向不可连接的旧 socket，CLI 会移除 stale registry entry
   并返回明确错误，避免后续命令持续命中同一个失效 socket。
+- `open-browser-use run`：line-oriented action plan 入口，支持一次执行多条
+  CLI action，保留同一个 session/turn，并让 `open-tab`/`claim-tab` 设置默认
+  tab，供后续 `wait-load`、`page-info`、`navigate`、`cdp` 等 tab-scoped action
+  复用；它不是通用编程语言，适合 shell、CI 和轻量 agent 编排。
 - CLI 便捷子命令覆盖当前 SDK 核心能力：`ping`、`info`、`tabs`、
   `user-tabs`、`history`、`open-tab`、`navigate`、`claim-tab`、
   `finalize-tabs`、`name-session`、`cdp`、`move-mouse`、

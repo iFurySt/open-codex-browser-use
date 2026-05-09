@@ -90,6 +90,22 @@ open-browser-use open-tab --url https://example.com
 open-browser-use navigate --tab-id <tab-id> --url https://github.com/iFurySt/open-codex-browser-use
 ```
 
+Run a small action plan when you want CLI-level orchestration without writing
+JavaScript or Python:
+
+```bash
+open-browser-use run -c '
+name-session "Docs scan - OBU"
+open-tab https://docs.browser-use.com
+wait-load domcontentloaded
+page-info
+finalize-tabs []
+'
+```
+
+Each line is a supported browser action. `open-tab` and `claim-tab` set the
+default tab for later tab-scoped actions.
+
 The CLI also exposes lower-level Browser Use style calls through:
 
 ```bash

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ifuryst/open-browser-use/internal/host"
+	"github.com/ifuryst/open-browser-use/internal/wire"
 )
 
 func TestNativeHostNameIsChromeCompatible(t *testing.T) {
@@ -404,6 +406,140 @@ func TestInvokeRemovesStaleActiveSocketRecord(t *testing.T) {
 	}
 	if _, err := host.ReadActiveSocketRecord(socketDir); err == nil {
 		t.Fatal("expected stale active socket record to be removed")
+	}
+}
+
+func TestCobraRunActionPlan(t *testing.T) {
+	socketPath := filepath.Join(t.TempDir(), "obu.sock")
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+
+	requests := make(chan map[string]any, 16)
+	serverDone := make(chan error, 1)
+	go func() {
+		defer close(requests)
+		var sessionID string
+		var turnID string
+		for count := 0; count < 10; count++ {
+			conn, err := listener.Accept()
+			if err != nil {
+				serverDone <- err
+				return
+			}
+			var request map[string]any
+			if err := wire.ReadJSON(conn, &request); err != nil {
+				_ = conn.Close()
+				serverDone <- err
+				return
+			}
+			params, _ := request["params"].(map[string]any)
+			if sessionID == "" {
+				sessionID, _ = params["session_id"].(string)
+				turnID, _ = params["turn_id"].(string)
+			}
+			if params["session_id"] != sessionID || params["turn_id"] != turnID {
+				_ = conn.Close()
+				serverDone <- errors.New("run action requests did not share session and turn")
+				return
+			}
+			requests <- request
+
+			method, _ := request["method"].(string)
+			cdpMethod, _ := params["method"].(string)
+			result := map[string]any{}
+			switch {
+			case method == "createTab":
+				result = map[string]any{"id": 123}
+			case method == "executeCdp" && cdpMethod == "Runtime.evaluate":
+				commandParams, _ := params["commandParams"].(map[string]any)
+				expression, _ := commandParams["expression"].(string)
+				if expression == "document.readyState" {
+					result = map[string]any{"result": map[string]any{"value": "interactive"}}
+				} else {
+					result = map[string]any{"result": map[string]any{"value": map[string]any{
+						"title":      "Browser Use Docs",
+						"url":        "https://docs.browser-use.com",
+						"readyState": "interactive",
+						"text":       "Docs",
+					}}}
+				}
+			}
+			if err := wire.WriteJSON(conn, map[string]any{
+				"jsonrpc": "2.0",
+				"id":      request["id"],
+				"result":  result,
+			}); err != nil {
+				_ = conn.Close()
+				serverDone <- err
+				return
+			}
+			_ = conn.Close()
+		}
+		serverDone <- nil
+	}()
+
+	cmd := newRootCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{
+		"run",
+		"--socket", socketPath,
+		"--timeout", "100ms",
+		"-c", `
+name-session "Docs scan - OBU"
+open-tab https://docs.browser-use.com
+wait-load domcontentloaded
+page-info
+finalize-tabs []
+`,
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-serverDone; err != nil {
+		t.Fatal(err)
+	}
+
+	var got actionRunOutput
+	if err := json.Unmarshal(output.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.CurrentTabID != 123 {
+		t.Fatalf("expected current tab id 123, got %d", got.CurrentTabID)
+	}
+	if len(got.Steps) != 5 {
+		t.Fatalf("expected 5 action steps, got %d", len(got.Steps))
+	}
+	if got.Steps[1].Action != "open-tab" || got.Steps[1].TabID != 123 {
+		t.Fatalf("expected open-tab step to capture tab id, got %#v", got.Steps[1])
+	}
+
+	var methods []string
+	for request := range requests {
+		method, _ := request["method"].(string)
+		params, _ := request["params"].(map[string]any)
+		if cdpMethod, _ := params["method"].(string); cdpMethod != "" {
+			method += ":" + cdpMethod
+		}
+		methods = append(methods, method)
+	}
+	want := []string{
+		"nameSession",
+		"createTab",
+		"attach",
+		"executeCdp:Page.navigate",
+		"attach",
+		"executeCdp:Page.enable",
+		"executeCdp:Runtime.evaluate",
+		"attach",
+		"executeCdp:Runtime.evaluate",
+		"finalizeTabs",
+	}
+	if strings.Join(methods, ",") != strings.Join(want, ",") {
+		t.Fatalf("expected methods %v, got %v", want, methods)
 	}
 }
 

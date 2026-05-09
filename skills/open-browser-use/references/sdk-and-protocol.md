@@ -137,6 +137,25 @@ open-browser-use call --method getInfo --params '{}'
 open-browser-use call --method executeCdp --params '{"target":{"tabId":123},"method":"Runtime.evaluate","commandParams":{"expression":"document.title"}}'
 ```
 
+CLI action plan:
+
+```sh
+open-browser-use run -c '
+name-session "Docs scan - OBU"
+open-tab https://docs.browser-use.com
+wait-load domcontentloaded
+page-info
+finalize-tabs []
+'
+```
+
+The action plan format is intentionally small: one action per line, comments
+with `#`, shell-like quotes, shared session/turn, and a default tab set by
+`open-tab` or `claim-tab`. Supported actions include `ping`, `info`, `tabs`,
+`user-tabs`, `history`, `name-session`, `open-tab`, `claim-tab`, `navigate`,
+`wait-load`, `page-info`, `cdp`, `move-mouse`, `wait-file-chooser`,
+`set-file-chooser-files`, `finalize-tabs`, `turn-ended`, and `call`.
+
 SDK request escape hatch:
 
 ```ts

@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,7 +25,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.18"
+const version = "0.1.19"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
 const betaExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
@@ -71,6 +72,7 @@ func newRootCommand() *cobra.Command {
 		newManifestCommand(),
 		newInstallManifestCommand(),
 		newCallCommand(),
+		newRunCommand(),
 		newOpenTabCommand(),
 		newNavigateCommand(),
 		newSimpleRPCCommand("ping", "ping", "Ping the browser backend"),
@@ -672,6 +674,57 @@ func newCallCommand() *cobra.Command {
 	return cmd
 }
 
+func newRunCommand() *cobra.Command {
+	var options socketOptions
+	var command string
+	var file string
+	cmd := &cobra.Command{
+		Use:   "run",
+		Short: "Run a line-oriented browser action plan",
+		Long: `Run a line-oriented browser action plan.
+
+The plan is not a general programming language. Each non-empty, non-comment line
+is one supported browser action. Actions share the same session and turn, and
+open-tab or claim-tab sets the default tab for later tab-scoped actions.
+
+Example:
+  open-browser-use run -c '
+  name-session "Docs scan - OBU"
+  open-tab https://docs.browser-use.com
+  wait-load domcontentloaded
+  page-info
+  finalize-tabs []
+  '`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if command != "" && file != "" {
+				return errors.New("run accepts either --command or --file, not both")
+			}
+			script := command
+			if file != "" {
+				payload, err := os.ReadFile(file)
+				if err != nil {
+					return err
+				}
+				script = string(payload)
+			}
+			if strings.TrimSpace(script) == "" {
+				return errors.New("run requires --command or --file")
+			}
+			runner := newActionRunner(options)
+			output, err := runner.run(script)
+			if err != nil {
+				return err
+			}
+			return writeJSONTo(cmd.OutOrStdout(), output)
+		},
+	}
+	addSocketFlags(cmd, &options)
+	cmd.Flags().StringVarP(&command, "command", "c", "", "line-oriented action plan")
+	cmd.Flags().StringVar(&file, "file", "", "file containing a line-oriented action plan")
+	return cmd
+}
+
 func newSimpleRPCCommand(use string, method string, short string) *cobra.Command {
 	var options socketOptions
 	cmd := &cobra.Command{
@@ -967,6 +1020,538 @@ func newVersionCommand() *cobra.Command {
 	}
 }
 
+type actionRunner struct {
+	options      socketOptions
+	sessionID    string
+	turnID       string
+	currentTabID int
+}
+
+type actionRunOutput struct {
+	Steps        []actionStepOutput `json:"steps"`
+	CurrentTabID int                `json:"currentTabId,omitempty"`
+}
+
+type actionStepOutput struct {
+	Line     int            `json:"line"`
+	Action   string         `json:"action"`
+	TabID    int            `json:"tabId,omitempty"`
+	Response map[string]any `json:"response"`
+}
+
+func newActionRunner(options socketOptions) *actionRunner {
+	return &actionRunner{
+		options:   options,
+		sessionID: "obu-cli-run",
+		turnID:    fmt.Sprintf("obu-cli-run-%d", time.Now().UnixNano()),
+	}
+}
+
+func (runner *actionRunner) run(script string) (actionRunOutput, error) {
+	lines, err := parseActionScript(script)
+	if err != nil {
+		return actionRunOutput{}, err
+	}
+	output := actionRunOutput{Steps: []actionStepOutput{}}
+	for _, line := range lines {
+		step, err := runner.runActionLine(line)
+		if err != nil {
+			return actionRunOutput{}, fmt.Errorf("line %d: %w", line.number, err)
+		}
+		output.Steps = append(output.Steps, step)
+	}
+	output.CurrentTabID = runner.currentTabID
+	return output, nil
+}
+
+func (runner *actionRunner) runActionLine(line actionLine) (actionStepOutput, error) {
+	action := line.fields[0]
+	args := line.fields[1:]
+	response, tabID, err := runner.runAction(action, args)
+	if err != nil {
+		return actionStepOutput{}, err
+	}
+	return actionStepOutput{
+		Line:     line.number,
+		Action:   action,
+		TabID:    tabID,
+		Response: response,
+	}, nil
+}
+
+func (runner *actionRunner) runAction(action string, args []string) (map[string]any, int, error) {
+	switch action {
+	case "ping":
+		return runner.invoke("ping", map[string]any{})
+	case "info":
+		return runner.invoke("getInfo", map[string]any{})
+	case "tabs":
+		return runner.invoke("getTabs", map[string]any{})
+	case "user-tabs":
+		return runner.invoke("getUserTabs", map[string]any{})
+	case "turn-ended":
+		return runner.invoke("turnEnded", map[string]any{})
+	case "name-session":
+		if len(args) == 0 {
+			return nil, 0, errors.New("name-session requires a name")
+		}
+		return runner.invoke("nameSession", map[string]any{"name": strings.Join(args, " ")})
+	case "open-tab":
+		return runner.runOpenTabAction(args)
+	case "claim-tab":
+		tabID, err := firstIntArg(args, "--tab-id")
+		if err != nil {
+			return nil, 0, fmt.Errorf("claim-tab requires tab id: %w", err)
+		}
+		response, _, err := runner.invoke("claimUserTab", map[string]any{"tabId": tabID})
+		if err == nil {
+			runner.currentTabID = tabID
+		}
+		return response, tabID, err
+	case "navigate":
+		return runner.runNavigateAction(args)
+	case "wait-load":
+		return runner.runWaitLoadAction(args)
+	case "page-info":
+		return runner.runPageInfoAction(args)
+	case "cdp":
+		return runner.runCDPAction(args)
+	case "history":
+		return runner.runHistoryAction(args)
+	case "move-mouse":
+		return runner.runMoveMouseAction(args)
+	case "wait-file-chooser":
+		return runner.runWaitFileChooserAction(args)
+	case "set-file-chooser-files":
+		return runner.runSetFileChooserFilesAction(args)
+	case "finalize-tabs":
+		return runner.runFinalizeTabsAction(args)
+	case "call":
+		return runner.runCallAction(args)
+	default:
+		return nil, 0, fmt.Errorf("unsupported action %q", action)
+	}
+}
+
+func (runner *actionRunner) runOpenTabAction(args []string) (map[string]any, int, error) {
+	url := firstStringArg(args, "--url")
+	response, _, err := runner.invoke("createTab", map[string]any{})
+	if err != nil {
+		return nil, 0, err
+	}
+	result, _ := response["result"].(map[string]any)
+	tabID, ok := numberAsInt(result["id"])
+	if !ok {
+		return nil, 0, errors.New("createTab response did not include numeric tab id")
+	}
+	runner.currentTabID = tabID
+	output := map[string]any{"tab": result}
+	if url != "" {
+		if err := runner.attach(tabID); err != nil {
+			return nil, 0, err
+		}
+		navigate, _, err := runner.invoke("executeCdp", map[string]any{
+			"target":        map[string]any{"tabId": tabID},
+			"method":        "Page.navigate",
+			"commandParams": map[string]any{"url": url},
+		})
+		if err != nil {
+			return nil, 0, err
+		}
+		output["navigate"] = navigate["result"]
+	}
+	return map[string]any{"result": output}, tabID, nil
+}
+
+func (runner *actionRunner) runNavigateAction(args []string) (map[string]any, int, error) {
+	tabID, err := tabIDArgOrCurrent(args, runner.currentTabID)
+	if err != nil {
+		return nil, 0, err
+	}
+	url := firstStringArg(args, "--url")
+	if url == "" {
+		return nil, 0, errors.New("navigate requires a URL")
+	}
+	if err := runner.attach(tabID); err != nil {
+		return nil, 0, err
+	}
+	return runner.invoke("executeCdp", map[string]any{
+		"target":        map[string]any{"tabId": tabID},
+		"method":        "Page.navigate",
+		"commandParams": map[string]any{"url": url},
+	})
+}
+
+func (runner *actionRunner) runWaitLoadAction(args []string) (map[string]any, int, error) {
+	tabID, err := tabIDArgOrCurrent(args, runner.currentTabID)
+	if err != nil {
+		return nil, 0, err
+	}
+	state := firstStringArg(args, "--state")
+	if state == "" {
+		state = "load"
+	}
+	if state != "load" && state != "domcontentloaded" {
+		return nil, 0, fmt.Errorf("unsupported load state %q", state)
+	}
+	if err := runner.attach(tabID); err != nil {
+		return nil, 0, err
+	}
+	if _, _, err := runner.invoke("executeCdp", map[string]any{
+		"target":        map[string]any{"tabId": tabID},
+		"method":        "Page.enable",
+		"commandParams": map[string]any{},
+	}); err != nil {
+		return nil, 0, err
+	}
+	deadline := time.Now().Add(runner.options.timeout)
+	for {
+		response, _, err := runner.invoke("executeCdp", map[string]any{
+			"target": map[string]any{"tabId": tabID},
+			"method": "Runtime.evaluate",
+			"commandParams": map[string]any{
+				"expression":    "document.readyState",
+				"returnByValue": true,
+			},
+		})
+		if err != nil {
+			return nil, 0, err
+		}
+		readyState := runtimeEvaluateString(response)
+		if readyState == "complete" || (state == "domcontentloaded" && readyState == "interactive") {
+			return map[string]any{"result": map[string]any{"readyState": readyState}}, tabID, nil
+		}
+		if time.Now().After(deadline) {
+			return nil, 0, fmt.Errorf("timed out waiting for %s in tab %d", state, tabID)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func (runner *actionRunner) runPageInfoAction(args []string) (map[string]any, int, error) {
+	tabID, err := tabIDArgOrCurrent(args, runner.currentTabID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := runner.attach(tabID); err != nil {
+		return nil, 0, err
+	}
+	response, _, err := runner.invoke("executeCdp", map[string]any{
+		"target": map[string]any{"tabId": tabID},
+		"method": "Runtime.evaluate",
+		"commandParams": map[string]any{
+			"expression":    `({ title: document.title ?? "", url: location.href, readyState: document.readyState, text: document.body?.innerText ?? "" })`,
+			"returnByValue": true,
+		},
+	})
+	return response, tabID, err
+}
+
+func (runner *actionRunner) runCDPAction(args []string) (map[string]any, int, error) {
+	method := stringFlagOrPositional(args, "--method", 0)
+	if method == "" {
+		return nil, 0, errors.New("cdp requires a method")
+	}
+	paramsJSON := stringFlagOrPositional(args, "--params", 1)
+	if paramsJSON == "" {
+		paramsJSON = "{}"
+	}
+	var commandParams map[string]any
+	if err := json.Unmarshal([]byte(paramsJSON), &commandParams); err != nil {
+		return nil, 0, fmt.Errorf("cdp params must be a JSON object: %w", err)
+	}
+	tabID, err := tabIDArgOrCurrent(args, runner.currentTabID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if err := runner.attach(tabID); err != nil {
+		return nil, 0, err
+	}
+	return runner.invoke("executeCdp", map[string]any{
+		"target":        map[string]any{"tabId": tabID},
+		"method":        method,
+		"commandParams": commandParams,
+	})
+}
+
+func (runner *actionRunner) runHistoryAction(args []string) (map[string]any, int, error) {
+	params := map[string]any{"query": firstStringArg(args, "--query"), "limit": 100}
+	if limit, ok := intFlag(args, "--limit"); ok {
+		params["limit"] = limit
+	}
+	if from := stringFlag(args, "--from"); from != "" {
+		params["from"] = from
+	}
+	if to := stringFlag(args, "--to"); to != "" {
+		params["to"] = to
+	}
+	return runner.invoke("getUserHistory", params)
+}
+
+func (runner *actionRunner) runMoveMouseAction(args []string) (map[string]any, int, error) {
+	tabID, err := tabIDArgOrCurrent(args, runner.currentTabID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(positionalArgs(args)) < 2 {
+		return nil, 0, errors.New("move-mouse requires x and y")
+	}
+	x, err := strconv.ParseFloat(positionalArgs(args)[0], 64)
+	if err != nil {
+		return nil, 0, fmt.Errorf("move-mouse x must be numeric: %w", err)
+	}
+	y, err := strconv.ParseFloat(positionalArgs(args)[1], 64)
+	if err != nil {
+		return nil, 0, fmt.Errorf("move-mouse y must be numeric: %w", err)
+	}
+	return runner.invoke("moveMouse", map[string]any{
+		"tabId":          tabID,
+		"x":              x,
+		"y":              y,
+		"waitForArrival": true,
+	})
+}
+
+func (runner *actionRunner) runWaitFileChooserAction(args []string) (map[string]any, int, error) {
+	tabID, err := tabIDArgOrCurrent(args, runner.currentTabID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return runner.invoke("waitForFileChooser", map[string]any{
+		"tabId":     tabID,
+		"timeoutMs": int(runner.options.timeout.Milliseconds()),
+	})
+}
+
+func (runner *actionRunner) runSetFileChooserFilesAction(args []string) (map[string]any, int, error) {
+	fileChooserID := stringFlagOrPositional(args, "--file-chooser-id", 0)
+	if fileChooserID == "" {
+		return nil, 0, errors.New("set-file-chooser-files requires file chooser id")
+	}
+	files := positionalArgs(args)
+	if stringFlag(args, "--file-chooser-id") == "" && len(files) > 0 {
+		files = files[1:]
+	}
+	if len(files) == 0 {
+		return nil, 0, errors.New("set-file-chooser-files requires at least one file")
+	}
+	return runner.invoke("setFileChooserFiles", map[string]any{
+		"fileChooserId": fileChooserID,
+		"files":         files,
+	})
+}
+
+func (runner *actionRunner) runFinalizeTabsAction(args []string) (map[string]any, int, error) {
+	keepJSON := firstStringArg(args, "--keep")
+	if keepJSON == "" {
+		keepJSON = "[]"
+	}
+	var keep []any
+	if err := json.Unmarshal([]byte(keepJSON), &keep); err != nil {
+		return nil, 0, fmt.Errorf("finalize-tabs keep must be a JSON array: %w", err)
+	}
+	return runner.invoke("finalizeTabs", map[string]any{"keep": keep})
+}
+
+func (runner *actionRunner) runCallAction(args []string) (map[string]any, int, error) {
+	method := stringFlagOrPositional(args, "--method", 0)
+	if method == "" {
+		return nil, 0, errors.New("call requires a method")
+	}
+	paramsJSON := stringFlagOrPositional(args, "--params", 1)
+	if paramsJSON == "" {
+		paramsJSON = "{}"
+	}
+	var params map[string]any
+	if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
+		return nil, 0, fmt.Errorf("call params must be a JSON object: %w", err)
+	}
+	return runner.invoke(method, params)
+}
+
+func (runner *actionRunner) attach(tabID int) error {
+	_, _, err := runner.invoke("attach", map[string]any{"tabId": tabID})
+	return err
+}
+
+func (runner *actionRunner) invoke(method string, params map[string]any) (map[string]any, int, error) {
+	if params == nil {
+		params = map[string]any{}
+	}
+	params["session_id"] = runner.sessionID
+	params["turn_id"] = runner.turnID
+	response, err := invoke(runner.options.socketPath, runner.options.socketDir, method, params, runner.options.timeout)
+	return response, runner.currentTabID, err
+}
+
+type actionLine struct {
+	number int
+	fields []string
+}
+
+func parseActionScript(script string) ([]actionLine, error) {
+	var lines []actionLine
+	for index, rawLine := range strings.Split(script, "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fields, err := splitActionFields(line)
+		if err != nil {
+			return nil, fmt.Errorf("line %d: %w", index+1, err)
+		}
+		if len(fields) == 0 {
+			continue
+		}
+		lines = append(lines, actionLine{number: index + 1, fields: fields})
+	}
+	return lines, nil
+}
+
+func splitActionFields(line string) ([]string, error) {
+	var fields []string
+	var builder strings.Builder
+	var quote rune
+	escaped := false
+	emit := func() {
+		if builder.Len() > 0 {
+			fields = append(fields, builder.String())
+			builder.Reset()
+		}
+	}
+	for _, current := range line {
+		if escaped {
+			builder.WriteRune(current)
+			escaped = false
+			continue
+		}
+		if current == '\\' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if current == quote {
+				quote = 0
+			} else {
+				builder.WriteRune(current)
+			}
+			continue
+		}
+		if current == '"' || current == '\'' {
+			quote = current
+			continue
+		}
+		if current == '#' && builder.Len() == 0 {
+			break
+		}
+		if current == ' ' || current == '\t' {
+			emit()
+			continue
+		}
+		builder.WriteRune(current)
+	}
+	if escaped {
+		return nil, errors.New("unterminated escape")
+	}
+	if quote != 0 {
+		return nil, errors.New("unterminated quote")
+	}
+	emit()
+	return fields, nil
+}
+
+func firstStringArg(args []string, flag string) string {
+	if value := stringFlag(args, flag); value != "" {
+		return value
+	}
+	for _, arg := range positionalArgs(args) {
+		return arg
+	}
+	return ""
+}
+
+func stringFlagOrPositional(args []string, flag string, positionalIndex int) string {
+	if value := stringFlag(args, flag); value != "" {
+		return value
+	}
+	positionals := positionalArgs(args)
+	if positionalIndex >= 0 && positionalIndex < len(positionals) {
+		return positionals[positionalIndex]
+	}
+	return ""
+}
+
+func firstIntArg(args []string, flag string) (int, error) {
+	if value, ok := intFlag(args, flag); ok {
+		return value, nil
+	}
+	for _, arg := range positionalArgs(args) {
+		value, err := strconv.Atoi(arg)
+		if err != nil {
+			return 0, err
+		}
+		return value, nil
+	}
+	return 0, errors.New("missing integer argument")
+}
+
+func tabIDArgOrCurrent(args []string, currentTabID int) (int, error) {
+	if value, ok := intFlag(args, "--tab-id"); ok {
+		return value, nil
+	}
+	if currentTabID > 0 {
+		return currentTabID, nil
+	}
+	return 0, errors.New("action requires --tab-id or a previous open-tab/claim-tab action")
+}
+
+func stringFlag(args []string, name string) string {
+	for index, arg := range args {
+		if arg == name && index+1 < len(args) {
+			return args[index+1]
+		}
+		prefix := name + "="
+		if strings.HasPrefix(arg, prefix) {
+			return strings.TrimPrefix(arg, prefix)
+		}
+	}
+	return ""
+}
+
+func intFlag(args []string, name string) (int, bool) {
+	value := stringFlag(args, name)
+	if value == "" {
+		return 0, false
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, false
+	}
+	return parsed, true
+}
+
+func positionalArgs(args []string) []string {
+	var out []string
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
+		if strings.HasPrefix(arg, "--") {
+			if !strings.Contains(arg, "=") {
+				index++
+			}
+			continue
+		}
+		out = append(out, arg)
+	}
+	return out
+}
+
+func runtimeEvaluateString(response map[string]any) string {
+	result, _ := response["result"].(map[string]any)
+	cdpResult, _ := result["result"].(map[string]any)
+	value, _ := cdpResult["value"].(string)
+	return value
+}
+
 func invokeAndWrite(options socketOptions, method string, params map[string]any) error {
 	response, err := invoke(options.socketPath, options.socketDir, method, params, options.timeout)
 	if err != nil {
@@ -1019,7 +1604,11 @@ func invoke(socketPath string, socketDir string, method string, params map[strin
 }
 
 func writeJSON(value any) error {
-	encoder := json.NewEncoder(os.Stdout)
+	return writeJSONTo(os.Stdout, value)
+}
+
+func writeJSONTo(writer io.Writer, value any) error {
+	encoder := json.NewEncoder(writer)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)
 }

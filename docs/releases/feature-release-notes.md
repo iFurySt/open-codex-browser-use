@@ -4,6 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
+| 2026-05-09 | CLI Action Runner | Shell-first agent runtime 和 CI 可以用 `open-browser-use run -c/--file` 编排多步浏览器动作，不必额外引入 JS/Python runtime。 | 发布 `0.1.19` patch 版本，新增 line-oriented action plan、共享 session/turn、默认 tab 传递、`wait-load`/`page-info` 等 action，并补齐 CLI README、skill 指南和 fake socket 测试。 |
 | 2026-05-09 | Cursor Overlay Polish | 页面里的 Agent cursor 更接近官方 Codex Chrome 插件表现，尺寸、方向、移动质感和闲置摆动都更自然。 | 发布 `0.1.18` patch 版本，将 cursor overlay 改为 24px 中心锚点结构，补齐弹簧移动、短距离 scoot、长距离 bezier 曲线、移动拉伸和落点后钟摆摆动。 |
 | 2026-05-09 | Beta ZIP Naming | 审核期安装只暴露一个可拖入 Chrome 的 release ZIP，避免同时看到普通 zip 和 `-manual.zip` 造成误解。 | 发布 `0.1.17` patch 版本，npm postinstall/Homebrew caveats 改回英文提示，release zip 直接写入稳定 key 并保持 `open-browser-use-chrome-extension-<version>.zip` 文件名，`setup beta` 不再生成 `*-manual.zip`。 |
 | 2026-05-09 | Tab Group Naming | Agent 浏览器任务组和交付组的命名更清楚，当前任务保留在 `<short task> - OBU` 组，最终交付统一移动到 `🫪 Open Browser Use`。 | 发布 `0.1.16` patch 版本，默认 session group 改为 `Task - OBU`，deliverable group 改为 `🫪 Open Browser Use`，并补齐 legacy group title 迁移和 skill 指南。 |
