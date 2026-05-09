@@ -7,7 +7,7 @@
 
 ---
 
-`open-browser-use` 是平台中立的浏览器操作方案，也是Codex.app最新发布的Chrome Browser Use的开源替代方案。背后的故事可以看这篇Browser Use详解文章。 技术方案采用的是浏览器插件和open-computer-use cli结合，可通过JS/PYTHON SDK或CLI的方式接入。
+`open-browser-use` 是平台中立的浏览器操作方案，也是Codex.app最新发布的Chrome Browser Use的开源替代方案。背后的故事可以看这篇[Browser Use详解](https://www.ifuryst.com/blog/2026/open-browser-use/)文章。 技术方案采用的是浏览器插件和open-computer-use cli结合，可通过JS/PYTHON SDK或CLI的方式接入。
 
 ## Quick Start
 第一次安装可以无脑运行：

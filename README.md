@@ -10,7 +10,7 @@
 `open-browser-use` is a browser automation layer that stays neutral across
 agent runtimes. It is also an open-source alternative to the Chrome Browser Use
 capability recently shipped in Codex.app. For the story behind it, see the
-Browser Use deep dive.
+[Browser Use Deep Dive](https://www.ifuryst.com/en/blog/2026/open-browser-use/).
 
 Under the hood, it pairs a browser extension with the `open-browser-use` CLI.
 You can integrate it through the JavaScript SDK, the Python SDK, or the CLI.
