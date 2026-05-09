@@ -1,6 +1,6 @@
 {
   "name": "open-browser-use",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Open Browser Use native host and CLI binary.",
   "license": "MIT",
   "type": "module",
