@@ -178,25 +178,50 @@ function decodePng(buffer) {
   return { width, height, pixels };
 }
 
-function sampleBilinear(image, x, y, channel) {
+function getPixel(image, x, y) {
+  const offset = (y * image.width + x) * 4;
+  return [
+    image.pixels[offset],
+    image.pixels[offset + 1],
+    image.pixels[offset + 2],
+    image.pixels[offset + 3]
+  ];
+}
+
+function sampleBilinear(image, x, y) {
   const x0 = Math.max(0, Math.min(image.width - 1, Math.floor(x)));
   const y0 = Math.max(0, Math.min(image.height - 1, Math.floor(y)));
   const x1 = Math.max(0, Math.min(image.width - 1, x0 + 1));
   const y1 = Math.max(0, Math.min(image.height - 1, y0 + 1));
   const xRatio = x - x0;
   const yRatio = y - y0;
+  const samples = [
+    [getPixel(image, x0, y0), (1 - xRatio) * (1 - yRatio)],
+    [getPixel(image, x1, y0), xRatio * (1 - yRatio)],
+    [getPixel(image, x0, y1), (1 - xRatio) * yRatio],
+    [getPixel(image, x1, y1), xRatio * yRatio]
+  ];
 
-  const topLeft = image.pixels[(y0 * image.width + x0) * 4 + channel];
-  const topRight = image.pixels[(y0 * image.width + x1) * 4 + channel];
-  const bottomLeft = image.pixels[(y1 * image.width + x0) * 4 + channel];
-  const bottomRight = image.pixels[(y1 * image.width + x1) * 4 + channel];
+  let alpha = 0;
+  const color = [0, 0, 0];
+  for (const [pixel, weight] of samples) {
+    const weightedAlpha = (pixel[3] / 255) * weight;
+    alpha += weightedAlpha;
+    color[0] += pixel[0] * weightedAlpha;
+    color[1] += pixel[1] * weightedAlpha;
+    color[2] += pixel[2] * weightedAlpha;
+  }
 
-  return Math.round(
-    topLeft * (1 - xRatio) * (1 - yRatio) +
-      topRight * xRatio * (1 - yRatio) +
-      bottomLeft * (1 - xRatio) * yRatio +
-      bottomRight * xRatio * yRatio
-  );
+  if (alpha === 0) {
+    return [0, 0, 0, 0];
+  }
+
+  return [
+    Math.round(color[0] / alpha),
+    Math.round(color[1] / alpha),
+    Math.round(color[2] / alpha),
+    Math.round(alpha * 255)
+  ];
 }
 
 function resizeImage(image, size) {
@@ -209,9 +234,11 @@ function resizeImage(image, size) {
       const sourceX = (x + 0.5) * xScale - 0.5;
       const sourceY = (y + 0.5) * yScale - 0.5;
       const target = (y * size + x) * 4;
-      for (let channel = 0; channel < 4; channel += 1) {
-        pixels[target + channel] = sampleBilinear(image, sourceX, sourceY, channel);
-      }
+      const sampled = sampleBilinear(image, sourceX, sourceY);
+      pixels[target] = sampled[0];
+      pixels[target + 1] = sampled[1];
+      pixels[target + 2] = sampled[2];
+      pixels[target + 3] = sampled[3];
     }
   }
 

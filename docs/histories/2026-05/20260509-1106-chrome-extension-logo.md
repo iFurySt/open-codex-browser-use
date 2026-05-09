@@ -16,13 +16,13 @@
 
 **Key Actions:**
 
-- **Logo source**: Added `apps/chrome-extension/icons/logo-source.png` as a direct crop of the selected generated logo concept.
-- **Icon generator**: Updated `scripts/generate-chrome-extension-icons.mjs` to resize the checked-in source image into Chrome extension icon sizes instead of redrawing an approximate vector version.
+- **Logo source**: Added `apps/chrome-extension/icons/logo-source.png` as a transparent-background source image derived from the selected generated logo concept.
+- **Icon generator**: Updated `scripts/generate-chrome-extension-icons.mjs` to resize the checked-in source image into Chrome extension icon sizes instead of redrawing an approximate vector version, with alpha-aware sampling to avoid white fringing on transparent edges.
 - **Extension assets**: Regenerated `apps/chrome-extension/icons/icon-{16,32,48,128}.png` from the source logo.
 
 ### Design Intent (Why)
 
-The chosen logo makes the product purpose visible at small sizes: a full browser frame plus cursor clearly signals browser automation, while the outlined cursor matches the selected concept and avoids a generic AI or Chrome-copy visual. Keeping the selected raster concept as the source preserves the original proportions and rendering details.
+The chosen logo makes the product purpose visible at small sizes: a full browser frame plus cursor clearly signals browser automation, while the outlined cursor matches the selected concept and avoids a generic AI or Chrome-copy visual. Keeping the selected raster concept as the source preserves the original proportions and rendering details. The source uses a transparent outer background so Chrome toolbar rendering does not show a white square behind the icon.
 
 ### Files Modified
 
