@@ -35,7 +35,7 @@
   npm CLI 包说明。
 - **[Release]**: 将 CLI、Chrome extension、JS SDK、Python SDK、protocol package
   和 npm CLI package 版本提升到 `0.1.12`，并跟进发布 `0.1.13` 修复 keyed manual
-  ZIP 安装路径。
+  ZIP 安装路径；随后发布 `0.1.14` 同步 Homebrew caveat 文案。
 
 ### 🧠 Design Intent (Why)
 

@@ -346,9 +346,9 @@ func TestCompareChromeVersions(t *testing.T) {
 		right string
 		want  int
 	}{
-		{left: "0.1.13", right: "0.1.11", want: 1},
-		{left: "0.1.13", right: "0.1.13", want: 0},
-		{left: "0.1.11", right: "0.1.13", want: -1},
+		{left: "0.1.14", right: "0.1.11", want: 1},
+		{left: "0.1.14", right: "0.1.14", want: 0},
+		{left: "0.1.11", right: "0.1.14", want: -1},
 		{left: "0.1", right: "0.1.0", want: 0},
 	}
 	for _, test := range tests {
