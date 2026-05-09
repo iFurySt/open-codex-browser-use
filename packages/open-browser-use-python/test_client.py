@@ -83,6 +83,50 @@ class OpenBrowserUseClientTest(unittest.TestCase):
                 client.close()
             thread.join(timeout=1)
 
+    def test_download_and_clipboard_wrappers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            socket_path = str(Path(directory) / "obu.sock")
+            server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            server.bind(socket_path)
+            server.listen(1)
+            expected = [
+                ("waitForDownload", {"tabId": 123, "timeoutMs": 5000}),
+                ("downloadPath", {"downloadId": "download-1"}),
+                ("readClipboardText", {"tabId": 123}),
+                ("writeClipboardText", {"tabId": 123, "text": "hello"}),
+            ]
+
+            def serve() -> None:
+                conn, _ = server.accept()
+                with conn:
+                    for method, params in expected:
+                        header = conn.recv(4)
+                        (length,) = struct.unpack("=I", header)
+                        payload = conn.recv(length)
+                        request = json.loads(payload)
+                        self.assertEqual(request["method"], method)
+                        for key, value in params.items():
+                            self.assertEqual(request["params"][key], value)
+                        response = {
+                            "jsonrpc": "2.0",
+                            "id": request["id"],
+                            "result": {},
+                        }
+                        conn.sendall(encode_frame(response))
+                server.close()
+
+            thread = threading.Thread(target=serve)
+            thread.start()
+            client = OpenBrowserUseClient(socket_path=socket_path)
+            try:
+                client.wait_for_download(123, timeout_ms=5000)
+                client.download_path("download-1")
+                client.read_clipboard_text(123)
+                client.write_clipboard_text(123, "hello")
+            finally:
+                client.close()
+            thread.join(timeout=1)
+
 
 if __name__ == "__main__":
     unittest.main()

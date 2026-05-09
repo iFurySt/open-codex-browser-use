@@ -115,7 +115,9 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - MV3 extension core handlers：`getInfo`、`createTab`、`getTabs`、
   `getUserTabs`、`getUserHistory`、`claimUserTab`、`finalizeTabs`、
   `nameSession`、`attach`、`detach`、`executeCdp`、`moveMouse`、
-  `waitForFileChooser`、`setFileChooserFiles`、`turnEnded`。
+  `waitForFileChooser`、`setFileChooserFiles`、`waitForDownload`、
+  `downloadPath`、`readClipboardText`、`writeClipboardText`、
+  `readClipboard`、`writeClipboard`、`turnEnded`。
 - Session state persists the Chrome tab group id, tab origins, group title,
   deliverable group id, and logical active tab id in `chrome.storage.local` so
   MV3 service worker restarts can recover session tab listing semantics.
@@ -126,10 +128,14 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   cursor content script 会回报 cursor arrival 以支持 `moveMouse`
   等待落点。file chooser 通过 CDP `Page.setInterceptFileChooserDialog` 和
   `Page.fileChooserOpened` 事件截获，再使用 `DOM.setFileInputFiles` 写入
-  本地文件路径。
+  本地文件路径。download wait/path 和 clipboard helpers 由 extension backend
+  暴露给 SDK；agent-facing Browser Use command rewrite 还覆盖 DOM CUA、media
+  download、element info/screenshot、locator bulk reads、generic tab export 和
+  clipboard commands。
 - JS 和 Python SDK：直接连接 Unix socket 发送 Browser Use JSON-RPC。
   JS SDK 支持订阅 native socket 上的 JSON-RPC notification；两个 SDK 都
-  提供核心 Browser Use method wrappers，也保留 unrestricted `request`。
+  提供核心 Browser Use method wrappers、download/clipboard convenience
+  wrappers，也保留 unrestricted `request`。
 
 当前 SDK 不内置 Codex 风格的站点限制、turn policy 或二次确认。上层应用
 可以自由调用；生产集成如果需要安全策略，应在上层 runtime 或 host 前置网关

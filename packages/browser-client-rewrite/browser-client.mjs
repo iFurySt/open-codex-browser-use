@@ -15,6 +15,8 @@ const FRAME_HEADER_BYTES = 4;
 const PLAYWRIGHT_INJECTED_GLOBAL = "__codexPlaywrightInjected";
 const IAB_INPUT_TOKEN_PARAM = "__codexIabExpectedInputTargetToken";
 const IAB_INPUT_TARGET_TOKEN = "__codexIabInputTargetToken";
+const DOM_CUA_NODE_ID_PROP = "__openBrowserUseDomCuaNodeId";
+const DOM_CUA_NEXT_ID_PROP = "__openBrowserUseDomCuaNextId";
 
 function command(type, handler) {
   handler.type = type;
@@ -696,6 +698,10 @@ class BrowserUser {
     this.clientInfo = clientInfo;
   }
 
+  async history(options = {}) {
+    return this.api.getUserHistory(options);
+  }
+
   async openTabs() {
     return this.api.getUserTabs();
   }
@@ -842,6 +848,162 @@ class CuaController {
   }
 }
 
+class DomCuaController {
+  constructor(cdp, cua) {
+    this.cdp = cdp;
+    this.cua = cua;
+  }
+
+  async getVisibleDom(tabId) {
+    return this.cdp.evaluateJavascript(tabId, domCuaSnapshotExpression(), { awaitPromise: true });
+  }
+
+  async clickNode({ tabId, nodeId, clickCount }) {
+    const point = await domCuaNodePoint(this.cdp, tabId, nodeId);
+    await this.cua.clickPoint({
+      clickCount,
+      point,
+      tabId: positiveInteger(tabId),
+      timeoutMs: 10000,
+    });
+  }
+
+  async scroll({ tabId, nodeId, scrollX, scrollY }) {
+    const id = positiveInteger(tabId);
+    if (nodeId != null) {
+      await this.cdp.evaluateJavascript(
+        id,
+        `(() => {
+          const element = ${domCuaFindNodeExpression(nodeId)};
+          if (!element) throw new Error("Unknown DOM CUA node id");
+          element.scrollBy(${Number(scrollX) || 0}, ${Number(scrollY) || 0});
+          return true;
+        })()`,
+      );
+      return;
+    }
+    const { cssVisualViewport } = await this.cdp.call(id, "Page.getLayoutMetrics");
+    await this.cua.scrollPoint({
+      modifiers: 0,
+      point: {
+        x: cssVisualViewport.clientWidth / 2,
+        y: cssVisualViewport.clientHeight / 2,
+      },
+      scrollX,
+      scrollY,
+      tabId: id,
+    });
+  }
+
+  async type(tabId, text) {
+    await this.cdp.call(positiveInteger(tabId), "Input.insertText", { text });
+  }
+
+  async downloadMedia({ tabId, nodeId }) {
+    await triggerMediaDownloadForDomNode(this.cdp, positiveInteger(tabId), nodeId);
+  }
+}
+
+function domCuaSnapshotExpression() {
+  return `(() => {
+    const idProp = ${JSON.stringify(DOM_CUA_NODE_ID_PROP)};
+    const nextIdProp = ${JSON.stringify(DOM_CUA_NEXT_ID_PROP)};
+    window[nextIdProp] = window[nextIdProp] || 1;
+    const selector = [
+      "a", "button", "input", "textarea", "select", "summary",
+      "details", "label", "img", "video", "audio", "[role]",
+      "[onclick]", "[contenteditable=true]", "[tabindex]"
+    ].join(",");
+    const visible = (element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+    };
+    const textOf = (element) => (element.innerText || element.value || element.alt || element.title || element.getAttribute("aria-label") || "").trim().slice(0, 500);
+    const nodes = Array.from(document.querySelectorAll(selector))
+      .filter(visible)
+      .slice(0, 250)
+      .map((element) => {
+        if (!element[idProp]) {
+          Object.defineProperty(element, idProp, {
+            configurable: true,
+            value: String(window[nextIdProp]++),
+          });
+        }
+        const rect = element.getBoundingClientRect();
+        return {
+          node_id: element[idProp],
+          tagName: element.tagName.toLowerCase(),
+          role: element.getAttribute("role"),
+          text: textOf(element),
+          ariaName: element.getAttribute("aria-label"),
+          type: element.getAttribute("type"),
+          boundingBox: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+        };
+      });
+    return { nodes };
+  })()`;
+}
+
+function domCuaFindNodeExpression(nodeId) {
+  return `Array.from(document.querySelectorAll("*")).find((candidate) => candidate[${JSON.stringify(DOM_CUA_NODE_ID_PROP)}] === ${JSON.stringify(String(nodeId))})`;
+}
+
+async function domCuaNodePoint(cdp, tabId, nodeId) {
+  return cdp.evaluateJavascript(
+    tabId,
+    `(() => {
+      const element = ${domCuaFindNodeExpression(nodeId)};
+      if (!element) throw new Error("Unknown DOM CUA node id");
+      element.scrollIntoView({ block: "center", inline: "center" });
+      const rect = element.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) throw new Error("DOM CUA node is not visible");
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })()`,
+  );
+}
+
+async function triggerMediaDownloadForDomNode(cdp, tabId, nodeId) {
+  await cdp.evaluateJavascript(
+    tabId,
+    `(() => {
+      const element = ${domCuaFindNodeExpression(nodeId)};
+      if (!element) throw new Error("Unknown DOM CUA node id");
+      return (${triggerMediaDownloadSource()})(element);
+    })()`,
+    { awaitPromise: true },
+  );
+}
+
+async function triggerMediaDownloadAtPoint(cdp, tabId, x, y) {
+  await cdp.evaluateJavascript(
+    tabId,
+    `(() => {
+      const element = document.elementFromPoint(${Number(x)}, ${Number(y)});
+      if (!element) throw new Error("No element at point");
+      return (${triggerMediaDownloadSource()})(element);
+    })()`,
+    { awaitPromise: true },
+  );
+}
+
+function triggerMediaDownloadSource() {
+  return `(element) => {
+    const target = element.closest?.("img, video, source, a[href]") ?? element.querySelector?.("img, video, source, a[href]") ?? element;
+    const url = target.currentSrc ?? target.src ?? target.href ?? "";
+    if (!url) throw new Error("Matched element does not expose a downloadable media URL");
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = url.split("/").pop()?.split("?")[0] || "download";
+    anchor.rel = "noopener";
+    anchor.style.display = "none";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    return true;
+  }`;
+}
+
 async function dispatchKeyChord(cdp, tabId, keys, options = {}) {
   const normalized = normalizeKeyChord(keys);
   const pressed = new Set();
@@ -979,6 +1141,70 @@ class DevLogs {
   }
 }
 
+class Downloads {
+  constructor(api) {
+    this.api = api;
+    this.api.addEventListener("onDownloadChange", (change) => this.handleDownloadChange(change));
+  }
+
+  downloadsById = new Map();
+  waiters = new Set();
+
+  async waitForDownload({ timeoutMs: rawTimeout }) {
+    const existing = [...this.downloadsById.values()].find((change) => change.status === "started" || change.status === "in_progress");
+    if (existing) return { download_id: existing.id };
+    const change = await this.waitForChange(
+      (candidate) => candidate.status === "started" || candidate.status === "in_progress" || candidate.status === "complete",
+      timeoutMs({ timeout_ms: rawTimeout }),
+      "Timed out waiting for download.",
+    );
+    return { download_id: change.id };
+  }
+
+  async path({ downloadId, timeoutMs: rawTimeout }) {
+    const current = this.downloadsById.get(downloadId);
+    if (current?.status === "complete") return { path: current.filename ?? null };
+    if (current?.status === "failed" || current?.status === "canceled") return { path: null };
+    const change = await this.waitForChange(
+      (candidate) => candidate.id === downloadId && ["complete", "failed", "canceled"].includes(candidate.status),
+      timeoutMs({ timeout_ms: rawTimeout }),
+      `Timed out waiting for download ${downloadId}.`,
+    );
+    return { path: change.status === "complete" ? (change.filename ?? null) : null };
+  }
+
+  handleDownloadChange(change) {
+    if (!change || typeof change !== "object" || typeof change.id !== "string") return;
+    const previous = this.downloadsById.get(change.id) ?? {};
+    const next = { ...previous, ...change };
+    this.downloadsById.set(change.id, next);
+    for (const waiter of [...this.waiters]) {
+      if (waiter.predicate(next)) waiter.resolve(next);
+    }
+  }
+
+  waitForChange(predicate, timeout, timeoutMessage) {
+    return new Promise((resolve, reject) => {
+      const waiter = {
+        predicate,
+        resolve: (value) => {
+          cleanup();
+          resolve(value);
+        },
+      };
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.waiters.delete(waiter);
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error(timeoutMessage));
+      }, timeout);
+      this.waiters.add(waiter);
+    });
+  }
+}
+
 function consoleLogEntry(params) {
   if (!isRecord(params)) return null;
   return {
@@ -1059,6 +1285,76 @@ class Tabs {
     const active = tabs.find((tab) => tab.active) ?? tabs[0];
     if (!active) throw new Error("No selected tab.");
     return active;
+  }
+}
+
+class TabClipboard {
+  constructor(cdp) {
+    this.cdp = cdp;
+  }
+
+  async readText(tabId) {
+    const text = await this.cdp.evaluateJavascript(tabId, "navigator.clipboard.readText()", { awaitPromise: true });
+    return { text: typeof text === "string" ? text : "" };
+  }
+
+  async writeText(tabId, text) {
+    await this.cdp.evaluateJavascript(tabId, `navigator.clipboard.writeText(${JSON.stringify(String(text ?? ""))})`, {
+      awaitPromise: true,
+    });
+  }
+
+  async read(tabId) {
+    const items = await this.cdp.evaluateJavascript(
+      tabId,
+      `((async () => {
+        const clipboardItems = await navigator.clipboard.read();
+        return await Promise.all(clipboardItems.map(async (item) => {
+          const entries = await Promise.all(item.types.map(async (type) => {
+            const blob = await item.getType(type);
+            if (type.startsWith("text/")) {
+              return { mime_type: type, text: await blob.text() };
+            }
+            const base64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onerror = () => reject(reader.error);
+              reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+              reader.readAsDataURL(blob);
+            });
+            return { mime_type: type, base64 };
+          }));
+          return { entries, presentation_style: item.presentationStyle ?? "unspecified" };
+        }));
+      })())`,
+      { awaitPromise: true },
+    );
+    return { items: Array.isArray(items) ? items : [] };
+  }
+
+  async write(tabId, items) {
+    await this.cdp.evaluateJavascript(
+      tabId,
+      `((async (items) => {
+        const clipboardItems = items.map((item) => {
+          const entries = {};
+          for (const entry of item.entries ?? []) {
+            const mime = entry.mime_type;
+            if (!mime) continue;
+            if (entry.text !== undefined) {
+              entries[mime] = new Blob([entry.text], { type: mime });
+            } else if (entry.base64 !== undefined) {
+              const binary = atob(entry.base64);
+              const bytes = new Uint8Array(binary.length);
+              for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+              entries[mime] = new Blob([bytes], { type: mime });
+            }
+          }
+          return new ClipboardItem(entries, { presentationStyle: item.presentation_style ?? "unspecified" });
+        });
+        await navigator.clipboard.write(clipboardItems);
+      })(${JSON.stringify(items ?? [])}))`,
+      { awaitPromise: true },
+    );
   }
 }
 
@@ -1269,6 +1565,120 @@ class PlaywrightBridge {
     );
   }
 
+  async allTextContents(params) {
+    return this.evaluateOnPlaywrightSelectorAll(
+      params.tab_id,
+      params.selector,
+      (elements) => elements.map((element) => element.textContent ?? ""),
+      { timeoutMs: params.timeout_ms },
+    );
+  }
+
+  async readAll(params) {
+    return this.evaluateOnPlaywrightSelectorAll(
+      params.tab_id,
+      params.selector,
+      (elements, _injected, data) => {
+        const relativeSelector = data.relativeSelector;
+        return elements.map((element) => {
+          const target = relativeSelector ? element.querySelector(relativeSelector) : element;
+          if (!target) return null;
+          return {
+            attributes: Object.fromEntries(Array.from(target.attributes ?? []).map((attribute) => [attribute.name, attribute.value])),
+            inner_text: "innerText" in target ? String(target.innerText) : "",
+            text_content: target.textContent,
+          };
+        });
+      },
+      { arg: { relativeSelector: params.relative_selector }, timeoutMs: params.timeout_ms },
+    );
+  }
+
+  async elementInfo(params) {
+    return this.evaluateOnPlaywrightPage(
+      params.tab_id,
+      (_injected, data) => {
+        const includeNonInteractable = data.includeNonInteractable === true;
+        const elements = document.elementsFromPoint(data.x, data.y);
+        const isVisible = (element) => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+        };
+        const selectorFor = (element) => {
+          if (element.id) return `#${CSS.escape(element.id)}`;
+          const testId = element.getAttribute("data-testid");
+          if (testId) return `[data-testid="${CSS.escape(testId)}"]`;
+          const aria = element.getAttribute("aria-label");
+          if (aria) return `${element.tagName.toLowerCase()}[aria-label="${CSS.escape(aria)}"]`;
+          const parts = [];
+          for (let current = element; current && current.nodeType === Node.ELEMENT_NODE && parts.length < 4; current = current.parentElement) {
+            const tag = current.tagName.toLowerCase();
+            const parent = current.parentElement;
+            if (!parent) {
+              parts.unshift(tag);
+              break;
+            }
+            const siblings = Array.from(parent.children).filter((candidate) => candidate.tagName === current.tagName);
+            const index = siblings.indexOf(current) + 1;
+            parts.unshift(siblings.length > 1 ? `${tag}:nth-of-type(${index})` : tag);
+          }
+          return parts.join(" > ");
+        };
+        return elements
+          .filter((element) => includeNonInteractable || isVisible(element))
+          .slice(0, 10)
+          .map((element) => {
+            const rect = element.getBoundingClientRect();
+            const primary = selectorFor(element);
+            const visibleText = (element.innerText || element.textContent || "").trim().slice(0, 300) || null;
+            const ariaName = element.getAttribute("aria-label");
+            const testId = element.getAttribute("data-testid");
+            return {
+              tagName: element.tagName.toLowerCase(),
+              role: element.getAttribute("role"),
+              visibleText,
+              ariaName,
+              testId,
+              boundingBox: rect.width > 0 && rect.height > 0 ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : null,
+              preview: [element.tagName.toLowerCase(), ariaName, visibleText].filter(Boolean).join(" ").slice(0, 500),
+              selector: {
+                primary,
+                candidates: [primary].filter(Boolean),
+                frameSelectors: [],
+              },
+            };
+          });
+      },
+      {
+        arg: {
+          includeNonInteractable: params.include_non_interactable === true,
+          x: params.x,
+          y: params.y,
+        },
+        timeoutMs: params.timeout_ms,
+      },
+    );
+  }
+
+  async elementScreenshot(params) {
+    const infos = await this.elementInfo(params);
+    const first = infos.find((info) => info.boundingBox);
+    if (!first?.boundingBox) {
+      throw new Error("No screenshot target at point");
+    }
+    return screenshot(
+      {
+        tab_id: params.tab_id,
+        cropX: first.boundingBox.x,
+        cropY: first.boundingBox.y,
+        cropWidth: first.boundingBox.width,
+        cropHeight: first.boundingBox.height,
+      },
+      { cdp: this.cdp },
+    );
+  }
+
   async resolveActionPoint(params, requirements) {
     const requiredStates = [
       ...(requirements.requireVisible === false ? [] : ["visible"]),
@@ -1437,6 +1847,7 @@ class CommandSecurity {
 const targetUrlCommands = new Set(["navigate_tab_url"]);
 const noOriginCommands = new Set([
   "browser_user_open_tabs",
+  "browser_user_history",
   "close_tab",
   "create_tab",
   "list_tabs",
@@ -1462,7 +1873,10 @@ class BrowserContext {
     this.browserUser = new BrowserUser(api, browserInfo);
     this.ui = new UiBridge(api);
     this.cua = new CuaController(this.cdp, this.ui);
+    this.domCua = new DomCuaController(this.cdp, this.cua);
     this.dev = new DevLogs(this.cdp);
+    this.downloads = new Downloads(api);
+    this.clipboard = new TabClipboard(this.cdp);
     this.tabs = new Tabs(api, browserInfo);
     this.playwright = new PlaywrightBridge(this.cdp, this.cua);
     this.security = new CommandSecurity(this.tabs, runtime.getCreateElicitation);
@@ -1565,15 +1979,56 @@ const commandHandlers = [
     await ctx.cdp.call(positiveInteger(params.tab_id), "Input.insertText", { text: params.text });
     return {};
   }),
+  command("cua_download_media", async (params, ctx) => {
+    await ctx.security.ensureDownloadAllowed(positiveInteger(params.tab_id));
+    validatePoint("cua_download_media", params);
+    await triggerMediaDownloadAtPoint(ctx.cdp, positiveInteger(params.tab_id), params.x, params.y);
+    return {};
+  }),
   command("browser_user_claim_tab", async (params, ctx) => {
     const tab = await ctx.browserUser.claimTab(positiveInteger(params.tab_id));
     return tabSummary(tab);
   }),
+  command("browser_user_history", async (params, ctx) => ({
+    items: await ctx.browserUser.history({
+      ...(typeof params.query === "string" ? { query: params.query } : {}),
+      ...(typeof params.limit === "number" ? { limit: params.limit } : {}),
+      ...(typeof params.from === "string" ? { from: params.from } : {}),
+      ...(typeof params.to === "string" ? { to: params.to } : {}),
+    }),
+  })),
   command("browser_user_open_tabs", async (_params, ctx) => ({
     tabs: (await ctx.browserUser.openTabs()).map(tabSummary),
   })),
+  command("dom_cua_click", async (params, ctx) => {
+    await ctx.domCua.clickNode({ tabId: params.tab_id, nodeId: params.node_id, clickCount: 1 });
+    return {};
+  }),
+  command("dom_cua_double_click", async (params, ctx) => {
+    await ctx.domCua.clickNode({ tabId: params.tab_id, nodeId: params.node_id, clickCount: 2 });
+    return {};
+  }),
+  command("dom_cua_download_media", async (params, ctx) => {
+    await ctx.security.ensureDownloadAllowed(positiveInteger(params.tab_id));
+    await ctx.domCua.downloadMedia({ tabId: params.tab_id, nodeId: params.node_id });
+    return {};
+  }),
+  command("dom_cua_get_visible_dom", async (params, ctx) => await ctx.domCua.getVisibleDom(positiveInteger(params.tab_id))),
   command("dom_cua_keypress", async (params, ctx) => {
     await ctx.cua.dispatchKeyPress({ commandName: "dom_cua_keypress", keys: params.keys, tabId: params.tab_id });
+    return {};
+  }),
+  command("dom_cua_scroll", async (params, ctx) => {
+    await ctx.domCua.scroll({
+      nodeId: params.node_id,
+      scrollX: params.scroll_x,
+      scrollY: params.scroll_y,
+      tabId: params.tab_id,
+    });
+    return {};
+  }),
+  command("dom_cua_type", async (params, ctx) => {
+    await ctx.domCua.type(params.tab_id, params.text);
     return {};
   }),
   command("close_tab", async (params, ctx) => {
@@ -1605,6 +2060,15 @@ const commandHandlers = [
   command("playwright_dom_snapshot", async (params, ctx) => ({
     dom_snapshot: await ctx.playwright.evaluateOnPlaywrightPage(params.tab_id, () => document.body?.innerText ?? ""),
   })),
+  command("playwright_download_path", async (params, ctx) => {
+    await ctx.security.ensureDownloadAllowed(positiveInteger(params.tab_id));
+    return await ctx.downloads.path({
+      downloadId: String(params.download_id ?? ""),
+      timeoutMs: params.timeout_ms,
+    });
+  }),
+  command("playwright_element_info", async (params, ctx) => await ctx.playwright.elementInfo(params)),
+  command("playwright_element_screenshot", async (params, ctx) => await ctx.playwright.elementScreenshot(params)),
   command("playwright_file_chooser_set_files", async (params, ctx) => {
     const tabId = positiveInteger(params.tab_id);
     const chooser = ctx.cdp.fileChoosersById.get(params.file_chooser_id);
@@ -1689,6 +2153,9 @@ const commandHandlers = [
   })),
   command("playwright_locator_is_enabled", async (params, ctx) => ({ value: await ctx.playwright.readElementState(params, "enabled") })),
   command("playwright_locator_is_visible", async (params, ctx) => ({ value: await ctx.playwright.readElementState(params, "visible") })),
+  command("playwright_locator_all_text_contents", async (params, ctx) => ({
+    values: await ctx.playwright.allTextContents(params),
+  })),
   command("playwright_locator_press", async (params, ctx) => {
     if (typeof params.value !== "string" || !params.value) throw new Error("playwright_locator_press requires value");
     const tabId = positiveInteger(params.tab_id);
@@ -1726,6 +2193,9 @@ const commandHandlers = [
       timeoutMs: params.timeout_ms,
     }),
   })),
+  command("playwright_locator_read_all", async (params, ctx) => ({
+    values: await ctx.playwright.readAll(params),
+  })),
   command("playwright_locator_wait_for", async (params, ctx) => {
     const state = params.state ?? "visible";
     if (!["attached", "detached", "visible", "hidden"].includes(state)) {
@@ -1759,6 +2229,10 @@ const commandHandlers = [
   }),
   command("playwright_screenshot", async (params, ctx) => screenshot(params, ctx)),
   command("playwright_wait_for_file_chooser", async (params, ctx) => waitForFileChooser(params, ctx)),
+  command("playwright_wait_for_download", async (params, ctx) => {
+    await ctx.security.ensureDownloadAllowed(positiveInteger(params.tab_id));
+    return await ctx.downloads.waitForDownload({ timeoutMs: params.timeout_ms });
+  }),
   command("playwright_wait_for_load_state", async (params, ctx) => {
     await waitForLoadState(params.tab_id, params.state, timeoutMs(params), ctx);
     return {};
@@ -1778,6 +2252,17 @@ const commandHandlers = [
       ...(log.url == null ? {} : { url: log.url }),
     })),
   })),
+  command("tab_clipboard_read_text", async (params, ctx) => await ctx.clipboard.readText(positiveInteger(params.tab_id))),
+  command("tab_clipboard_write_text", async (params, ctx) => {
+    await ctx.clipboard.writeText(positiveInteger(params.tab_id), params.text);
+    return {};
+  }),
+  command("tab_clipboard_read", async (params, ctx) => await ctx.clipboard.read(positiveInteger(params.tab_id))),
+  command("tab_clipboard_write", async (params, ctx) => {
+    await ctx.clipboard.write(positiveInteger(params.tab_id), params.items);
+    return {};
+  }),
+  command("tab_content_export", async (params, ctx) => exportPageSnapshot(params, ctx)),
   command("tab_content_export_gsuite", async (params, ctx) => exportGSuite(params, ctx)),
 ];
 
@@ -2013,6 +2498,29 @@ async function exportGSuite(params, ctx) {
   const filePath = join(dir, `${sanitizeFileName(tab.title ?? "Asset")}-${randomUUID()}.${format}`);
   const content = Buffer.from(data.base64, "base64");
   await writeFile(filePath, format === "md" ? Buffer.from(stripDataUrlReferences(content.toString("utf8")), "utf8") : content);
+  return { path: filePath };
+}
+
+async function exportPageSnapshot(params, ctx) {
+  const tabId = positiveInteger(params.tab_id);
+  let content;
+  let extension = "mhtml";
+  try {
+    const snapshot = await ctx.cdp.call(tabId, "Page.captureSnapshot", { format: "mhtml" });
+    content = Buffer.from(String(snapshot.data ?? ""), "utf8");
+  } catch {
+    const html = await ctx.cdp.evaluateJavascript(
+      tabId,
+      `(() => "<!doctype html>\\n" + document.documentElement.outerHTML)()`,
+    );
+    content = Buffer.from(String(html ?? ""), "utf8");
+    extension = "html";
+  }
+  const tab = await ctx.tabs.get(tabId).catch(() => ({ title: "PageSnapshot" }));
+  const dir = join(tmpdir(), "browser-use", "exports");
+  await mkdir(dir, { recursive: true });
+  const filePath = join(dir, `${sanitizeFileName(tab.title ?? "PageSnapshot")}-${randomUUID()}.${extension}`);
+  await writeFile(filePath, content);
   return { path: filePath };
 }
 

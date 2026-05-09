@@ -120,6 +120,33 @@ export class OpenBrowserUseClient {
     setFileChooserFiles(fileChooserId, files) {
         return this.request("setFileChooserFiles", { fileChooserId, files });
     }
+    waitForDownload(tabId, timeoutMs) {
+        return this.request("waitForDownload", {
+            tabId,
+            ...(timeoutMs === undefined ? {} : { timeoutMs })
+        });
+    }
+    downloadPath(downloadId, timeoutMs) {
+        return this.request("downloadPath", {
+            downloadId,
+            ...(timeoutMs === undefined ? {} : { timeoutMs })
+        });
+    }
+    browserUserHistory(params = {}) {
+        return this.getUserHistory(params);
+    }
+    readClipboardText(tabId) {
+        return this.request("readClipboardText", { tabId });
+    }
+    writeClipboardText(tabId, text) {
+        return this.request("writeClipboardText", { tabId, text });
+    }
+    readClipboard(tabId) {
+        return this.request("readClipboard", { tabId });
+    }
+    writeClipboard(tabId, items) {
+        return this.request("writeClipboard", { tabId, items });
+    }
     turnEnded() {
         return this.request("turnEnded");
     }

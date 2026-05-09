@@ -8,6 +8,8 @@ importers:
 
   .: {}
 
+  packages/browser-client-rewrite: {}
+
   packages/browser-use-protocol:
     devDependencies:
       '@types/node':
@@ -16,6 +18,8 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+
+  packages/open-browser-use-cli: {}
 
   packages/open-browser-use-js:
     devDependencies:

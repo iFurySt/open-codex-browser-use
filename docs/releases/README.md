@@ -18,7 +18,7 @@ Contributors` 和 `Full Changelog`。
 每次 tag push 后都要检查 release body：
 
 ```bash
-gh release view v0.1.6 --json body,url
+gh release view v0.1.7 --json body,url
 ```
 
 最低要求：

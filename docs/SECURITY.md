@@ -27,6 +27,9 @@
 - MV3 extension 使用 `chrome.debugger`、`tabs`、`tabGroups`、`history` 和
   `downloads` 等高权限 API；真实安装前必须让用户明确知道它会操作真实
   Chrome profile。
+- Clipboard helpers 通过当前受控 tab 的页面上下文调用
+  `navigator.clipboard`，不额外声明 Chrome extension clipboard 权限；调用方仍应把
+  clipboard read/write 视为敏感操作，只在用户明确需要时触发。
 
 仍需补强：
 

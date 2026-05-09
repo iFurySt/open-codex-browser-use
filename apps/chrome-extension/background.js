@@ -197,6 +197,8 @@ class BrowserBackend {
     this.cursorByTabId = new Map();
     this.downloadFilenamesById = new Map();
     this.downloadUrlsById = new Map();
+    this.downloadsById = new Map();
+    this.downloadWaiters = new Set();
     this.downloadChangeListeners = new Set();
     this.cursorArrivalWaitersByKey = new Map();
     this.fileChoosersById = new Map();
@@ -529,6 +531,139 @@ class BrowserBackend {
     this.fileChoosersById.delete(params.fileChooserId);
   }
 
+  async waitForDownload(params) {
+    await this.requireSessionTab(params, "waitForDownload");
+    const timeoutMs =
+      typeof params.timeoutMs === "number" && params.timeoutMs > 0
+        ? params.timeoutMs
+        : DEFAULT_CDP_TIMEOUT_MS;
+    const download = await this.waitForDownloadChange(
+      (change) =>
+        change.status === "started" ||
+        change.status === "in_progress" ||
+        change.status === "complete",
+      timeoutMs,
+      "Timed out waiting for download."
+    );
+    return { downloadId: download.id };
+  }
+
+  async downloadPath(params) {
+    await this.requireSession(params);
+    if (typeof params.downloadId !== "string" || params.downloadId === "") {
+      throw new Error("downloadPath requires downloadId");
+    }
+    const current = this.downloadsById.get(params.downloadId);
+    if (current?.status === "complete") {
+      return { path: current.filename ?? null };
+    }
+    if (current?.status === "failed" || current?.status === "canceled") {
+      return { path: null };
+    }
+    const timeoutMs =
+      typeof params.timeoutMs === "number" && params.timeoutMs > 0
+        ? params.timeoutMs
+        : DEFAULT_CDP_TIMEOUT_MS;
+    const download = await this.waitForDownloadChange(
+      (change) =>
+        change.id === params.downloadId &&
+        (change.status === "complete" || change.status === "failed" || change.status === "canceled"),
+      timeoutMs,
+      `Timed out waiting for download ${params.downloadId}.`
+    );
+    return { path: download.status === "complete" ? download.filename ?? null : null };
+  }
+
+  async readClipboardText(params) {
+    await this.requireSessionTab(params, "readClipboardText");
+    const tabId = requireTabId(params, "readClipboardText");
+    if (!this.attachedTabs.has(tabId)) {
+      await this.attach(params);
+    }
+    const text = await this.evaluateJavascript(tabId, "navigator.clipboard.readText()", true);
+    return { text: typeof text === "string" ? text : "" };
+  }
+
+  async writeClipboardText(params) {
+    await this.requireSessionTab(params, "writeClipboardText");
+    const tabId = requireTabId(params, "writeClipboardText");
+    if (typeof params.text !== "string") {
+      throw new Error("writeClipboardText requires text");
+    }
+    if (!this.attachedTabs.has(tabId)) {
+      await this.attach(params);
+    }
+    await this.evaluateJavascript(tabId, `navigator.clipboard.writeText(${JSON.stringify(params.text)})`, true);
+  }
+
+  async readClipboard(params) {
+    await this.requireSessionTab(params, "readClipboard");
+    const tabId = requireTabId(params, "readClipboard");
+    if (!this.attachedTabs.has(tabId)) {
+      await this.attach(params);
+    }
+    const items = await this.evaluateJavascript(
+      tabId,
+      `((async () => {
+        const clipboardItems = await navigator.clipboard.read();
+        return await Promise.all(clipboardItems.map(async (item) => {
+          const entries = await Promise.all(item.types.map(async (type) => {
+            const blob = await item.getType(type);
+            if (type.startsWith("text/")) {
+              return { mime_type: type, text: await blob.text() };
+            }
+            const base64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onerror = () => reject(reader.error);
+              reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+              reader.readAsDataURL(blob);
+            });
+            return { mime_type: type, base64 };
+          }));
+          return { entries, presentation_style: item.presentationStyle ?? "unspecified" };
+        }));
+      })())`,
+      true
+    );
+    return { items: Array.isArray(items) ? items : [] };
+  }
+
+  async writeClipboard(params) {
+    await this.requireSessionTab(params, "writeClipboard");
+    const tabId = requireTabId(params, "writeClipboard");
+    if (!Array.isArray(params.items)) {
+      throw new Error("writeClipboard requires items");
+    }
+    if (!this.attachedTabs.has(tabId)) {
+      await this.attach(params);
+    }
+    await this.evaluateJavascript(
+      tabId,
+      `((async (items) => {
+        const clipboardItems = items.map((item) => {
+          const entries = {};
+          for (const entry of item.entries ?? []) {
+            const mime = entry.mime_type;
+            if (!mime) continue;
+            if (entry.text !== undefined) {
+              entries[mime] = new Blob([entry.text], { type: mime });
+            } else if (entry.base64 !== undefined) {
+              const binary = atob(entry.base64);
+              const bytes = new Uint8Array(binary.length);
+              for (let index = 0; index < binary.length; index += 1) {
+                bytes[index] = binary.charCodeAt(index);
+              }
+              entries[mime] = new Blob([bytes], { type: mime });
+            }
+          }
+          return new ClipboardItem(entries, { presentationStyle: item.presentation_style ?? "unspecified" });
+        });
+        await navigator.clipboard.write(clipboardItems);
+      })(${JSON.stringify(params.items)}))`,
+      true
+    );
+  }
+
   async turnEnded(params) {
     const session = await this.requireSession(params);
     const tabs = await this.getSessionTabs(session.sessionId);
@@ -689,9 +824,56 @@ class BrowserBackend {
   }
 
   emitDownloadChange(change) {
+    this.downloadsById.set(change.id, {
+      ...(this.downloadsById.get(change.id) ?? {}),
+      ...change
+    });
+    for (const waiter of [...this.downloadWaiters]) {
+      if (waiter.predicate(change)) {
+        waiter.resolve(change);
+      }
+    }
     for (const listener of this.downloadChangeListeners) {
       listener(change);
     }
+  }
+
+  waitForDownloadChange(predicate, timeoutMs, timeoutMessage) {
+    for (const change of this.downloadsById.values()) {
+      if (predicate(change)) {
+        return Promise.resolve(change);
+      }
+    }
+    return new Promise((resolve, reject) => {
+      const waiter = {
+        predicate,
+        resolve: (change) => {
+          cleanup();
+          resolve(change);
+        }
+      };
+      const cleanup = () => {
+        clearTimeout(timeoutId);
+        this.downloadWaiters.delete(waiter);
+      };
+      const timeoutId = setTimeout(() => {
+        cleanup();
+        reject(new Error(timeoutMessage));
+      }, timeoutMs);
+      this.downloadWaiters.add(waiter);
+    });
+  }
+
+  async evaluateJavascript(tabId, expression, awaitPromise) {
+    const result = await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+      expression,
+      returnByValue: true,
+      awaitPromise
+    });
+    if (result.exceptionDetails) {
+      throw new Error(result.exceptionDetails.text ?? "JavaScript evaluation failed");
+    }
+    return result.result?.value;
   }
 
   async ensureSessionGroup(sessionId, tabId, origin) {

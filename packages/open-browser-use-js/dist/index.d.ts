@@ -40,6 +40,13 @@ export declare class OpenBrowserUseClient {
     moveMouse(tabId: number, x: number, y: number, waitForArrival?: boolean): Promise<JsonValue>;
     waitForFileChooser(tabId: number, timeoutMs?: number): Promise<JsonValue>;
     setFileChooserFiles(fileChooserId: string, files: string[]): Promise<JsonValue>;
+    waitForDownload(tabId: number, timeoutMs?: number): Promise<JsonValue>;
+    downloadPath(downloadId: string, timeoutMs?: number): Promise<JsonValue>;
+    browserUserHistory(params?: BrowserUseRequestParams): Promise<JsonValue>;
+    readClipboardText(tabId: number): Promise<JsonValue>;
+    writeClipboardText(tabId: number, text: string): Promise<JsonValue>;
+    readClipboard(tabId: number): Promise<JsonValue>;
+    writeClipboard(tabId: number, items: JsonValue[]): Promise<JsonValue>;
     turnEnded(): Promise<JsonValue>;
 }
 export declare function encodeFrame(value: JsonValue | Record<string, unknown>): Buffer;

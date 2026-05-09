@@ -130,6 +130,33 @@ class OpenBrowserUseClient:
             },
         )
 
+    def wait_for_download(self, tab_id: int, timeout_ms: int | None = None) -> Any:
+        params: JsonObject = {"tabId": tab_id}
+        if timeout_ms is not None:
+            params["timeoutMs"] = timeout_ms
+        return self.request("waitForDownload", params)
+
+    def download_path(self, download_id: str, timeout_ms: int | None = None) -> Any:
+        params: JsonObject = {"downloadId": download_id}
+        if timeout_ms is not None:
+            params["timeoutMs"] = timeout_ms
+        return self.request("downloadPath", params)
+
+    def browser_user_history(self, **params: Any) -> Any:
+        return self.get_user_history(**params)
+
+    def read_clipboard_text(self, tab_id: int) -> Any:
+        return self.request("readClipboardText", {"tabId": tab_id})
+
+    def write_clipboard_text(self, tab_id: int, text: str) -> Any:
+        return self.request("writeClipboardText", {"tabId": tab_id, "text": text})
+
+    def read_clipboard(self, tab_id: int) -> Any:
+        return self.request("readClipboard", {"tabId": tab_id})
+
+    def write_clipboard(self, tab_id: int, items: list[JsonObject]) -> Any:
+        return self.request("writeClipboard", {"tabId": tab_id, "items": items})
+
     def turn_ended(self) -> Any:
         return self.request("turnEnded")
 

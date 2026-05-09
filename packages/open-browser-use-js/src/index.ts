@@ -172,6 +172,40 @@ export class OpenBrowserUseClient {
     return this.request("setFileChooserFiles", { fileChooserId, files });
   }
 
+  waitForDownload(tabId: number, timeoutMs?: number): Promise<JsonValue> {
+    return this.request("waitForDownload", {
+      tabId,
+      ...(timeoutMs === undefined ? {} : { timeoutMs })
+    });
+  }
+
+  downloadPath(downloadId: string, timeoutMs?: number): Promise<JsonValue> {
+    return this.request("downloadPath", {
+      downloadId,
+      ...(timeoutMs === undefined ? {} : { timeoutMs })
+    });
+  }
+
+  browserUserHistory(params: BrowserUseRequestParams = {}): Promise<JsonValue> {
+    return this.getUserHistory(params);
+  }
+
+  readClipboardText(tabId: number): Promise<JsonValue> {
+    return this.request("readClipboardText", { tabId });
+  }
+
+  writeClipboardText(tabId: number, text: string): Promise<JsonValue> {
+    return this.request("writeClipboardText", { tabId, text });
+  }
+
+  readClipboard(tabId: number): Promise<JsonValue> {
+    return this.request("readClipboard", { tabId });
+  }
+
+  writeClipboard(tabId: number, items: JsonValue[]): Promise<JsonValue> {
+    return this.request("writeClipboard", { tabId, items });
+  }
+
   turnEnded(): Promise<JsonValue> {
     return this.request("turnEnded");
   }

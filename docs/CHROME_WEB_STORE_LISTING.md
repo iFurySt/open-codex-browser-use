@@ -71,7 +71,9 @@ Suggested data use disclosure:
 ```text
 The extension can read tab metadata, browser history entries requested through
 the local Open Browser Use API, download events while an automation session is
-active, and page content exposed through Chrome DevTools Protocol commands.
+active, clipboard content explicitly requested by the local caller for a
+controlled tab, and page content exposed through Chrome DevTools Protocol
+commands.
 This data is sent only to the locally installed Open Browser Use native host
 over Chrome Native Messaging. The extension does not send data to an
 Open Browser Use cloud service.
@@ -118,8 +120,8 @@ open-browser-use install-manifest
 
 ## Dashboard Checklist
 
-- Upload or select the `v0.1.6` extension package from
-  `open-browser-use-chrome-extension-0.1.6.zip`.
+- Upload or select the `v0.1.7` extension package from
+  `open-browser-use-chrome-extension-0.1.7.zip`.
 - Add at least one screenshot that shows the extension popup or a local
   Open Browser Use automation session.
 - Confirm the listing text matches the current native host requirement.
