@@ -37,26 +37,50 @@ is `open_browser_use`.
 
 ## JavaScript SDK Pattern
 
-```ts
-import { OpenBrowserUseClient } from "open-browser-use-sdk";
+Use the high-level browser helper for common multi-step flows:
 
-const browser = new OpenBrowserUseClient({
+```ts
+import { connectOpenBrowserUse } from "open-browser-use-sdk";
+
+const browser = await connectOpenBrowserUse({
   socketPath: "/tmp/open-browser-use/example.sock",
   sessionId: "my-agent",
 });
 
-await browser.connect();
-await browser.nameSession("Task - OBU");
-const tab = await browser.createTab() as { id: number };
-await browser.executeCdp(tab.id, "Page.navigate", { url: "https://example.com" });
-await browser.finalizeTabs([]);
-browser.close();
+try {
+  await browser.client.nameSession("Task - OBU");
+  const tab = await browser.newTab();
+  await tab.goto("https://example.com", { waitUntil: "domcontentloaded" });
+  const text = await tab.playwright.domSnapshot();
+  console.log(text.slice(0, 4000));
+} finally {
+  await browser.client.finalizeTabs([]);
+  browser.close();
+}
+```
+
+Use the low-level client when you need direct Browser Use JSON-RPC/CDP calls:
+
+```ts
+import { OpenBrowserUseClient } from "open-browser-use-sdk";
+
+const client = new OpenBrowserUseClient({
+  socketPath: "/tmp/open-browser-use/example.sock",
+  sessionId: "my-agent",
+});
+
+await client.connect();
+await client.nameSession("Task - OBU");
+const tab = await client.createTab() as { id: number };
+await client.executeCdp(tab.id, "Page.navigate", { url: "https://example.com" });
+await client.finalizeTabs([]);
+client.close();
 ```
 
 The JavaScript SDK supports notification handlers:
 
 ```ts
-const unsubscribe = browser.onNotification((event) => {
+const unsubscribe = client.onNotification((event) => {
   if (event.method === "onDownloadChange") {
     console.log(event.params);
   }
