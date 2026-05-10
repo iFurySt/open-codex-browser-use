@@ -158,7 +158,7 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   MV3 service worker restarts can recover session tab listing semantics.
   新 session 的默认任务组名是 `Task - OBU`，上层 runtime 应通过
   `nameSession`/`name-session` 按 `<short task> - OBU` 设置更具体的任务名；
-  `deliverable` tabs 统一移动到共享 `🫪 Open Browser Use` tab group，`handoff`
+  `deliverable` tabs 统一移动到共享 `✅ Open Browser Use` tab group，`handoff`
   tabs 保留在当前任务组。
   `turnEnded` and `finalizeTabs` clear active session state when control ends
   so download notifications only fire while a browser session is active.

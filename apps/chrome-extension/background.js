@@ -7,7 +7,7 @@ const DEFAULT_CDP_TIMEOUT_MS = 10_000;
 const CURSOR_ARRIVAL_TIMEOUT_MS = 1_000;
 const MAX_USER_TABS = 1000;
 const DEFAULT_SESSION_GROUP_TITLE = "Task - OBU";
-const DELIVERABLE_GROUP_TITLE = "🫪 Open Browser Use";
+const DELIVERABLE_GROUP_TITLE = "✅ Open Browser Use";
 const LEGACY_SESSION_GROUP_TITLE_PATTERN = /^Open Browser Use [0-9a-f]{8}$/i;
 
 class JsonRpcPeer {

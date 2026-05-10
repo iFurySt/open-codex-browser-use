@@ -26,7 +26,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.25"
+const version = "0.1.26"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 const defaultCLISessionID = "obu-cli"
 const defaultMCPSessionID = "obu-mcp"

@@ -93,7 +93,7 @@ The MCP server exposes tools including `user_tabs`, `open_tab`, `claim_tab`,
 - Keep a tab only when the user needs that live page after the turn. Omit research, source, search, intermediate, duplicate, blank, error, and login/navigation tabs after extracting what you need.
 - Keep a tab with `status: "deliverable"` when the tab itself is the user-facing output or requested open page, such as a created or edited document, dashboard, checkout/cart, submitted form result, or a page the user explicitly asked to inspect directly.
 - Keep a tab with `status: "handoff"` only when the task is still in progress and the user or a later turn should continue from the current task group, such as a page waiting for user input, login, approval, payment, CAPTCHA, or an unfinished workflow.
-- Handoff tabs stay in the task session group. Deliverable tabs move to the shared `🫪 Open Browser Use` tab group.
+- Handoff tabs stay in the task session group. Deliverable tabs move to the shared `✅ Open Browser Use` tab group.
 - Run finalization as the last Open Browser Use browser action for the turn. Do not call Open Browser Use browser tools after finalizing; if more browser work is needed, do it first and finalize once with the final tab disposition.
 
 ## File Choosers, Downloads, And Clipboard
