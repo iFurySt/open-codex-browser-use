@@ -7,10 +7,13 @@ Read this reference when setup, connection, browser control, file upload, downlo
 Start with:
 
 ```sh
-open-browser-use ping
-open-browser-use info
-open-browser-use user-tabs
+open-browser-use ping --session-id "$OBU_SESSION_ID"
+open-browser-use info --session-id "$OBU_SESSION_ID"
+open-browser-use user-tabs --session-id "$OBU_SESSION_ID"
 ```
+
+For connection checks, set `OBU_SESSION_ID` to a temporary unique value first.
+Do not reuse the CLI fallback session for agent browser work.
 
 If these fail:
 

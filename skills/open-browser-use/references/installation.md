@@ -74,9 +74,13 @@ open-browser-use manifest
 Run:
 
 ```sh
-open-browser-use ping
-open-browser-use info
-open-browser-use user-tabs
+open-browser-use ping --session-id "$OBU_SESSION_ID"
+open-browser-use info --session-id "$OBU_SESSION_ID"
+open-browser-use user-tabs --session-id "$OBU_SESSION_ID"
 ```
+
+For one-off installation checks, a temporary session id is enough. Agent browser
+tasks should still create and reuse a task-unique session id before opening or
+claiming tabs.
 
 If `ping` cannot communicate with Chrome, ask the user whether Chrome is installed and running, whether the extension is enabled, and whether they approved any Chrome prompt. Then use [troubleshooting.md](troubleshooting.md).

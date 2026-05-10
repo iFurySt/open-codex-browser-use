@@ -25,6 +25,17 @@ open-browser-use ping --socket /tmp/open-browser-use/example.sock
 
 For SDKs, create a client with `socketPath` / `socket_path`.
 
+## Browser Session Scope
+
+Use a unique browser session id for each agent task or conversation. Prefer a
+stable session/conversation id from the surrounding runtime when it exists;
+otherwise create a short unique id such as `obu-<task-slug>-<timestamp>`.
+
+Pass that same id through every CLI command, MCP server, or SDK client used for
+the task. Do not rely on the CLI fallback `obu-cli` in agent workflows; it is a
+manual convenience fallback and can reuse stale Chrome tab groups from unrelated
+tasks.
+
 Install the SDK package from the package registry for your runtime:
 
 ```sh
@@ -44,7 +55,7 @@ import { connectOpenBrowserUse } from "open-browser-use-sdk";
 
 const browser = await connectOpenBrowserUse({
   socketPath: "/tmp/open-browser-use/example.sock",
-  sessionId: "my-agent",
+  sessionId: "obu-docs-scan-20260510",
 });
 
 try {
@@ -66,7 +77,7 @@ import { OpenBrowserUseClient } from "open-browser-use-sdk";
 
 const client = new OpenBrowserUseClient({
   socketPath: "/tmp/open-browser-use/example.sock",
-  sessionId: "my-agent",
+  sessionId: "obu-docs-scan-20260510",
 });
 
 await client.connect();
@@ -98,7 +109,7 @@ from open_browser_use import connect_open_browser_use
 registry = json.loads(Path("/tmp/open-browser-use/active.json").read_text())
 browser = connect_open_browser_use(
     socket_path=registry["socketPath"],
-    session_id="my-agent",
+    session_id="obu-issue-scan-20260510",
 )
 
 try:
@@ -127,7 +138,7 @@ from open_browser_use import OpenBrowserUseClient
 
 client = OpenBrowserUseClient(
     socket_path="/tmp/open-browser-use/example.sock",
-    session_id="my-agent",
+    session_id="obu-docs-scan-20260510",
 )
 
 client.name_session("Task - OBU")
@@ -167,14 +178,15 @@ Common Browser Use JSON-RPC methods:
 CLI unrestricted call:
 
 ```sh
-open-browser-use call --method getInfo --params '{}'
-open-browser-use call --method executeCdp --params '{"target":{"tabId":123},"method":"Runtime.evaluate","commandParams":{"expression":"document.title"}}'
+open-browser-use call --session-id "$OBU_SESSION_ID" --method getInfo --params '{}'
+open-browser-use call --session-id "$OBU_SESSION_ID" --method executeCdp --params '{"target":{"tabId":123},"method":"Runtime.evaluate","commandParams":{"expression":"document.title"}}'
 ```
 
 CLI action plan:
 
 ```sh
-open-browser-use run -c '
+export OBU_SESSION_ID="obu-docs-scan-$(date +%Y%m%d%H%M%S)"
+open-browser-use run --session-id "$OBU_SESSION_ID" -c '
 name-session "Docs scan - OBU"
 open-tab https://docs.browser-use.com
 wait-load domcontentloaded
@@ -197,7 +209,7 @@ Use the stdio MCP server when the surrounding runtime supports local MCP tools:
 ```toml
 [mcp_servers.open_browser_use]
 command = "obu"
-args = ["mcp"]
+args = ["mcp", "--session-id", "obu-<task-or-conversation-id>"]
 ```
 
 `obu mcp` speaks newline-delimited JSON-RPC on stdin/stdout. It handles
@@ -211,7 +223,8 @@ mirror the CLI action surface:
 
 Pass `--socket` or `--socket-dir` in the MCP `args` only when the runtime needs
 an explicit Open Browser Use socket. Otherwise the server uses the same socket
-discovery as the CLI.
+discovery as the CLI. Pass a fresh `--session-id` for each agent task or
+conversation.
 
 SDK request escape hatch:
 
@@ -233,12 +246,30 @@ browser.request("executeCdp", {
 
 ## User Tab Claiming
 
-1. List open user tabs with `open-browser-use user-tabs` or SDK `getUserTabs`.
+1. List open user tabs with `open-browser-use user-tabs --session-id "$OBU_SESSION_ID"` or SDK `getUserTabs`.
 2. Select the tab from returned data using visible evidence: title, URL, recency, and group.
-3. Claim it with `open-browser-use claim-tab --tab-id <id>` or SDK `claimUserTab` / `claim_user_tab`.
+3. Claim it with `open-browser-use claim-tab --session-id "$OBU_SESSION_ID" --tab-id <id>` or SDK `claimUserTab` / `claim_user_tab`.
 4. Use the returned controllable tab for later commands.
 
 Never invent or reuse stale tab ids.
+
+## Tab Cleanup
+
+Before ending browser work, finalize exactly once for the active session:
+
+```sh
+open-browser-use finalize-tabs --session-id "$OBU_SESSION_ID" --keep '[]'
+```
+
+Omit tabs by default. Keep a tab only when the user needs that live page after
+the turn. Use `status: "deliverable"` for a user-facing output or requested
+open page. Use `status: "handoff"` only when the task is still in progress and
+the user or a later turn should continue from the current task group, such as a
+page waiting for login, approval, payment, CAPTCHA, or other user input.
+
+Treat finalization as the last Open Browser Use browser action of the turn. If
+more browser work is needed, do it before finalizing, then finalize once with
+the final tab disposition.
 
 ## File Chooser Pattern
 

@@ -16,6 +16,9 @@
 
 ## 已沉淀资料
 
+- `chrome/0.1.7/skills/chrome/SKILL.md`：OpenAI bundled Chrome plugin
+  `0.1.7` 的官方 Chrome skill 原文快照，用于对照官方 browser session、
+  tab claiming、file upload 和 tab cleanup 约定；后续版本按同一路径新增。
 - `codex-chrome-extension-1.1.4/`：Codex Chrome Web Store extension
   `hehggadaopoacecdllhhajmbjkdcmajg` 的本机安装快照、格式化入口文件和
   native messaging host 形状记录。

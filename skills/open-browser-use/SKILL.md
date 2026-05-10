@@ -12,12 +12,13 @@ Open Browser Use connects an MV3 Chrome extension, a local native messaging host
 ## Core Workflow
 
 1. Check setup with `open-browser-use ping` or `obu ping`. If it fails because setup is missing, read [references/installation.md](references/installation.md).
-2. Name the current browser task group before opening or claiming tabs. Use a short task label followed by ` - OBU`; if no better task label is available, use `Task - OBU`.
-3. Use the CLI for simple inspection or one-shot actions: `info`, `tabs`, `user-tabs`, `history`, `open-tab`, `navigate`, `cdp`, and `call`.
-4. If the surrounding agent runtime supports local MCP servers, configure `obu mcp` and call the exposed browser tools directly. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
-5. Use the JavaScript or Python SDK for multi-step workflows, event subscriptions, or when the surrounding agent runtime already runs code. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
-6. Before ending browser work, release or keep session tabs with `open-browser-use finalize-tabs --keep '<json-array>'`, the MCP `finalize_tabs` tool, or the SDK `finalizeTabs` / `finalize_tabs` method.
-7. If communication fails after setup, read [references/troubleshooting.md](references/troubleshooting.md).
+2. Choose a unique browser session id for the current agent task before opening or claiming tabs. Prefer the surrounding runtime's conversation/session id when available; otherwise create a short unique id such as `obu-<task-slug>-<timestamp>`. Reuse that same id for every Open Browser Use command in this task.
+3. Name the current browser task group before opening or claiming tabs. Use a short task label followed by ` - OBU`; if no better task label is available, use `Task - OBU`.
+4. Use the CLI for simple inspection or one-shot actions: `info`, `tabs`, `user-tabs`, `history`, `open-tab`, `navigate`, `cdp`, and `call`.
+5. If the surrounding agent runtime supports local MCP servers, configure `obu mcp` and call the exposed browser tools directly. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
+6. Use the JavaScript or Python SDK for multi-step workflows, event subscriptions, or when the surrounding agent runtime already runs code. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
+7. Before ending browser work, release or keep session tabs with `open-browser-use finalize-tabs --session-id "$OBU_SESSION_ID" --keep '<json-array>'`, the MCP `finalize_tabs` tool, or the SDK `finalizeTabs` / `finalize_tabs` method.
+8. If communication fails after setup, read [references/troubleshooting.md](references/troubleshooting.md).
 
 ## Operating Rules
 
@@ -27,29 +28,31 @@ Open Browser Use connects an MV3 Chrome extension, a local native messaging host
 - Do not guess tab ids. List tabs first, then use ids returned by `tabs`, `user-tabs`, `open-tab`, or SDK calls.
 - Prefer `claim-tab` / `claimUserTab` for existing user tabs. Claiming should be based on the current `user-tabs` result and visible evidence such as URL, title, recency, or group.
 - Use `--socket` only when the user or runtime provides an explicit socket. Otherwise let the CLI and SDKs discover the active socket registry.
-- Direct CLI subcommands and `open-browser-use run` share the default `obu-cli` browser session. Use `--session-id` only when you intentionally want a separate tab group, and finalize that same session before ending browser work.
+- Do not rely on the CLI fallback session `obu-cli` for agent tasks. Always pass a task-unique `--session-id` to CLI and MCP commands, or set `sessionId` / `session_id` in SDK clients. The fallback exists for quick manual use and can reuse stale task groups across unrelated agent sessions.
+- Direct CLI subcommands and `open-browser-use run` can share the same browser session only when they use the same explicit `--session-id`. Finalize that same session before ending browser work.
 - Use `call --method <method> --params '<json>'` only when no safer convenience command or SDK wrapper exists.
 
 ## Common CLI Actions
 
 ```sh
-open-browser-use ping
-open-browser-use info
-open-browser-use name-session --name "Task - OBU"
-open-browser-use tabs
-open-browser-use user-tabs
-open-browser-use history --query "example" --limit 20
-open-browser-use open-tab --url https://example.com
-open-browser-use navigate --tab-id <tab-id> --url https://example.com
-open-browser-use cdp --tab-id <tab-id> --method Runtime.evaluate --params '{"expression":"document.title"}'
-open-browser-use finalize-tabs --keep '[]'
+export OBU_SESSION_ID="obu-docs-scan-$(date +%Y%m%d%H%M%S)"
+open-browser-use ping --session-id "$OBU_SESSION_ID"
+open-browser-use info --session-id "$OBU_SESSION_ID"
+open-browser-use name-session --session-id "$OBU_SESSION_ID" --name "Task - OBU"
+open-browser-use tabs --session-id "$OBU_SESSION_ID"
+open-browser-use user-tabs --session-id "$OBU_SESSION_ID"
+open-browser-use history --session-id "$OBU_SESSION_ID" --query "example" --limit 20
+open-browser-use open-tab --session-id "$OBU_SESSION_ID" --url https://example.com
+open-browser-use navigate --session-id "$OBU_SESSION_ID" --tab-id <tab-id> --url https://example.com
+open-browser-use cdp --session-id "$OBU_SESSION_ID" --tab-id <tab-id> --method Runtime.evaluate --params '{"expression":"document.title"}'
+open-browser-use finalize-tabs --session-id "$OBU_SESSION_ID" --keep '[]'
 ```
 
 For CLI-level orchestration without a JS/Python runtime, use a line-oriented
 action plan:
 
 ```sh
-open-browser-use run -c '
+open-browser-use run --session-id "$OBU_SESSION_ID" -c '
 name-session "Docs scan - OBU"
 open-tab https://docs.browser-use.com
 wait-load domcontentloaded
@@ -71,8 +74,11 @@ For runtimes that can launch local MCP servers over stdio, use:
 ```toml
 [mcp_servers.open_browser_use]
 command = "obu"
-args = ["mcp"]
+args = ["mcp", "--session-id", "obu-<task-or-conversation-id>"]
 ```
+
+Use a fresh `--session-id` value per agent task or conversation. If the runtime
+has a stable conversation/session id, derive the MCP `--session-id` from it.
 
 The MCP server exposes tools including `user_tabs`, `open_tab`, `claim_tab`,
 `navigate`, `wait_load`, `page_info`, `cdp`, `history`, `run_action_plan`,
@@ -81,11 +87,14 @@ The MCP server exposes tools including `user_tabs`, `open_tab`, `claim_tab`,
 ## Tab Lifecycle
 
 - Session tabs are tabs Open Browser Use has created or claimed for the current agent workflow.
+- Use one unique session id per agent task or conversation. Do not share the fallback `obu-cli` session across unrelated tasks.
 - Task session groups should be named from the task, using the pattern `<short task> - OBU`. Use `Task - OBU` as the fallback name.
-- Keep no tabs by default: `open-browser-use finalize-tabs --keep '[]'`.
-- Keep a tab only when the tab itself is the deliverable or the user needs to continue from that live state. Use a keep item such as `{"tabId":123,"status":"handoff"}` or `{"tabId":123,"status":"deliverable"}`.
+- Keep no tabs by default: `open-browser-use finalize-tabs --session-id "$OBU_SESSION_ID" --keep '[]'`.
+- Keep a tab only when the user needs that live page after the turn. Omit research, source, search, intermediate, duplicate, blank, error, and login/navigation tabs after extracting what you need.
+- Keep a tab with `status: "deliverable"` when the tab itself is the user-facing output or requested open page, such as a created or edited document, dashboard, checkout/cart, submitted form result, or a page the user explicitly asked to inspect directly.
+- Keep a tab with `status: "handoff"` only when the task is still in progress and the user or a later turn should continue from the current task group, such as a page waiting for user input, login, approval, payment, CAPTCHA, or an unfinished workflow.
 - Handoff tabs stay in the task session group. Deliverable tabs move to the shared `🫪 Open Browser Use` tab group.
-- Run finalization as the last Open Browser Use browser action for the turn.
+- Run finalization as the last Open Browser Use browser action for the turn. Do not call Open Browser Use browser tools after finalizing; if more browser work is needed, do it first and finalize once with the final tab disposition.
 
 ## File Choosers, Downloads, And Clipboard
 
