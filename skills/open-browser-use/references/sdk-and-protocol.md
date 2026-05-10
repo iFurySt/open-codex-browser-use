@@ -41,10 +41,11 @@ Install the SDK package from the package registry for your runtime:
 ```sh
 npm install open-browser-use-sdk
 pip install open-browser-use-sdk
+go get github.com/ifuryst/open-browser-use/packages/open-browser-use-go
 ```
 
 The Python distribution is named `open-browser-use-sdk`, while the import module
-is `open_browser_use`.
+is `open_browser_use`. Go code usually imports the package as `obu`.
 
 ## JavaScript SDK Pattern
 
@@ -146,6 +147,71 @@ tab = client.create_tab()
 client.execute_cdp(tab["id"], "Page.navigate", {"url": "https://example.com"})
 client.finalize_tabs([])
 client.close()
+```
+
+## Go SDK Pattern
+
+```go
+package main
+
+import (
+	"fmt"
+	"log"
+	"time"
+
+	obu "github.com/ifuryst/open-browser-use/packages/open-browser-use-go"
+)
+
+func main() {
+	browser, err := obu.ConnectActive(obu.Options{
+		SessionID: "obu-issue-scan-20260510",
+		Timeout:   20 * time.Second,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer browser.Close()
+	defer browser.Client.FinalizeTabs(nil)
+
+	if _, err := browser.Client.NameSession("Issue scan - OBU"); err != nil {
+		log.Fatal(err)
+	}
+	tab, err := browser.NewTab()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := tab.Goto("https://example.com", obu.GotoOptions{
+		WaitUntil: obu.LoadStateDOMContentLoaded,
+		Timeout:   15 * time.Second,
+	}); err != nil {
+		log.Fatal(err)
+	}
+	title, err := tab.Title()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(title)
+}
+```
+
+Use the low-level client when you need raw JSON-RPC/CDP calls:
+
+```go
+client := obu.NewClient(obu.Options{
+	SocketPath: "/tmp/open-browser-use/example.sock",
+	SessionID:  "obu-docs-scan-20260510",
+})
+defer client.Close()
+
+tab, err := client.CreateTab()
+if err != nil {
+	log.Fatal(err)
+}
+tabID := int(tab.(map[string]any)["id"].(float64))
+if _, err := client.ExecuteCDP(tabID, "Page.navigate", obu.Params{"url": "https://example.com"}); err != nil {
+	log.Fatal(err)
+}
+_, _ = client.FinalizeTabs(nil)
 ```
 
 ## Core Methods

@@ -5,6 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/iFurySt/open-codex-browser-use)](https://github.com/iFurySt/open-codex-browser-use/releases)
 [![npm SDK](https://img.shields.io/npm/v/open-browser-use-sdk?label=npm%20SDK)](https://www.npmjs.com/package/open-browser-use-sdk)
 [![PyPI SDK](https://img.shields.io/pypi/v/open-browser-use-sdk?label=PyPI%20SDK)](https://pypi.org/project/open-browser-use-sdk/)
+[![Go SDK](https://pkg.go.dev/badge/github.com/ifuryst/open-browser-use/packages/open-browser-use-go.svg)](https://pkg.go.dev/github.com/ifuryst/open-browser-use/packages/open-browser-use-go)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iFurySt/open-codex-browser-use)
 
 ---
@@ -18,7 +19,7 @@ capability recently shipped in Codex.app. For the story behind it, see the
 [Browser Use Deep Dive](https://www.ifuryst.com/en/blog/2026/open-browser-use/).
 
 Under the hood, it pairs a browser extension with the `open-browser-use` CLI.
-You can integrate it through the JavaScript SDK, the Python SDK, or the CLI.
+You can integrate it through the JavaScript SDK, Python SDK, Go SDK, or the CLI.
 
 https://github.com/user-attachments/assets/bcfba878-f6a8-44b9-b84b-29c7e0285687
 
@@ -71,10 +72,14 @@ npm install open-browser-use-sdk
 
 # Python
 pip install open-browser-use-sdk
+
+# Go
+go get github.com/ifuryst/open-browser-use/packages/open-browser-use-go
 ```
 
 The SDK package name is `open-browser-use-sdk` on both npm and PyPI. Python
-code imports it as `open_browser_use`.
+code imports it as `open_browser_use`; Go code imports the SDK package as
+`obu`.
 
 #### Skill
 

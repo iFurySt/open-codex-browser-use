@@ -36,6 +36,9 @@ debugger、history 和 tab groups。
   名为 `open-browser-use-sdk`。
 - `packages/open-browser-use-python/`：Python SDK，PyPI distribution 名为
   `open-browser-use-sdk`，import 模块名为 `open_browser_use`。
+- `packages/open-browser-use-go/`：Go SDK，Go import path 为
+  `github.com/ifuryst/open-browser-use/packages/open-browser-use-go`，package
+  name 为 `obu`。
 - `skills/open-browser-use/`：面向 AI Agent 的 Open Browser Use skill，说明
   如何安装、验证和使用浏览器插件、CLI、SDK 与 Browser Use 风格协议。
 - `packages/`：其他跨应用复用的库、契约和共享能力。
@@ -171,15 +174,17 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   暴露给 SDK；agent-facing Browser Use command rewrite 还覆盖 DOM CUA、media
   download、element info/screenshot、locator bulk reads、generic tab export 和
   clipboard commands。
-- JS 和 Python SDK：直接连接 Unix socket 发送 Browser Use JSON-RPC。
+- JS、Python 和 Go SDK：直接连接 Unix socket 发送 Browser Use JSON-RPC。
   JS SDK 支持订阅 native socket 上的 JSON-RPC notification；Python SDK 会在
-  同步 request loop 中分发并跳过 notification，避免 CDP event 插队破坏响应读取。
-  两个 SDK 都在原子 client 之外提供高层 browser/tab API，可直接使用
+  同步 request loop 中分发并跳过 notification，避免 CDP event 插队破坏响应读取；
+  Go SDK 同样在同步 request loop 中分发 notification，并可自动读取 active
+  socket registry。三个 SDK 都在原子 client 之外提供高层 browser/tab API，可直接使用
   `tab.goto`、`tab.waitForLoadState`/`tab.wait_for_load_state` 和
   `tab.playwright.domSnapshot`/`tab.playwright.dom_snapshot` 这类 Browser Use
   风格封装；Python SDK 还提供 `title`、`url`、`wait_for_timeout` 和
-  `locator(...).inner_text(...)` 等适合 Jupyter/Python REPL 编排的薄封装。
-  两个 SDK 同时提供核心 Browser Use method wrappers、download/clipboard
+  `locator(...).inner_text(...)` 等适合 Jupyter/Python REPL 编排的薄封装，Go SDK
+  提供对应的 `Title`、`URL`、`WaitForTimeout` 和 `Locator(...).InnerText(...)`
+  helper。三个 SDK 同时提供核心 Browser Use method wrappers、download/clipboard
   convenience wrappers，也保留 unrestricted `request`。
 
 当前 SDK 不内置 Codex 风格的站点限制、turn policy 或二次确认。上层应用
