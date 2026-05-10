@@ -37,7 +37,7 @@ debugger、history 和 tab groups。
 - `packages/open-browser-use-python/`：Python SDK，PyPI distribution 名为
   `open-browser-use-sdk`，import 模块名为 `open_browser_use`。
 - `packages/open-browser-use-go/`：Go SDK，Go import path 为
-  `github.com/ifuryst/open-browser-use/packages/open-browser-use-go`，package
+  `github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go`，package
   name 为 `obu`。
 - `skills/open-browser-use/`：面向 AI Agent 的 Open Browser Use skill，说明
   如何安装、验证和使用浏览器插件、CLI、SDK 与 Browser Use 风格协议。

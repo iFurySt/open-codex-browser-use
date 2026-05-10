@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ifuryst/open-browser-use/internal/wire"
+	"github.com/ifuryst/open-codex-browser-use/internal/wire"
 )
 
 const NativeHostName = "com.ifuryst.open_browser_use.extension"

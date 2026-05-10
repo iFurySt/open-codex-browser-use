@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/iFurySt/open-codex-browser-use)](https://github.com/iFurySt/open-codex-browser-use/releases)
 [![npm SDK](https://img.shields.io/npm/v/open-browser-use-sdk?label=npm%20SDK)](https://www.npmjs.com/package/open-browser-use-sdk)
 [![PyPI SDK](https://img.shields.io/pypi/v/open-browser-use-sdk?label=PyPI%20SDK)](https://pypi.org/project/open-browser-use-sdk/)
-[![Go SDK](https://pkg.go.dev/badge/github.com/ifuryst/open-browser-use/packages/open-browser-use-go.svg)](https://pkg.go.dev/github.com/ifuryst/open-browser-use/packages/open-browser-use-go)
+[![Go SDK](https://pkg.go.dev/badge/github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go.svg)](https://pkg.go.dev/github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iFurySt/open-codex-browser-use)
 
 ---
@@ -62,7 +62,7 @@ npm install open-browser-use-sdk
 pip install open-browser-use-sdk
 
 # Go
-go get github.com/ifuryst/open-browser-use/packages/open-browser-use-go
+go get github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go
 ```
 
 SDK 在 npm 和 PyPI 上统一叫 `open-browser-use-sdk`。Python 代码里的 import
