@@ -6,7 +6,7 @@ Read this reference when the user asks to install, verify, repair, or explain Op
 
 - Chrome extension: the browser-side controller. Installing or enabling it may require the user to approve Chrome prompts.
 - Native host and CLI: the local `open-browser-use` binary, also exposed as `obu` when installed from supported packages.
-- SDKs: JavaScript and Python clients that connect to the active native host socket.
+- SDKs: JavaScript, Python, and Go clients that connect to the active native host socket.
 
 ## Install The CLI
 

@@ -23,7 +23,7 @@ Pass an explicit socket only when the runtime provides one:
 open-browser-use ping --socket /tmp/open-browser-use/example.sock
 ```
 
-For SDKs, create a client with `socketPath` / `socket_path`.
+For SDKs, create a client with `socketPath` / `socket_path` / `SocketPath`.
 
 ## Browser Session Scope
 
@@ -295,7 +295,7 @@ conversation.
 SDK request escape hatch:
 
 ```ts
-await browser.request("executeCdp", {
+await browser.client.request("executeCdp", {
   target: { tabId: 123 },
   method: "Runtime.evaluate",
   commandParams: { expression: "document.title" },
@@ -303,10 +303,18 @@ await browser.request("executeCdp", {
 ```
 
 ```py
-browser.request("executeCdp", {
+browser.client.request("executeCdp", {
     "target": {"tabId": 123},
     "method": "Runtime.evaluate",
     "commandParams": {"expression": "document.title"},
+})
+```
+
+```go
+_, err := browser.Client.Request("executeCdp", obu.Params{
+	"target":        obu.Params{"tabId": 123},
+	"method":        "Runtime.evaluate",
+	"commandParams": obu.Params{"expression": "document.title"},
 })
 ```
 
@@ -314,7 +322,7 @@ browser.request("executeCdp", {
 
 1. List open user tabs with `open-browser-use user-tabs --session-id "$OBU_SESSION_ID"` or SDK `getUserTabs`.
 2. Select the tab from returned data using visible evidence: title, URL, recency, and group.
-3. Claim it with `open-browser-use claim-tab --session-id "$OBU_SESSION_ID" --tab-id <id>` or SDK `claimUserTab` / `claim_user_tab`.
+3. Claim it with `open-browser-use claim-tab --session-id "$OBU_SESSION_ID" --tab-id <id>` or SDK `claimUserTab` / `claim_user_tab` / `ClaimUserTab`.
 4. Use the returned controllable tab for later commands.
 
 Never invent or reuse stale tab ids.
@@ -339,7 +347,7 @@ the final tab disposition.
 
 ## File Chooser Pattern
 
-1. Start waiting with `wait-file-chooser --tab-id <id>` or SDK `waitForFileChooser`.
+1. Start waiting with `wait-file-chooser --tab-id <id>` or SDK `waitForFileChooser` / `wait_for_file_chooser` / `WaitForFileChooser`.
 2. Trigger the file picker in the page, usually through a click driven by CDP or a higher-level automation layer.
 3. Set absolute file paths:
 
