@@ -7,6 +7,9 @@
 
 ---
 
+> [!TIP]
+> Interested in Computer Use? Check out [open-computer-use](https://github.com/iFurySt/open-codex-computer-use).
+
 `open-browser-use` is a browser automation layer that stays neutral across
 agent runtimes. It is also an open-source alternative to the Chrome Browser Use
 capability recently shipped in Codex.app. For the story behind it, see the
