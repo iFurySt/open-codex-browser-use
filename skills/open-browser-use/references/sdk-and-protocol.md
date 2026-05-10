@@ -25,10 +25,20 @@ open-browser-use ping --socket /tmp/open-browser-use/example.sock
 
 For SDKs, create a client with `socketPath` / `socket_path`.
 
+Install the SDK package from the package registry for your runtime:
+
+```sh
+npm install open-browser-use-sdk
+pip install open-browser-use-sdk
+```
+
+The Python distribution is named `open-browser-use-sdk`, while the import module
+is `open_browser_use`.
+
 ## JavaScript SDK Pattern
 
 ```ts
-import { OpenBrowserUseClient } from "@open-browser-use/sdk-js";
+import { OpenBrowserUseClient } from "open-browser-use-sdk";
 
 const browser = new OpenBrowserUseClient({
   socketPath: "/tmp/open-browser-use/example.sock",

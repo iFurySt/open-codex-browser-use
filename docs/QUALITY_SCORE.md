@@ -13,7 +13,7 @@
 
 | 区域 | 评分 | 原因 | 下一步 |
 | --- | --- | --- | --- |
-| 产品面 | B | Chrome extension、Go native host/CLI、JS SDK、Python SDK、file chooser、Chrome Web Store 发布链路和真实 Chrome smoke 记录已成形。 | 补首轮用户安装说明和更多失败场景验收。 |
+| 产品面 | B | Chrome extension、Go native host/CLI、JS SDK、Python SDK、file chooser、Chrome Web Store 发布链路、SDK registry 发布链路和真实 Chrome smoke 记录已成形。 | 补首轮用户安装说明和更多失败场景验收。 |
 | 架构文档 | B | Chrome route completed plan、架构、安全、发布和 reference 文档已覆盖主要边界。 | 把 extension-host runtime 的状态机和错误恢复策略补成单独文档。 |
 | 插件 UI | B | MV3 popup、icons、content cursor 和基础打包校验已具备。 | 补 popup 截图 smoke 和权限状态展示验收。 |
 | 测试 | B | `make ci` 覆盖 docs/repo hygiene、action pinning、extension 打包、脚本语法、Go 测试、SDK/协议测试、Python SDK smoke 和 fake native host/extension peer relay 测试。 | 补真实 Chrome 自动化 smoke 和 popup 截图 smoke。 |

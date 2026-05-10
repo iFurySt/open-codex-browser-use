@@ -1,8 +1,8 @@
 {
-  "name": "@open-browser-use/sdk-js",
+  "name": "open-browser-use-sdk",
   "version": "0.1.23",
-  "private": true,
   "description": "JavaScript/TypeScript SDK for Open Browser Use.",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,6 +16,22 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "pnpm build && node --test test/*.test.mjs"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iFurySt/open-codex-browser-use.git",
+    "directory": "packages/open-browser-use-js"
+  },
+  "bugs": {
+    "url": "https://github.com/iFurySt/open-codex-browser-use/issues"
+  },
+  "homepage": "https://github.com/iFurySt/open-codex-browser-use/tree/main/packages/open-browser-use-js#readme",
+  "engines": {
+    "node": ">=18"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

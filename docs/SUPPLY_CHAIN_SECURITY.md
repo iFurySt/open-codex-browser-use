@@ -27,6 +27,12 @@
   manifest；release workflow 会把 CLI、extension 与 skill 用户可下载包放到
   GitHub Release 页面，并对它们生成 provenance。user-owned private repository 不支持 GitHub
   artifact attestation，release workflow 会在 private repo 下跳过 provenance。
+- npm 发布使用 trusted publishing/OIDC 分别发布 CLI 包 `open-browser-use` 和
+  JavaScript SDK 包 `open-browser-use-sdk`。npm 在 public repository + public
+  package + trusted publishing 条件下会自动生成 package provenance。
+- PyPI 发布使用 trusted publishing/OIDC 发布 Python SDK distribution
+  `open-browser-use-sdk`，避免在仓库 secret 中保存长期 PyPI token。Python
+  import 模块名仍为 `open_browser_use`。
 - OpenSSF Scorecard 默认不启用，因为新模板仓库还没有真实分支保护、release 历史和 SAST 姿态可以评分；等仓库规则配置完成后再按需加回。
 
 ## 项目落地后建议继续做的事

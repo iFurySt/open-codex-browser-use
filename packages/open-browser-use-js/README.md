@@ -16,6 +16,12 @@ open-browser-use ping
 open-browser-use info
 ```
 
+## Installation
+
+```sh
+npm install open-browser-use-sdk
+```
+
 ## High-Level Browser API
 
 Use `connectOpenBrowserUse` when you want a Playwright-like flow in a normal
@@ -23,7 +29,7 @@ Node runtime.
 
 ```js
 import { readFile } from "node:fs/promises";
-import { connectOpenBrowserUse } from "@open-browser-use/sdk-js";
+import { connectOpenBrowserUse } from "open-browser-use-sdk";
 
 const registry = JSON.parse(
   await readFile("/tmp/open-browser-use/active.json", "utf8")
@@ -116,7 +122,7 @@ raw CDP commands.
 
 ```js
 import { readFile } from "node:fs/promises";
-import { OpenBrowserUseClient } from "@open-browser-use/sdk-js";
+import { OpenBrowserUseClient } from "open-browser-use-sdk";
 
 const { socketPath } = JSON.parse(
   await readFile("/tmp/open-browser-use/active.json", "utf8")

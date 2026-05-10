@@ -58,6 +58,19 @@ and install it manually.
 
 ### Use It
 
+#### SDK
+
+```bash
+# JavaScript / TypeScript
+npm install open-browser-use-sdk
+
+# Python
+pip install open-browser-use-sdk
+```
+
+The SDK package name is `open-browser-use-sdk` on both npm and PyPI. Python
+code imports it as `open_browser_use`.
+
 #### Skill
 
 Install the skill directly:

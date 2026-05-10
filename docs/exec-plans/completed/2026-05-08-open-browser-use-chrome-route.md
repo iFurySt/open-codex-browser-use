@@ -60,7 +60,7 @@ and SDKs that let upper-layer runtimes call the browser backend directly.
 ## Verification Plan
 
 - `go test ./...`
-- `pnpm --filter @open-browser-use/sdk-js test`
+- `pnpm --filter open-browser-use-sdk test`
 - Python smoke using `python -m unittest`.
 - `node --check apps/chrome-extension/background.js`
 - Real Chrome unpacked extension smoke before declaring the goal complete.

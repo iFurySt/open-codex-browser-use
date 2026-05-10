@@ -32,8 +32,10 @@ debugger、history 和 tab groups。
 - `packages/open-browser-use-cli/`：npm 上发布的 `open-browser-use` 二进制
   CLI 包，暴露 `open-browser-use` 和 `obu` 两个命令，发布时只打包 Go CLI
   预构建二进制，不打包 Chrome extension。
-- `packages/open-browser-use-js/`：JavaScript/TypeScript SDK。
-- `packages/open-browser-use-python/`：Python SDK。
+- `packages/open-browser-use-js/`：JavaScript/TypeScript SDK，npm distribution
+  名为 `open-browser-use-sdk`。
+- `packages/open-browser-use-python/`：Python SDK，PyPI distribution 名为
+  `open-browser-use-sdk`，import 模块名为 `open_browser_use`。
 - `skills/open-browser-use/`：面向 AI Agent 的 Open Browser Use skill，说明
   如何安装、验证和使用浏览器插件、CLI、SDK 与 Browser Use 风格协议。
 - `packages/`：其他跨应用复用的库、契约和共享能力。
@@ -108,6 +110,10 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - npm 包 `open-browser-use` 是 CLI 二进制分发入口，安装后提供
   `open-browser-use` 和 `obu`；Chrome Web Store 上架前，`postinstall` 只提示
   用户运行显式 `open-browser-use setup beta`。
+- SDK 发布包在 npm 和 PyPI 上统一命名为 `open-browser-use-sdk`，避免和 npm
+  CLI 包 `open-browser-use` 混淆。JavaScript 使用
+  `import { ... } from "open-browser-use-sdk"`；Python distribution 安装名是
+  `open-browser-use-sdk`，代码 import 模块名仍是 `open_browser_use`。
 - Homebrew formula 从 GitHub Release 下载平台匹配的预编译 CLI tarball，
   安装后提供 `open-browser-use` 和 `obu`，并在 caveats 中提示用户运行显式
   `open-browser-use setup beta`；安装阶段不依赖 Go，也不在用户机器上编译。

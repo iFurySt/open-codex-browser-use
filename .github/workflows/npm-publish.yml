@@ -40,3 +40,40 @@ jobs:
             exit 0
           fi
           npm publish
+
+  publish-npm-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.0.0
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@8.15.9 --activate
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Use npm with trusted publishing support
+        run: npm install -g npm@11.14.0
+
+      - name: Test JS SDK
+        run: pnpm --filter open-browser-use-sdk test
+
+      - name: Publish SDK package to npm
+        working-directory: packages/open-browser-use-js
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          if npm view "open-browser-use-sdk@${version}" version >/dev/null 2>&1; then
+            echo "open-browser-use-sdk@${version} already exists on npm; skipping publish"
+            exit 0
+          fi
+          npm publish

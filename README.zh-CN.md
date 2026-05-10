@@ -46,6 +46,19 @@ open-browser-use setup beta
 
 ### 使用
 
+#### SDK
+
+```bash
+# JavaScript / TypeScript
+npm install open-browser-use-sdk
+
+# Python
+pip install open-browser-use-sdk
+```
+
+SDK 在 npm 和 PyPI 上统一叫 `open-browser-use-sdk`。Python 代码里的 import
+模块名保持 `open_browser_use`。
+
 #### Skill
 
 一键安装 skill：
