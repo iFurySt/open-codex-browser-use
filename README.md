@@ -88,6 +88,15 @@ codex exec --skip-git-repo-check "Use open-browser-use to check today’s Hacker
 npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-browser-use --copy -y
 ```
 
+Update an existing global install, including the Codex install created above:
+
+```bash
+npx skills update open-browser-use -g -y
+
+# `upgrade` is an alias for `update`
+npx skills upgrade open-browser-use -g -y
+```
+
 You can also manually download and install the
 [`open-browser-use` skill](./skills/open-browser-use), then start using it from
 your agent.
