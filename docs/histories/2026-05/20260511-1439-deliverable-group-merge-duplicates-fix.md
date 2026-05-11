@@ -19,8 +19,23 @@ Chrome's `tabGroups` API identifies groups by numeric id, not by title. The prev
 - Unit suite: `node apps/chrome-extension/move-to-deliverables.test.mjs` — 4/4 pass.
 - Live end-to-end: reproduced the duplicate-group state in a real Chrome profile, loaded the patched extension, ran `name_session` + `open_tab` + `finalize_tabs(deliverable)`, and confirmed via screenshot that the two duplicate green pills merged into a single pill containing all three tabs (two restored x.com tabs + the new deliverable).
 
+## [2026-05-11 15:29] | Update: release 0.1.30
+
+- Wired the new `apps/chrome-extension/move-to-deliverables.test.mjs` regression suite into `scripts/ci.sh`, so `make ci` now runs the deliverable group merge coverage instead of leaving it as a manual-only check.
+- Bumped Open Browser Use runtime/package versions to `0.1.30` for the patch release.
+- Added the `0.1.30` user-facing release note in `docs/releases/feature-release-notes.md`.
+
 ## Files
 
 - `apps/chrome-extension/background.js`
 - `apps/chrome-extension/move-to-deliverables.test.mjs`
 - `docs/ARCHITECTURE.md`
+- `cmd/open-browser-use/main.go`
+- `apps/chrome-extension/manifest.json`
+- `packages/open-browser-use-cli/package.json`
+- `packages/open-browser-use-js/package.json`
+- `packages/open-browser-use-python/pyproject.toml`
+- `packages/browser-use-protocol/package.json`
+- `packages/browser-client-rewrite/package.json`
+- `scripts/ci.sh`
+- `docs/releases/feature-release-notes.md`
