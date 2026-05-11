@@ -4,24 +4,23 @@
 
 ## 默认控制项
 
-- 在 Pull Request 上做依赖变更审查。
-- 在 PR、定时任务和手动触发时，用 OSV 对仓库中的依赖声明和 lockfile 做漏洞扫描。
 - 为 release 产物生成 SBOM。
 - 为 release 产物生成 build provenance attestation。
 - 所有 GitHub Actions 都固定到不可变的 commit SHA，而不是漂移的版本标签。
 
 ## 当前对应关系
 
-- `actions/dependency-review-action`：阻止 PR 引入高风险依赖变更。
-- `google/osv-scanner-action`：根据仓库里的依赖文件扫描已知漏洞。
 - `anchore/sbom-action`：生成 SPDX 格式的 SBOM。
 - `actions/attest-build-provenance`：为 release artifact 生成签名 provenance。
 - `scripts/check-action-pinning.sh`：如果 workflow 里出现浮动 tag 而不是 SHA，直接让 CI 失败。
 
 ## 限制和前提
 
-- Dependency Review 在 public repo 可以直接使用；private repo 通常需要 GitHub Advanced Security 或对应的代码安全能力。
-- OSV 和 SBOM 的效果依赖仓库里存在可识别的依赖清单或 lockfile。
+- 当前不启用独立的 Pull Request 供应链安全 workflow。此前的 Dependency Review
+  job 依赖仓库侧 Dependency Graph / GitHub Advanced Security 能力，当前仓库设置下会直接失败并阻塞普通 PR；OSV 全仓扫描也容易把既有开发依赖问题变成非增量 PR 噪音。
+- 依赖漏洞巡检应在仓库设置和依赖基线稳定后，以非阻塞定时任务或明确 owner
+  的修复流程重新接入。
+- SBOM 的效果依赖仓库里存在可识别的依赖清单或 lockfile。
 - `scripts/release-package.sh` 当前会产出 CLI 预编译 tarball、Chrome
   extension zip、CRX、Open Browser Use skill zip、`.skill` 包和内部追溯
   manifest；release workflow 会把 CLI、extension 与 skill 用户可下载包放到

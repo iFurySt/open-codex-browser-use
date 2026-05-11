@@ -6,7 +6,6 @@
 
 - `ci.yml`：仓库级检查，覆盖 docs、repo hygiene、action pinning、extension
   打包、脚本语法、Go 测试、JS/TypeScript package 测试和 Python SDK smoke。
-- `supply-chain-security.yml`：在 PR 上做依赖变更检查，并在 PR、定时任务和手动触发时运行 OSV 扫描。
 - `release.yml`：tag `v*` 推送或手动触发的 release 流水线，用来打包仓库级制品、
   CLI 预编译 tarball、Chrome extension zip、内部 CRX evidence、Open Browser Use skill 包、
   生成 provenance，并创建 GitHub Release；Release 页面暴露 extension zip/CRX
@@ -54,8 +53,8 @@
    `HOMEBREW_TAP_TOKEN` 能写入 tap repo。
 7. 浏览器插件发布走 `docs/CHROME_WEB_STORE_RELEASE.md` 里的 Chrome Web
    Store API v2 流程；需要每个 tag 自动提交时，再开启 `CWS_AUTO_PUBLISH=true`。
-8. 技术栈和环境稳定后，再补其他部署 job。
-9. 即使交付方式变化，SBOM 和 provenance 这类供应链能力也建议保留。
+8. 技术栈和环境稳定后，再补其他部署 job 或非阻塞的依赖巡检。
+9. 即使交付方式变化，release 阶段的 SBOM 和 provenance 这类供应链能力也建议保留。
 
 ## 默认 release 产物
 
