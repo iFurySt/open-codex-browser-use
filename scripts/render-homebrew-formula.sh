@@ -54,7 +54,7 @@ class OpenBrowserUse < Formula
     <<~EOS
       Run the following command to install:
 
-        open-browser-use setup beta
+        open-browser-use setup
     EOS
   end
 end

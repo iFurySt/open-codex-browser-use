@@ -12,7 +12,8 @@
   生成 provenance，并创建 GitHub Release；Release 页面暴露 extension zip/CRX
   和 skill 下载包，普通安装入口使用 zip/unpacked，其他 manifest、SBOM 和 repo
   metadata 留在 workflow artifact 里。手动触发时按输入参数可把
-  extension 上传并提交到 Chrome Web Store。新建 GitHub Release 时使用
+  extension 上传并提交到 Chrome Web Store；tag 推送时也可以通过 repository
+  variable `CWS_AUTO_PUBLISH=true` 自动上传并提交商店审核。新建 GitHub Release 时使用
   `gh release create --generate-notes`，交给 GitHub 自动生成 `What's Changed`、
   `New Contributors` 和 `Full Changelog`。
 - `npm-publish.yml`：tag `v*` 推送触发的 npm 发布流水线，使用 npm
@@ -52,7 +53,7 @@
 6. Homebrew 发布走 `homebrew-publish.yml`，需要仓库 secret
    `HOMEBREW_TAP_TOKEN` 能写入 tap repo。
 7. 浏览器插件发布走 `docs/CHROME_WEB_STORE_RELEASE.md` 里的 Chrome Web
-   Store API v2 流程。
+   Store API v2 流程；需要每个 tag 自动提交时，再开启 `CWS_AUTO_PUBLISH=true`。
 8. 技术栈和环境稳定后，再补其他部署 job。
 9. 即使交付方式变化，SBOM 和 provenance 这类供应链能力也建议保留。
 

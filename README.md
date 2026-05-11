@@ -28,7 +28,7 @@ https://github.com/user-attachments/assets/bcfba878-f6a8-44b9-b84b-29c7e0285687
 ```bash
 brew tap iFurySt/open-browser-use
 brew install open-browser-use
-open-browser-use setup beta
+open-browser-use setup
 ```
 
 ### Install the CLI
@@ -50,17 +50,12 @@ Register the native host for the extension, then install the matching Chrome
 extension.
 
 ```bash
-# The Chrome Web Store listing is still under review, so skip this for now.
-# open-browser-use setup
-
-# Install from the zip/crx package instead. Drag the opened package into
-# chrome://extensions/.
-open-browser-use setup beta
+open-browser-use setup
 ```
 
-You can also download the latest package directly from
-[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)
-and install it manually.
+If the Chrome Web Store item is temporarily unavailable, use
+`open-browser-use setup beta` to prepare a keyed release ZIP for manual
+installation from `chrome://extensions/`.
 
 ### Use It
 

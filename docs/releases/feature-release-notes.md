@@ -4,6 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
+| 2026-05-11 | Chrome Web Store Publishing | Chrome Web Store 上架后，用户安装提示切回正式商店路径，维护者也可以让 `v*` tag 自动上传并提交新版审核。 | 发布 `0.1.31` patch 版本，Chrome extension release zip 恢复为不含 `manifest.key` 的正式 Web Store 上传包，`setup beta` 只在本机生成 keyed fallback ZIP；release workflow 支持 `CWS_AUTO_PUBLISH=true` 的 tag 自动提交，并同步 README、npm/Homebrew 提示和发布文档。 |
 | 2026-05-11 | Deliverable Tab Group Cleanup | 用户把结果标签页交给 Open Browser Use 后，Chrome 标签栏会复用并合并同窗口已有的 `✅ Open Browser Use` 分组，不再因为会话恢复或旧 group id 失效而堆出多个同名交付分组。 | 发布 `0.1.30` patch 版本，`finalize_tabs(deliverable)` 按窗口查询同名 deliverable group、合并重复分组后再移动新标签页，并把对应 Node 回归测试接入 `make ci`。 |
 | 2026-05-11 | Skill Action Plan Discovery | Agent 上层只读 bundled skill 时也能直接发现 `obu run` 和 MCP `run_action_plan`，更容易用轻量 action plan 编排多步浏览器操作。 | 发布 `0.1.29` patch 版本，强化 `skills/open-browser-use/SKILL.md` 的 Core Workflow 和 MCP Usage，把 CLI action plan 与 MCP action plan 明确为推荐的轻量多步编排入口。 |
 | 2026-05-10 | Go SDK | Go 用户可以直接通过 Go module 接入 Open Browser Use，不必绕 JS/Python SDK 或 shell CLI。 | 发布 `0.1.28` patch 版本，新增 `packages/open-browser-use-go`，覆盖 active socket discovery、Browser Use JSON-RPC wrappers、CDP helpers、browser/tab/playwright-like helper、download/clipboard wrappers 和 fake socket 协议测试；同步 Go module path 到真实 GitHub 仓库路径，保证 `go get` 可拉取。 |

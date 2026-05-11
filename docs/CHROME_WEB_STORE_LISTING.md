@@ -6,16 +6,22 @@ permissions, host access, or user-visible behavior changes.
 
 ## Dashboard Status
 
-Before the CI publish workflow can submit the item for review, the Chrome Web
-Store Developer Dashboard still needs:
+The Chrome Web Store item is published publicly as:
 
-- A store item created for Open Browser Use.
-- Store listing fields completed.
-- Privacy practices fields completed.
-- A privacy policy URL attached to the developer account or item.
-- The service account email added under the Chrome Web Store Developer Dashboard
-  Account settings if CI/CD uses `CWS_SERVICE_ACCOUNT_JSON`.
-- The resulting Extension ID copied into the `CWS_EXTENSION_ID` GitHub secret.
+```text
+https://chromewebstore.google.com/detail/open-browser-use/bgjoihaepiejlfjinojjfgokghnodnhd
+```
+
+Before CI/CD can publish future updates, the repository still needs Chrome Web
+Store API credentials configured as GitHub secrets:
+
+- `CWS_PUBLISHER_ID`
+- `CWS_EXTENSION_ID`
+- either `CWS_SERVICE_ACCOUNT_JSON`, `CWS_ACCESS_TOKEN`, or
+  `CWS_CLIENT_ID` + `CWS_CLIENT_SECRET` + `CWS_REFRESH_TOKEN`
+
+If CI/CD uses `CWS_SERVICE_ACCOUNT_JSON`, the service account email must be
+added under the Chrome Web Store Developer Dashboard Account settings.
 
 ## Store Listing
 
@@ -124,13 +130,11 @@ If native host registration alone needs to be repaired, users can run:
 open-browser-use install-manifest
 ```
 
-## Dashboard Checklist
+## Dashboard Checklist For Future Updates
 
-- Upload or select the `v0.1.11` extension package from
-  `open-browser-use-chrome-extension-0.1.11.zip`.
-- Add at least one screenshot that shows the extension popup or a local
-  Open Browser Use automation session.
 - Confirm the listing text matches the current native host requirement.
-- Fill all permission justifications from the current manifest.
+- Update permission justifications if `apps/chrome-extension/manifest.json`
+  changes.
 - Confirm privacy disclosures match the privacy policy URL.
-- Save the item and copy Publisher ID and Extension ID into GitHub secrets.
+- Keep `CWS_PUBLISHER_ID` and `CWS_EXTENSION_ID` aligned with the published
+  item before running CI/CD publishing.

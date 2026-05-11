@@ -97,8 +97,9 @@ jobs:
               --pattern "${ASSET_NAME}" \
               --dir dist/chrome-extension
           else
+            version="${RELEASE_TAG#v}"
             gh release download "${RELEASE_TAG}" \
-              --pattern 'open-browser-use-chrome-extension-*.zip' \
+              --pattern "open-browser-use-chrome-extension-${version}.zip" \
               --dir dist/chrome-extension
           fi
 

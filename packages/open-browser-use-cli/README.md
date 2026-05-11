@@ -29,15 +29,15 @@ guide Chrome extension installation:
 open-browser-use setup
 ```
 
-While the Chrome Web Store item is pending review, use the latest GitHub Release
-zip as an unpacked extension instead:
+If the Chrome Web Store item is temporarily unavailable, use the latest GitHub
+Release zip as an unpacked extension instead:
 
 ```sh
 open-browser-use setup beta
 ```
 
-That command opens `chrome://extensions/` and reveals the keyed release ZIP so
-the user can drag it into Chrome with the expected extension id.
+That command opens `chrome://extensions/` and reveals a keyed release ZIP so
+the user can drag it into Chrome with a stable fallback extension id.
 
 Verify the browser connection:
 

@@ -22,7 +22,7 @@ https://github.com/user-attachments/assets/bcfba878-f6a8-44b9-b84b-29c7e0285687
 ```bash
 brew tap iFurySt/open-browser-use
 brew install open-browser-use
-open-browser-use setup beta
+open-browser-use setup
 ```
 
 ### 安装 CLI
@@ -41,14 +41,11 @@ brew upgrade open-browser-use
 注册绑定到该插件的 native host，然后安装对应的浏览器插件
 
 ```bash
-# 目前插件在上架商店中，暂时不要用这个命令
-# open-browser-use setup
-
-# 通过zip/crx包直接导入安装插件，打开的文件里直接拖包到chrome://extensions/页面
-open-browser-use setup beta
+open-browser-use setup
 ```
 
-*也可以手动到[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)里下载最新的包安装*
+如果 Chrome Web Store 暂时不可用，可以运行 `open-browser-use setup beta`
+准备带固定 key 的 release ZIP，再到 `chrome://extensions/` 手动安装。
 
 ### 使用
 

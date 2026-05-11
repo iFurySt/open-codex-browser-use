@@ -13,6 +13,10 @@ cli_dir="${dist_dir}/cli"
 "${repo_root}/scripts/build-cli-release-archives.sh" "${version}" "${cli_dir}"
 chrome_extension_zip="$("${repo_root}/scripts/package-chrome-extension.sh")"
 chrome_extension_artifact="$(basename "${chrome_extension_zip}")"
+if [[ "${chrome_extension_artifact}" != "open-browser-use-chrome-extension-${version}.zip" ]]; then
+  echo "Unexpected Chrome Web Store zip artifact: ${chrome_extension_artifact}" >&2
+  exit 1
+fi
 chrome_extension_crx="$(find "${repo_root}/dist/chrome-extension" -maxdepth 1 -type f -name '*.crx' -print -quit)"
 chrome_extension_crx_artifact="$(basename "${chrome_extension_crx}")"
 skill_zip="$("${repo_root}/scripts/package-skill.sh" | sed -n '1p')"

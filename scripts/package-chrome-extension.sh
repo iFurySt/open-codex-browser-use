@@ -22,7 +22,6 @@ package_name="open-browser-use-chrome-extension-${version}.zip"
 zip_path="${dist_dir}/${package_name}"
 crx_name="open-browser-use-chrome-extension-${version}.crx"
 crx_path="${dist_dir}/${crx_name}"
-beta_extension_public_key="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
 
 node - "${manifest_path}" "${extension_dir}" <<'NODE'
 const fs = require("fs");
@@ -120,16 +119,6 @@ popup.css
 popup.html
 popup.js
 EOF
-
-node - "${staging_dir}/manifest.json" "${beta_extension_public_key}" <<'NODE'
-const fs = require("fs");
-
-const manifestPath = process.argv[2];
-const key = process.argv[3];
-const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-manifest.key = key;
-fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-NODE
 
 (
   cd "${staging_dir}"

@@ -99,27 +99,28 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   注册，再写入 Chrome External Extensions JSON，让 Chrome 从 Web Store
   安装正式扩展。macOS/Windows 仍需要用户在 Chrome 中确认启用扩展；Linux
   的 External Extensions 写入默认使用 Chrome 官方系统路径，可能需要更高权限。
-- `open-browser-use setup beta`：审核期或非 Web Store 路径，注册 native
-  host 后从 GitHub Releases 下载最新
-  `open-browser-use-chrome-extension-*.zip`。审核期 release zip 本身已经写入稳定
-  public key，CLI 会用该 id 注册 native host allowed origin，并打开
-  `chrome://extensions/` 和 Finder/文件管理器，引导用户把这个 ZIP 拖到扩展页面
-  手动安装；不再生成单独的 `*-manual.zip`。
+- `open-browser-use setup beta`：Chrome Web Store 临时不可用时的备用路径，
+  注册 native host 后从 GitHub Releases 下载最新
+  `open-browser-use-chrome-extension-*.zip`。CLI 会在本地 unpacked 目录和待拖入
+  Chrome 的 ZIP 中写入稳定 beta public key，用该 id 注册 native host allowed
+  origin，并打开 `chrome://extensions/` 和 Finder/文件管理器，引导用户把这个 ZIP
+  拖到扩展页面手动安装；GitHub Release 中的正式 zip 本身保持为 Chrome Web
+  Store 上传包，不再预写 beta key。
 - manifest 的 `path` 默认统一写入稳定 native host link：
   macOS 为
   `~/Library/Application Support/OpenBrowserUse/native-host/open-browser-use`，
   Linux 为 `~/.local/share/open-browser-use/native-host/open-browser-use`。
   `install-manifest --path` 表示这个稳定 link 指向的真实二进制 target。
 - npm 包 `open-browser-use` 是 CLI 二进制分发入口，安装后提供
-  `open-browser-use` 和 `obu`；Chrome Web Store 上架前，`postinstall` 只提示
-  用户运行显式 `open-browser-use setup beta`。
+  `open-browser-use` 和 `obu`；`postinstall` 只提示用户运行显式
+  `open-browser-use setup`。
 - SDK 发布包在 npm 和 PyPI 上统一命名为 `open-browser-use-sdk`，避免和 npm
   CLI 包 `open-browser-use` 混淆。JavaScript 使用
   `import { ... } from "open-browser-use-sdk"`；Python distribution 安装名是
   `open-browser-use-sdk`，代码 import 模块名仍是 `open_browser_use`。
 - Homebrew formula 从 GitHub Release 下载平台匹配的预编译 CLI tarball，
   安装后提供 `open-browser-use` 和 `obu`，并在 caveats 中提示用户运行显式
-  `open-browser-use setup beta`；安装阶段不依赖 Go，也不在用户机器上编译。
+  `open-browser-use setup`；安装阶段不依赖 Go，也不在用户机器上编译。
 - CLI 命令层使用 Cobra 实现；Chrome native messaging
   `chrome-extension://...` origin 参数启动时会绕过 Cobra，直接进入 host mode。
   这依赖 Chrome Native Messaging 的标准启动形状：MV3 service worker 调用

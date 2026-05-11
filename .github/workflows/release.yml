@@ -168,7 +168,7 @@ jobs:
           fi
 
       - name: 上传并提交 Chrome Web Store 审核
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_chrome_web_store }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.publish_chrome_web_store) || (github.event_name == 'push' && vars.CWS_AUTO_PUBLISH == 'true') }}
         env:
           CWS_ACCESS_TOKEN: ${{ secrets.CWS_ACCESS_TOKEN }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
@@ -178,19 +178,40 @@ jobs:
           CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
           CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
           CHROME_EXTENSION_ZIP: ${{ steps.package.outputs.chrome_extension_zip }}
-          CHROME_PUBLISH_TYPE: ${{ inputs.chrome_publish_type }}
-          CHROME_DEPLOY_PERCENTAGE: ${{ inputs.chrome_deploy_percentage }}
-          CHROME_SKIP_REVIEW: ${{ inputs.chrome_skip_review }}
+          CHROME_PUBLISH_TYPE_INPUT: ${{ inputs.chrome_publish_type }}
+          CHROME_DEPLOY_PERCENTAGE_INPUT: ${{ inputs.chrome_deploy_percentage }}
+          CHROME_SKIP_REVIEW_INPUT: ${{ inputs.chrome_skip_review }}
+          CWS_PUBLISH_TYPE: ${{ vars.CWS_PUBLISH_TYPE }}
+          CWS_DEPLOY_PERCENTAGE: ${{ vars.CWS_DEPLOY_PERCENTAGE }}
+          CWS_SKIP_REVIEW: ${{ vars.CWS_SKIP_REVIEW }}
         run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            publish_type="${CHROME_PUBLISH_TYPE_INPUT:-DEFAULT_PUBLISH}"
+            deploy_percentage="${CHROME_DEPLOY_PERCENTAGE_INPUT:-}"
+            skip_review="${CHROME_SKIP_REVIEW_INPUT:-false}"
+          else
+            publish_type="${CWS_PUBLISH_TYPE:-DEFAULT_PUBLISH}"
+            deploy_percentage="${CWS_DEPLOY_PERCENTAGE:-}"
+            skip_review="${CWS_SKIP_REVIEW:-false}"
+          fi
+
           args=(
             --zip "${CHROME_EXTENSION_ZIP}"
             --output dist/chrome-extension/chrome-web-store-result.json
-            --publish-type "${CHROME_PUBLISH_TYPE}"
+            --publish-type "${publish_type}"
           )
-          if [ -n "${CHROME_DEPLOY_PERCENTAGE}" ]; then
-            args+=(--deploy-percentage "${CHROME_DEPLOY_PERCENTAGE}")
+          if [ -n "${deploy_percentage}" ]; then
+            args+=(--deploy-percentage "${deploy_percentage}")
           fi
-          if [ "${CHROME_SKIP_REVIEW}" = "true" ]; then
+          if [ "${skip_review}" = "true" ]; then
             args+=(--skip-review)
           fi
           ./scripts/publish-chrome-web-store.mjs --submit "${args[@]}"
+
+      - name: 上传 Chrome Web Store API 结果
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chrome-web-store-result
+          path: dist/chrome-extension/chrome-web-store-result.json
+          if-no-files-found: ignore
