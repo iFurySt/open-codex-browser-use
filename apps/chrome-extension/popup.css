@@ -22,9 +22,12 @@ body {
 }
 
 .app-icon {
+  display: block;
+  flex: 0 0 auto;
   width: 32px;
   height: 32px;
   border-radius: 7px;
+  object-fit: contain;
 }
 
 h1 {
