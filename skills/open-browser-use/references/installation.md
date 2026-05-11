@@ -34,13 +34,13 @@ or upgrade command.
 
 ## Set Up Chrome
 
-After installing the CLI, register the native messaging host and ask Chrome to install the Web Store extension:
+After installing the CLI, register the native messaging host and open the Chrome Web Store page for the matching extension:
 
 ```sh
 open-browser-use setup
 ```
 
-Chrome may ask the user to confirm or enable the Open Browser Use extension. Do not bypass this user step.
+Ask the user to install or enable Open Browser Use from the opened store page. Chrome may ask the user to confirm, enable the extension, or restart. Do not bypass this user step.
 
 While the Chrome Web Store item is unavailable or pending review, use the release ZIP path:
 

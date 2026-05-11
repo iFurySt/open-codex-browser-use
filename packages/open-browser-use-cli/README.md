@@ -23,11 +23,14 @@ extension status, extension version when available, and the next setup or
 upgrade command.
 
 After installation, run setup to register the Chrome native messaging host and
-guide Chrome extension installation:
+open the Chrome Web Store page for the matching extension:
 
 ```sh
 open-browser-use setup
 ```
+
+Install or enable Open Browser Use from that page, then restart Chrome if
+Chrome asks or the extension does not appear immediately.
 
 If the Chrome Web Store item is temporarily unavailable, use the latest GitHub
 Release zip as an unpacked extension instead:

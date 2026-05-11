@@ -46,8 +46,9 @@ brew upgrade open-browser-use
 
 ### Set Up Chrome
 
-Register the native host for the extension, then install the matching Chrome
-extension.
+Register the native host for the extension. The setup command also opens the
+Chrome Web Store page so you can install or enable the matching Chrome
+extension, then restart Chrome if needed.
 
 ```bash
 open-browser-use setup

@@ -222,7 +222,7 @@ func TestCobraSetupWritesNativeAndExternalManifests(t *testing.T) {
 	cmd := newRootCommand()
 	var output bytes.Buffer
 	cmd.SetOut(&output)
-	cmd.SetArgs([]string{"setup", "--path", targetPath, "--external-extension-output", externalPath})
+	cmd.SetArgs([]string{"setup", "--path", targetPath, "--external-extension-output", externalPath, "--no-open"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
@@ -234,6 +234,9 @@ func TestCobraSetupWritesNativeAndExternalManifests(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "Browser extension") {
 		t.Fatalf("expected setup output to mention browser extension status, got %q", output.String())
+	}
+	if !strings.Contains(output.String(), chromeWebStoreExtensionURL) {
+		t.Fatalf("expected setup output to mention Chrome Web Store URL, got %q", output.String())
 	}
 	if _, err := os.Stat(filepath.Join(home, "Library/Application Support/Google/Chrome/NativeMessagingHosts", host.NativeHostName+".json")); runtime.GOOS == "darwin" && err != nil {
 		t.Fatal(err)

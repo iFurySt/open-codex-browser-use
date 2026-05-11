@@ -96,9 +96,10 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。默认 extension id
   是 Chrome Web Store 版 `bgjoihaepiejlfjinojjfgokghnodnhd`。
 - `open-browser-use setup`：显式安装流程，先调用 native host manifest
-  注册，再写入 Chrome External Extensions JSON，让 Chrome 从 Web Store
-  安装正式扩展。macOS/Windows 仍需要用户在 Chrome 中确认启用扩展；Linux
-  的 External Extensions 写入默认使用 Chrome 官方系统路径，可能需要更高权限。
+  注册，再写入 Chrome External Extensions JSON，并打开 Chrome Web Store
+  正式扩展页，引导用户手动安装或启用扩展。macOS/Windows 仍可能需要用户在
+  Chrome 中确认启用扩展并重启；Linux 的 External Extensions 写入默认使用
+  Chrome 官方系统路径，可能需要更高权限。
 - `open-browser-use setup beta`：Chrome Web Store 临时不可用时的备用路径，
   注册 native host 后从 GitHub Releases 下载最新
   `open-browser-use-chrome-extension-*.zip`。CLI 会在本地 unpacked 目录和待拖入

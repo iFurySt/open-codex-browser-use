@@ -26,11 +26,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const version = "0.1.34"
+const version = "0.1.35"
 const defaultChromeExtensionID = "bgjoihaepiejlfjinojjfgokghnodnhd"
 const defaultCLISessionID = "obu-cli"
 const defaultMCPSessionID = "obu-mcp"
 const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx"
+const chromeWebStoreExtensionURL = "https://chromewebstore.google.com/detail/open-browser-use/" + defaultChromeExtensionID + "?utm_source=open-computer-use"
 const betaExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
 
 func main() {
@@ -125,6 +126,7 @@ func newSetupCommand() *cobra.Command {
 	extensionID := defaultChromeExtensionID
 	var binaryPath string
 	var externalExtensionOutput string
+	var noOpen bool
 	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Register Chrome integration for Open Browser Use",
@@ -134,6 +136,13 @@ func newSetupCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if !noOpen {
+				if err := openChromeWebStorePage(); err != nil {
+					result.StoreOpenError = err.Error()
+				} else {
+					result.OpenedStore = true
+				}
+			}
 			status := detectBrowserExtension(host.DefaultSocketDir, 700*time.Millisecond)
 			return renderStoreSetupResult(cmd.OutOrStdout(), result, status)
 		},
@@ -141,6 +150,7 @@ func newSetupCommand() *cobra.Command {
 	cmd.Flags().StringVar(&extensionID, "extension-id", defaultChromeExtensionID, "Chrome extension id for allowed_origins")
 	cmd.Flags().StringVar(&binaryPath, "path", "", "native host binary target for the stable host link")
 	cmd.Flags().StringVar(&externalExtensionOutput, "external-extension-output", "", "Chrome external extension JSON output path")
+	cmd.Flags().BoolVar(&noOpen, "no-open", false, "register Chrome integration without opening the Chrome Web Store page")
 	cmd.AddCommand(newSetupBetaCommand())
 	return cmd
 }
@@ -298,6 +308,9 @@ func installNativeManifest(extensionID string, binaryPath string, outputPath str
 type setupResult struct {
 	NativeManifestPath    string
 	ExternalExtensionPath string
+	StoreURL              string
+	OpenedStore           bool
+	StoreOpenError        string
 }
 
 type manualSetupResult struct {
@@ -333,6 +346,7 @@ func setupChrome(extensionID string, binaryPath string, externalExtensionOutput 
 	return setupResult{
 		NativeManifestPath:    manifestPath,
 		ExternalExtensionPath: extensionPath,
+		StoreURL:              chromeWebStoreExtensionURL,
 	}, nil
 }
 
@@ -369,7 +383,14 @@ func renderStoreSetupResult(writer io.Writer, result setupResult, status browser
 	fmt.Fprintln(writer, "✅ Open Browser Use setup")
 	fmt.Fprintf(writer, "1. ✅ Registered native host\n   %s\n", result.NativeManifestPath)
 	fmt.Fprintf(writer, "2. ✅ Requested Chrome extension install\n   Extension id: %s\n   Chrome install file: %s\n", defaultChromeExtensionID, result.ExternalExtensionPath)
-	fmt.Fprintf(writer, "3. 🧩 Browser extension\n   %s\n", status.summaryForSetup("Not installed yet. Chrome still needs to install or enable it."))
+	if result.OpenedStore {
+		fmt.Fprintf(writer, "3. ✅ Opened Chrome Web Store\n   %s\n", result.StoreURL)
+	} else if result.StoreOpenError != "" {
+		fmt.Fprintf(writer, "3. ⚠️ Chrome Web Store page was not opened\n   %s\n   Error: %s\n", result.StoreURL, result.StoreOpenError)
+	} else {
+		fmt.Fprintf(writer, "3. Open Chrome Web Store\n   %s\n", result.StoreURL)
+	}
+	fmt.Fprintf(writer, "4. 🧩 Browser extension\n   %s\n", status.summaryForSetup("Not installed yet. Install or enable it from the Chrome Web Store page."))
 	fmt.Fprintln(writer)
 	if status.isReady() {
 		fmt.Fprintln(writer, "All set. The browser extension is installed, connected, and on the expected version.")
@@ -380,8 +401,8 @@ func renderStoreSetupResult(writer io.Writer, result setupResult, status browser
 		return nil
 	}
 	fmt.Fprintln(writer, "Next:")
-	fmt.Fprintln(writer, "  1. Restart Chrome if it is already open.")
-	fmt.Fprintln(writer, "  2. Approve or enable the Open Browser Use extension if Chrome asks.")
+	fmt.Fprintln(writer, "  1. Install or enable Open Browser Use from the Chrome Web Store page.")
+	fmt.Fprintln(writer, "  2. Restart Chrome if Chrome asks or the extension does not appear immediately.")
 	fmt.Fprintln(writer, "  3. Verify the connection: open-browser-use info")
 	return nil
 }
@@ -2296,6 +2317,24 @@ func openChromeExtensionsPage() error {
 		cmd = exec.Command("xdg-open", "chrome://extensions/")
 	default:
 		return fmt.Errorf("opening Chrome extensions page is not implemented for %s", runtime.GOOS)
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
+}
+
+func openChromeWebStorePage() error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", "-a", "Google Chrome", chromeWebStoreExtensionURL)
+	case "linux":
+		cmd = exec.Command("xdg-open", chromeWebStoreExtensionURL)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", chromeWebStoreExtensionURL)
+	default:
+		return fmt.Errorf("opening Chrome Web Store is not implemented for %s", runtime.GOOS)
 	}
 	if err := cmd.Start(); err != nil {
 		return err

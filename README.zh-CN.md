@@ -38,7 +38,8 @@ brew upgrade open-browser-use
 ```
 
 ### 配置 Chrome
-注册绑定到该插件的 native host，然后安装对应的浏览器插件
+注册绑定到该插件的 native host。setup 也会打开 Chrome Web Store 页面，你需要在
+页面里安装或启用对应的浏览器插件，必要时再重启 Chrome。
 
 ```bash
 open-browser-use setup

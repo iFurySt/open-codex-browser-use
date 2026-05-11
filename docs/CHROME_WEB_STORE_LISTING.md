@@ -115,8 +115,9 @@ short in the Dashboard if character limits apply.
 
 The Chrome Web Store package contains only the MV3 extension. Users must install
 the native host separately through npm or Homebrew. After installing the CLI,
-users run setup to register the native host and the Chrome Web Store extension
-install hint for extension `bgjoihaepiejlfjinojjfgokghnodnhd`.
+users run setup to register the native host, write the Chrome Web Store
+extension install hint for extension `bgjoihaepiejlfjinojjfgokghnodnhd`, and
+open the store page so the user can install or enable the extension.
 
 Recommended setup command:
 
