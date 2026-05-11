@@ -985,25 +985,80 @@ class BrowserBackend {
   }
 
   async moveToDeliverables(tabIds) {
-    let groupId = this.store.state.deliverableGroupId;
-    if (typeof groupId === "number") {
-      try {
-        await chrome.tabGroups.get(groupId);
-        await chrome.tabs.group({ groupId, tabIds });
-      } catch {
-        groupId = null;
+    if (!Array.isArray(tabIds) || tabIds.length === 0) {
+      return;
+    }
+
+    const tabRecords = await Promise.all(
+      tabIds.map((id) => chrome.tabs.get(id).catch(() => null))
+    );
+    const tabsByWindow = new Map();
+    for (const tab of tabRecords) {
+      if (!tab || typeof tab.id !== "number" || typeof tab.windowId !== "number") continue;
+      const arr = tabsByWindow.get(tab.windowId) ?? [];
+      arr.push(tab.id);
+      tabsByWindow.set(tab.windowId, arr);
+    }
+    if (tabsByWindow.size === 0) {
+      return;
+    }
+
+    const storedGroupId = this.store.state.deliverableGroupId;
+    let lastGroupId = null;
+
+    for (const [windowId, windowTabIds] of tabsByWindow) {
+      const existingGroups = await chrome.tabGroups
+        .query({ windowId, title: DELIVERABLE_GROUP_TITLE })
+        .catch(() => []);
+
+      let primaryGroupId = null;
+      if (existingGroups.length > 0) {
+        const preferred =
+          existingGroups.find((g) => g.id === storedGroupId) ??
+          existingGroups.reduce((min, g) => (g.id < min.id ? g : min), existingGroups[0]);
+        primaryGroupId = preferred.id;
+
+        for (const group of existingGroups) {
+          if (group.id === primaryGroupId) continue;
+          const dupTabs = await chrome.tabs.query({ groupId: group.id }).catch(() => []);
+          const dupTabIds = dupTabs
+            .map((t) => t.id)
+            .filter((id) => typeof id === "number");
+          if (dupTabIds.length > 0) {
+            await chrome.tabs
+              .group({ groupId: primaryGroupId, tabIds: dupTabIds })
+              .catch(() => {});
+          }
+        }
       }
+
+      if (typeof primaryGroupId === "number") {
+        try {
+          await chrome.tabs.group({ groupId: primaryGroupId, tabIds: windowTabIds });
+        } catch {
+          primaryGroupId = null;
+        }
+      }
+
+      if (typeof primaryGroupId !== "number") {
+        primaryGroupId = await chrome.tabs.group({ tabIds: windowTabIds });
+      }
+
+      await chrome.tabGroups
+        .update(primaryGroupId, {
+          title: DELIVERABLE_GROUP_TITLE,
+          color: "green",
+          collapsed: false
+        })
+        .catch(() => {});
+
+      lastGroupId = primaryGroupId;
     }
-    if (typeof groupId !== "number") {
-      groupId = await chrome.tabs.group({ tabIds });
-      this.store.state.deliverableGroupId = groupId;
+
+    if (typeof lastGroupId === "number") {
+      this.store.state.deliverableGroupId = lastGroupId;
+      await this.store.save();
     }
-    await this.store.save();
-    await chrome.tabGroups.update(groupId, {
-      title: DELIVERABLE_GROUP_TITLE,
-      color: "green",
-      collapsed: false
-    });
   }
 
   async detachMany(tabIds) {
