@@ -18,8 +18,9 @@ open-browser-use setup
 ```
 
 `setup` 会调用 native host manifest 注册，写入 Chrome External Extensions
-JSON，并打开 Chrome Web Store 正式扩展页。用户需要在商店页手动安装或启用扩展；
-Chrome 仍可能要求用户重启并确认启用扩展。需要只修复 native host 时，仍可运行：
+JSON。只有检测到浏览器插件未安装或版本低于当前 CLI 期望版本时，CLI 才打开
+Chrome Web Store 正式扩展页，引导用户手动安装或启用扩展；Chrome 仍可能要求用户
+重启并确认启用扩展。需要只修复 native host 时，仍可运行：
 
 ```bash
 open-browser-use install-manifest
@@ -34,9 +35,12 @@ open-browser-use setup beta
 
 `setup beta` 会下载最新 release zip，在本机 unpacked 目录和待拖入 Chrome 的
 ZIP 中写入稳定 beta public key。CLI 会用该 beta id 注册 native host allowed
-origin，并打开 `chrome://extensions/`，同时在 Finder 或系统文件管理器中定位
-这个 zip。用户需要打开 Developer mode，把这个 ZIP 拖到 Chrome 扩展页面完成
-手动安装。
+origin。只有检测到浏览器插件未安装或版本低于当前 CLI 期望版本时，CLI 才会打开
+`chrome://extensions/`，同时在 Finder 或系统文件管理器中定位这个 zip。用户需要
+打开 Developer mode，把这个 ZIP 拖到 Chrome 扩展页面完成手动安装。setup 还会在
+本机已有可用 `npx skills` 时 best-effort 执行
+`npx skills update open-browser-use -g -y`；未检测到 skills 时只展示 Codex 和
+Claude Code 的 skill 安装命令。
 
 这条 fallback 会安装为 beta extension id，而不是 Chrome Web Store 的正式
 extension id。它适合“CI 已发新版 release，但 Chrome Web Store 仍在审核新版”的

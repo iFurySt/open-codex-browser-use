@@ -136,14 +136,15 @@ func newSetupCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if !noOpen {
+			status := detectBrowserExtension(host.DefaultSocketDir, 700*time.Millisecond)
+			shouldOpenStore := shouldOpenStoreSetup(status, noOpen)
+			if shouldOpenStore {
 				if err := openChromeWebStorePage(); err != nil {
 					result.StoreOpenError = err.Error()
 				} else {
 					result.OpenedStore = true
 				}
 			}
-			status := detectBrowserExtension(host.DefaultSocketDir, 700*time.Millisecond)
 			return renderStoreSetupResult(cmd.OutOrStdout(), result, status)
 		},
 	}
@@ -198,7 +199,11 @@ func newSetupBetaCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if !noOpen {
+			status := detectBrowserExtension(host.DefaultSocketDir, 700*time.Millisecond)
+			status.InstallCommand = "open-browser-use setup beta"
+			status.UpgradeCommand = "open-browser-use setup beta"
+			shouldOpen := shouldOpenManualSetup(status, noOpen)
+			if shouldOpen {
 				if err := openChromeExtensionsPage(); err != nil {
 					return err
 				}
@@ -206,16 +211,15 @@ func newSetupBetaCommand() *cobra.Command {
 					return err
 				}
 			}
-			status := detectBrowserExtension(host.DefaultSocketDir, 700*time.Millisecond)
-			status.InstallCommand = "open-browser-use setup beta"
-			status.UpgradeCommand = "open-browser-use setup beta"
+			skillUpdate := maybeUpdateInstalledSkill()
 			return renderManualSetupResult(cmd.OutOrStdout(), manualSetupResult{
 				NativeManifestPath: manifestPath,
 				ExtensionID:        effectiveExtensionID,
 				ZIPPath:            installZIPPath,
 				UnpackedPath:       unpackedPath,
-				OpenedChrome:       !noOpen,
-				OpenedFileManager:  !noOpen,
+				OpenedChrome:       shouldOpen,
+				OpenedFileManager:  shouldOpen,
+				SkillUpdate:        skillUpdate,
 			}, status)
 		},
 	}
@@ -311,6 +315,7 @@ type setupResult struct {
 	StoreURL              string
 	OpenedStore           bool
 	StoreOpenError        string
+	SkillUpdate           skillUpdateStatus
 }
 
 type manualSetupResult struct {
@@ -320,6 +325,7 @@ type manualSetupResult struct {
 	UnpackedPath       string
 	OpenedChrome       bool
 	OpenedFileManager  bool
+	SkillUpdate        skillUpdateStatus
 }
 
 type browserExtensionStatus struct {
@@ -332,6 +338,13 @@ type browserExtensionStatus struct {
 	InstallCommand  string
 	UpgradeCommand  string
 	Error           string
+}
+
+type skillUpdateStatus struct {
+	Checked   bool
+	Attempted bool
+	Updated   bool
+	Error     string
 }
 
 func setupChrome(extensionID string, binaryPath string, externalExtensionOutput string) (setupResult, error) {
@@ -347,6 +360,7 @@ func setupChrome(extensionID string, binaryPath string, externalExtensionOutput 
 		NativeManifestPath:    manifestPath,
 		ExternalExtensionPath: extensionPath,
 		StoreURL:              chromeWebStoreExtensionURL,
+		SkillUpdate:           maybeUpdateInstalledSkill(),
 	}, nil
 }
 
@@ -391,19 +405,25 @@ func renderStoreSetupResult(writer io.Writer, result setupResult, status browser
 		fmt.Fprintf(writer, "3. Open Chrome Web Store\n   %s\n", result.StoreURL)
 	}
 	fmt.Fprintf(writer, "4. 🧩 Browser extension\n   %s\n", status.summaryForSetup("Not installed yet. Install or enable it from the Chrome Web Store page."))
+	renderSkillUpdateResult(writer, result.SkillUpdate)
 	fmt.Fprintln(writer)
 	if status.isReady() {
-		fmt.Fprintln(writer, "All set. The browser extension is installed, connected, and on the expected version.")
+		fmt.Fprintln(writer, "All set. Browser extension is installed, connected, and on the expected version.")
 		return nil
 	}
 	if status.needsUpgrade() {
 		fmt.Fprintf(writer, "Next: upgrade the browser extension with `%s`, then run `open-browser-use info`.\n", status.UpgradeCommand)
 		return nil
 	}
-	fmt.Fprintln(writer, "Next:")
-	fmt.Fprintln(writer, "  1. Install or enable Open Browser Use from the Chrome Web Store page.")
-	fmt.Fprintln(writer, "  2. Restart Chrome if Chrome asks or the extension does not appear immediately.")
-	fmt.Fprintln(writer, "  3. Verify the connection: open-browser-use info")
+	if result.OpenedStore {
+		fmt.Fprintln(writer, "Next: the Chrome Web Store page is open; install or enable the extension, then run `open-browser-use info`.")
+		return nil
+	}
+	if result.StoreOpenError != "" {
+		fmt.Fprintln(writer, "Next: open the Chrome Web Store page manually, install or enable the extension, then run `open-browser-use info`.")
+		return nil
+	}
+	fmt.Fprintln(writer, "Next: restart Chrome if needed, approve or enable the extension if Chrome asks, then run `open-browser-use info`.")
 	return nil
 }
 
@@ -413,27 +433,33 @@ func renderManualSetupResult(writer io.Writer, result manualSetupResult, status 
 	fmt.Fprintf(writer, "2. ✅ Prepared browser extension package\n   Extension id: %s\n   ZIP: %s\n   Includes stable extension key for this id.\n", result.ExtensionID, result.ZIPPath)
 	fmt.Fprintf(writer, "3. ✅ Prepared unpacked extension directory\n   %s\n", result.UnpackedPath)
 	fmt.Fprintf(writer, "4. 🧩 Browser extension\n   %s\n", status.summaryForSetup("Not installed yet. Finish the ZIP install below."))
+	renderSkillUpdateResult(writer, result.SkillUpdate)
 	fmt.Fprintln(writer)
 	if status.isReady() {
-		fmt.Fprintln(writer, "All set. The browser extension is installed, connected, and on the expected version.")
+		fmt.Fprintln(writer, "All set. Browser extension is installed, connected, and on the expected version.")
 		return nil
 	}
-	if result.OpenedChrome {
-		fmt.Fprintln(writer, "Opened chrome://extensions for you.")
-	} else {
-		fmt.Fprintln(writer, "Open chrome://extensions manually.")
+	if result.OpenedChrome && result.OpenedFileManager {
+		fmt.Fprintln(writer, "Next: chrome://extensions and Finder/file manager are open; enable Developer mode, drag the ZIP into Chrome, then run `open-browser-use info`.")
+		return nil
 	}
-	if result.OpenedFileManager {
-		fmt.Fprintln(writer, "Opened the extension package in Finder/file manager.")
-	} else {
-		fmt.Fprintf(writer, "Open the folder containing the package: %s\n", filepath.Dir(result.ZIPPath))
-	}
-	fmt.Fprintln(writer, "Next:")
-	fmt.Fprintln(writer, "  1. Turn on Developer mode in chrome://extensions.")
-	fmt.Fprintln(writer, "  2. Drag the ZIP file into the Chrome extensions page to install it manually.")
-	fmt.Fprintln(writer, "  3. Approve or enable the Open Browser Use extension if Chrome asks.")
-	fmt.Fprintln(writer, "  4. Verify the connection: open-browser-use info")
+	fmt.Fprintf(writer, "Next: open chrome://extensions, enable Developer mode, drag in %s, then run `open-browser-use info`.\n", result.ZIPPath)
 	return nil
+}
+
+func renderSkillUpdateResult(writer io.Writer, status skillUpdateStatus) {
+	if status.Updated {
+		fmt.Fprintln(writer, "5. ✅ Agent skill\n   Updated existing open-browser-use skill.")
+		return
+	}
+	if status.Attempted && status.Error != "" {
+		fmt.Fprintf(writer, "5. ⚠️ Agent skill\n   Existing skill update failed: %s\n", status.Error)
+		return
+	}
+	if !status.Checked {
+		return
+	}
+	fmt.Fprintln(writer, "5. ℹ️ Agent skill install commands\n   Codex: npx skills add iFurySt/open-codex-browser-use -g -a codex --skill open-browser-use --copy -y\n   Claude Code: npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-browser-use --copy -y")
 }
 
 func detectBrowserExtension(socketDir string, timeout time.Duration) browserExtensionStatus {
@@ -605,6 +631,51 @@ func (status browserExtensionStatus) needsInstall() bool {
 
 func (status browserExtensionStatus) needsUpgrade() bool {
 	return status.Installed && status.Version != "" && compareChromeVersions(status.Version, status.ExpectedVersion) < 0
+}
+
+func shouldOpenManualSetup(status browserExtensionStatus, noOpen bool) bool {
+	if noOpen {
+		return false
+	}
+	return status.needsInstall() || status.needsUpgrade()
+}
+
+func shouldOpenStoreSetup(status browserExtensionStatus, noOpen bool) bool {
+	if noOpen {
+		return false
+	}
+	return status.needsInstall() || status.needsUpgrade()
+}
+
+func maybeUpdateInstalledSkill() skillUpdateStatus {
+	npxPath, err := exec.LookPath("npx")
+	if err != nil {
+		return skillUpdateStatus{}
+	}
+	status := skillUpdateStatus{Checked: true}
+	if err := runSilentCommand(20*time.Second, npxPath, "skills"); err != nil {
+		return status
+	}
+	status.Attempted = true
+	if err := runSilentCommand(2*time.Minute, npxPath, "skills", "update", "open-browser-use", "-g", "-y"); err != nil {
+		status.Error = err.Error()
+		return status
+	}
+	status.Updated = true
+	return status
+}
+
+func runSilentCommand(timeout time.Duration, name string, args ...string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	err := cmd.Run()
+	if ctx.Err() == context.DeadlineExceeded {
+		return fmt.Errorf("%s timed out", strings.Join(append([]string{name}, args...), " "))
+	}
+	return err
 }
 
 func compareChromeVersions(left string, right string) int {

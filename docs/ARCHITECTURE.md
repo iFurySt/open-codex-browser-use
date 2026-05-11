@@ -96,17 +96,21 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。默认 extension id
   是 Chrome Web Store 版 `bgjoihaepiejlfjinojjfgokghnodnhd`。
 - `open-browser-use setup`：显式安装流程，先调用 native host manifest
-  注册，再写入 Chrome External Extensions JSON，并打开 Chrome Web Store
-  正式扩展页，引导用户手动安装或启用扩展。macOS/Windows 仍可能需要用户在
-  Chrome 中确认启用扩展并重启；Linux 的 External Extensions 写入默认使用
-  Chrome 官方系统路径，可能需要更高权限。
+  注册，再写入 Chrome External Extensions JSON。只有检测到浏览器插件未安装或
+  版本低于当前 CLI 期望版本时，CLI 才打开 Chrome Web Store 正式扩展页，引导
+  用户手动安装或启用扩展。macOS/Windows 仍可能需要用户在 Chrome 中确认启用
+  扩展并重启；Linux 的 External Extensions 写入默认使用 Chrome 官方系统路径，
+  可能需要更高权限。
 - `open-browser-use setup beta`：Chrome Web Store 临时不可用时的备用路径，
   注册 native host 后从 GitHub Releases 下载最新
   `open-browser-use-chrome-extension-*.zip`。CLI 会在本地 unpacked 目录和待拖入
   Chrome 的 ZIP 中写入稳定 beta public key，用该 id 注册 native host allowed
-  origin，并打开 `chrome://extensions/` 和 Finder/文件管理器，引导用户把这个 ZIP
-  拖到扩展页面手动安装；GitHub Release 中的正式 zip 本身保持为 Chrome Web
-  Store 上传包，不再预写 beta key。
+  origin；只有检测到浏览器插件未安装或版本低于当前 CLI 期望版本时，才打开
+  `chrome://extensions/` 和 Finder/文件管理器，引导用户把这个 ZIP 拖到扩展页面
+  手动安装；GitHub Release 中的正式 zip 本身保持为 Chrome Web Store 上传包，
+  不再预写 beta key。setup 过程中如果本机已有可用的 `npx skills`，会
+  best-effort 执行 `npx skills update open-browser-use -g -y` 更新已有 agent
+  skill；未检测到 skills 时只展示 Codex 和 Claude Code 的安装命令。
 - manifest 的 `path` 默认统一写入稳定 native host link：
   macOS 为
   `~/Library/Application Support/OpenBrowserUse/native-host/open-browser-use`，

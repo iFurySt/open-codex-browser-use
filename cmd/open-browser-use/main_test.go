@@ -213,6 +213,7 @@ func TestCobraSetupWritesNativeAndExternalManifests(t *testing.T) {
 	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("PATH", t.TempDir())
 	targetPath := filepath.Join(t.TempDir(), "open-browser-use")
 	if err := os.WriteFile(targetPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -252,6 +253,7 @@ func TestCobraSetupBetaUsesProvidedZIP(t *testing.T) {
 	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("PATH", t.TempDir())
 	targetPath := filepath.Join(t.TempDir(), "open-browser-use")
 	if err := os.WriteFile(targetPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -282,7 +284,7 @@ func TestCobraSetupBetaUsesProvidedZIP(t *testing.T) {
 	if !strings.Contains(got, "Extension id: "+expectedExtensionID) {
 		t.Fatalf("expected setup beta output to mention unpacked extension id, got %q", got)
 	}
-	if !strings.Contains(got, "Drag the ZIP file into the Chrome extensions page") && !strings.Contains(got, "All set.") {
+	if !strings.Contains(got, "drag in "+zipPath) && !strings.Contains(got, "All set.") {
 		t.Fatalf("expected setup beta output to mention manual install or connected status, got %q", got)
 	}
 	manifestPath := filepath.Join(home, "Library/Application Support/Google/Chrome/NativeMessagingHosts", host.NativeHostName+".json")
@@ -383,6 +385,71 @@ func TestBrowserExtensionStatusSummaries(t *testing.T) {
 	}
 	if got := outdated.summary(); !strings.Contains(got, "CLI expects v"+version) || !strings.Contains(got, "open-browser-use setup") {
 		t.Fatalf("expected upgrade summary with command, got %q", got)
+	}
+}
+
+func TestShouldOpenManualSetup(t *testing.T) {
+	tests := []struct {
+		name   string
+		status browserExtensionStatus
+		noOpen bool
+		want   bool
+	}{
+		{
+			name: "missing extension opens guidance",
+			status: browserExtensionStatus{
+				ExpectedVersion: version,
+			},
+			want: true,
+		},
+		{
+			name: "outdated extension opens guidance",
+			status: browserExtensionStatus{
+				Installed:       true,
+				Version:         "0.1.0",
+				ExpectedVersion: version,
+			},
+			want: true,
+		},
+		{
+			name: "current installed extension skips guidance even when disconnected",
+			status: browserExtensionStatus{
+				Installed:       true,
+				Version:         version,
+				ExpectedVersion: version,
+			},
+		},
+		{
+			name: "no-open suppresses guidance",
+			status: browserExtensionStatus{
+				ExpectedVersion: version,
+			},
+			noOpen: true,
+		},
+	}
+	for _, test := range tests {
+		got := shouldOpenManualSetup(test.status, test.noOpen)
+		if got != test.want {
+			t.Fatalf("%s: shouldOpenManualSetup() = %v, want %v", test.name, got, test.want)
+		}
+	}
+}
+
+func TestShouldOpenStoreSetup(t *testing.T) {
+	current := browserExtensionStatus{
+		Installed:       true,
+		Version:         version,
+		ExpectedVersion: version,
+	}
+	if shouldOpenStoreSetup(current, false) {
+		t.Fatal("expected current store extension to skip store page")
+	}
+	missing := browserExtensionStatus{ExpectedVersion: version}
+	if !shouldOpenStoreSetup(missing, false) {
+		t.Fatal("expected missing store extension to open store page")
+	}
+	if shouldOpenStoreSetup(missing, true) {
+		t.Fatal("expected --no-open to suppress store page")
 	}
 }
 
