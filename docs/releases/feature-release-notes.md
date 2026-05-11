@@ -4,6 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
+| 2026-05-11 | Skill Action Plan Discovery | Agent 上层只读 bundled skill 时也能直接发现 `obu run` 和 MCP `run_action_plan`，更容易用轻量 action plan 编排多步浏览器操作。 | 发布 `0.1.29` patch 版本，强化 `skills/open-browser-use/SKILL.md` 的 Core Workflow 和 MCP Usage，把 CLI action plan 与 MCP action plan 明确为推荐的轻量多步编排入口。 |
 | 2026-05-10 | Go SDK | Go 用户可以直接通过 Go module 接入 Open Browser Use，不必绕 JS/Python SDK 或 shell CLI。 | 发布 `0.1.28` patch 版本，新增 `packages/open-browser-use-go`，覆盖 active socket discovery、Browser Use JSON-RPC wrappers、CDP helpers、browser/tab/playwright-like helper、download/clipboard wrappers 和 fake socket 协议测试；同步 Go module path 到真实 GitHub 仓库路径，保证 `go get` 可拉取。 |
 | 2026-05-10 | Deliverable Group Emoji | Chrome tab group 中的 Open Browser Use 交付组不再因为使用过新的 emoji 而显示成 `[?]`，保留绿色分组和清晰的完成标记。 | 发布 `0.1.26` patch 版本，将 shared deliverable group、skill display name 和文档统一改为兼容性更好的 `✅ Open Browser Use`。 |
 | 2026-05-10 | Skill Session Hygiene | Agent 使用 Open Browser Use 时会被引导为每个任务或会话使用唯一 session id，并按更严格的 cleanup 规则默认清理无用标签页，减少跨任务复用旧 tab group 的风险。 | 发布 `0.1.25` patch 版本，更新 bundled skill 的 CLI、MCP、SDK 示例，明确不要依赖 fallback `obu-cli` session，补充官方 Chrome skill 0.1.7 参考快照，并收紧 deliverable、handoff、finalize 语义。 |

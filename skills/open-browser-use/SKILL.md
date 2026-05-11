@@ -15,10 +15,11 @@ Open Browser Use connects an MV3 Chrome extension, a local native messaging host
 2. Choose a unique browser session id for the current agent task before opening or claiming tabs. Prefer the surrounding runtime's conversation/session id when available; otherwise create a short unique id such as `obu-<task-slug>-<timestamp>`. Reuse that same id for every Open Browser Use command in this task.
 3. Name the current browser task group before opening or claiming tabs. Use a short task label followed by ` - OBU`; if no better task label is available, use `Task - OBU`.
 4. Use the CLI for simple inspection or one-shot actions: `info`, `tabs`, `user-tabs`, `history`, `open-tab`, `navigate`, `cdp`, and `call`.
-5. If the surrounding agent runtime supports local MCP servers, configure `obu mcp` and call the exposed browser tools directly. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
-6. Use the JavaScript, Python, or Go SDK for multi-step workflows, event subscriptions, or when the surrounding agent runtime already runs code. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
-7. Before ending browser work, release or keep session tabs with `open-browser-use finalize-tabs --session-id "$OBU_SESSION_ID" --keep '<json-array>'`, the MCP `finalize_tabs` tool, or the SDK `finalizeTabs` / `finalize_tabs` / `FinalizeTabs` method.
-8. If communication fails after setup, read [references/troubleshooting.md](references/troubleshooting.md).
+5. Use `open-browser-use run` / `obu run` for CLI-level multi-step orchestration when a small line-oriented action plan is enough and writing SDK code would be unnecessary.
+6. If the surrounding agent runtime supports local MCP servers, configure `obu mcp` and call the exposed browser tools directly. Use the `run_action_plan` MCP tool for the same line-oriented orchestration from MCP. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
+7. Use the JavaScript, Python, or Go SDK for larger multi-step workflows, event subscriptions, richer control flow, or when the surrounding agent runtime already runs code. Read [references/sdk-and-protocol.md](references/sdk-and-protocol.md).
+8. Before ending browser work, release or keep session tabs with `open-browser-use finalize-tabs --session-id "$OBU_SESSION_ID" --keep '<json-array>'`, the MCP `finalize_tabs` tool, or the SDK `finalizeTabs` / `finalize_tabs` / `FinalizeTabs` method.
+9. If communication fails after setup, read [references/troubleshooting.md](references/troubleshooting.md).
 
 ## Operating Rules
 
@@ -83,6 +84,10 @@ has a stable conversation/session id, derive the MCP `--session-id` from it.
 The MCP server exposes tools including `user_tabs`, `open_tab`, `claim_tab`,
 `navigate`, `wait_load`, `page_info`, `cdp`, `history`, `run_action_plan`,
 `finalize_tabs`, and unrestricted `call`.
+
+Use `run_action_plan` when the runtime wants to execute the same compact action
+plan format available through `open-browser-use run` without shelling out for
+each individual browser operation.
 
 ## Tab Lifecycle
 
