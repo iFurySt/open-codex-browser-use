@@ -34,6 +34,11 @@ on:
         required: false
         type: boolean
         default: false
+      chrome_cancel_pending_submission:
+        description: 是否先取消 Chrome Web Store 中当前审核中或 staged 的提交，再上传本次版本
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -181,18 +186,22 @@ jobs:
           CHROME_PUBLISH_TYPE_INPUT: ${{ inputs.chrome_publish_type }}
           CHROME_DEPLOY_PERCENTAGE_INPUT: ${{ inputs.chrome_deploy_percentage }}
           CHROME_SKIP_REVIEW_INPUT: ${{ inputs.chrome_skip_review }}
+          CHROME_CANCEL_PENDING_SUBMISSION_INPUT: ${{ inputs.chrome_cancel_pending_submission }}
           CWS_PUBLISH_TYPE: ${{ vars.CWS_PUBLISH_TYPE }}
           CWS_DEPLOY_PERCENTAGE: ${{ vars.CWS_DEPLOY_PERCENTAGE }}
           CWS_SKIP_REVIEW: ${{ vars.CWS_SKIP_REVIEW }}
+          CWS_CANCEL_PENDING_SUBMISSION: ${{ vars.CWS_CANCEL_PENDING_SUBMISSION }}
         run: |
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             publish_type="${CHROME_PUBLISH_TYPE_INPUT:-DEFAULT_PUBLISH}"
             deploy_percentage="${CHROME_DEPLOY_PERCENTAGE_INPUT:-}"
             skip_review="${CHROME_SKIP_REVIEW_INPUT:-false}"
+            cancel_pending_submission="${CHROME_CANCEL_PENDING_SUBMISSION_INPUT:-false}"
           else
             publish_type="${CWS_PUBLISH_TYPE:-DEFAULT_PUBLISH}"
             deploy_percentage="${CWS_DEPLOY_PERCENTAGE:-}"
             skip_review="${CWS_SKIP_REVIEW:-false}"
+            cancel_pending_submission="${CWS_CANCEL_PENDING_SUBMISSION:-false}"
           fi
 
           args=(
@@ -205,6 +214,9 @@ jobs:
           fi
           if [ "${skip_review}" = "true" ]; then
             args+=(--skip-review)
+          fi
+          if [ "${cancel_pending_submission}" = "true" ]; then
+            args+=(--cancel-pending)
           fi
           ./scripts/publish-chrome-web-store.mjs --submit "${args[@]}"
 

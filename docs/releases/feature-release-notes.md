@@ -4,6 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
+| 2026-05-11 | Chrome Web Store Submission Guard | Chrome Web Store 已有版本在审核中时，tag release 不会因为商店拒绝编辑而整体失败；维护者可以选择跳过，或显式取消旧审核并用最新版本重发。 | `publish-chrome-web-store.mjs` 在上传前调用 `fetchStatus`，默认遇到 active submission 写出 `ACTIVE_SUBMISSION` skip 结果；新增 `--cancel-pending`、workflow 输入和 `CWS_CANCEL_PENDING_SUBMISSION` 变量。 |
 | 2026-05-11 | Guided Store Setup | `open-browser-use setup` 会直接打开 Open Browser Use 的 Chrome Web Store 页面，用户可以在明确的页面里安装或启用扩展并按需重启。 | 发布 `0.1.35` patch 版本，setup 仍会注册 native host 和写入 External Extensions hint，同时新增 `--no-open` 供 CI、测试或无桌面环境只写配置。 |
 | 2026-05-11 | Chrome Extension Popup | 高分辨率屏幕上 popup 顶部 LOGO 更清晰，不再因为用 32px 位图放大显示而出现明显锯齿。 | 发布 `0.1.34` patch 版本，popup 头部改用 128px icon 作为源图并保持 32 CSS px 显示尺寸；同步 runtime、SDK、extension 版本号和发布制品。 |
 | 2026-05-11 | Chrome Extension Logo | Chrome Web Store 和浏览器工具栏会显示新版 Open Browser Use 标识，减少旧视觉资产和当前品牌方向不一致的问题。 | 发布 `0.1.33` patch 版本，替换 Chrome extension 的 16/32/48/128 PNG icons 和 1024px source logo，并沿用现有 tag release 与 Chrome Web Store 自动提交链路。 |

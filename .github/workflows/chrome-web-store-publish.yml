@@ -32,6 +32,11 @@ on:
         required: false
         type: boolean
         default: false
+      cancel_pending_submission:
+        description: 是否先取消 Chrome Web Store 中当前审核中或 staged 的提交，再上传本次版本
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -127,6 +132,7 @@ jobs:
           CHROME_PUBLISH_TYPE: ${{ inputs.publish_type }}
           CHROME_DEPLOY_PERCENTAGE: ${{ inputs.deploy_percentage }}
           CHROME_SKIP_REVIEW: ${{ inputs.skip_review }}
+          CHROME_CANCEL_PENDING_SUBMISSION: ${{ inputs.cancel_pending_submission }}
         run: |
           args=(
             --zip "${CHROME_EXTENSION_ZIP}"
@@ -141,6 +147,9 @@ jobs:
           fi
           if [ "${CHROME_SKIP_REVIEW}" = "true" ]; then
             args+=(--skip-review)
+          fi
+          if [ "${CHROME_CANCEL_PENDING_SUBMISSION}" = "true" ]; then
+            args+=(--cancel-pending)
           fi
           ./scripts/publish-chrome-web-store.mjs "${args[@]}"
 

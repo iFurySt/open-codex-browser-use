@@ -124,6 +124,9 @@ Chrome Web Store API v2 用于上传 extension zip，并可选提交审核。官
   Extension ID。
 - 上传新包时，`apps/chrome-extension/manifest.json` 的 `version` 必须比
   已发布版本更高。
+- 如果已有 active submission（例如 `PENDING_REVIEW` 或 `STAGED`），API 不允许继续
+  上传或提交新版本。仓库脚本会先调用 `fetchStatus` 检查状态，默认跳过本轮商店提交
+  并写出 JSON 结果，避免 GitHub Release 因商店审核队列而失败。
 - 首次提交 Dashboard 文案、权限说明和隐私字段时，先使用
   `docs/CHROME_WEB_STORE_LISTING.md` 里的 listing draft。
 
@@ -186,6 +189,13 @@ CWS_REFRESH_TOKEN` 写入 GitHub repository secret。
 3. 调用 Chrome Web Store API v2 `upload`。
 4. 上传成功后调用 `publish`，提交审核。
 
+如果 Chrome Web Store 里已经有审核中或 staged 的提交，workflow 默认不会取消它；
+脚本会跳过上传并在 `chrome-web-store-result.json` 里记录
+`skipped.reason=ACTIVE_SUBMISSION`。这让 GitHub Release、npm、PyPI 和 Homebrew
+发布可以继续保持绿色。要让最新版本替换旧的审核中提交，手动触发 workflow 时把
+`chrome_cancel_pending_submission` 设为 `true`。这会先调用
+`cancelSubmission` 取消当前 active submission，再上传并提交本次 extension zip。
+
 `scripts/publish-chrome-web-store.mjs` 的认证优先级是：
 
 1. `CWS_ACCESS_TOKEN`：短期 access token，适合本地一次性验证。
@@ -210,12 +220,18 @@ CWS_AUTO_PUBLISH=true
 CWS_PUBLISH_TYPE=DEFAULT_PUBLISH
 CWS_DEPLOY_PERCENTAGE=
 CWS_SKIP_REVIEW=false
+CWS_CANCEL_PENDING_SUBMISSION=false
 ```
 
 tag 自动发布仍然需要上面的 `CWS_*` secrets。`CWS_SKIP_REVIEW=true` 只会请求
 Chrome Web Store 跳过审核；官方 API 会验证是否符合条件，不符合时会返回错误。
 Open Browser Use 当前包含 `<all_urls>`、`debugger`、`tabs`、`downloads` 等敏感
 能力，普通代码更新应预期继续进入审核流程。
+
+`CWS_CANCEL_PENDING_SUBMISSION=true` 会让 tag 自动发布在发现 active submission
+时先取消旧提交再提交当前 tag 的 zip。这个动作会改变 Chrome Web Store 审核队列，
+建议只在你明确希望“最新 tag 覆盖旧审核版本”时开启；否则保持默认 `false`，等当前
+审核结束后用补发 workflow 提交最新 release。
 
 ## 从已有 GitHub Release 补发商店
 
@@ -233,11 +249,15 @@ submit=true
 publish_type=DEFAULT_PUBLISH
 deploy_percentage=
 skip_review=false
+cancel_pending_submission=false
 ```
 
 `asset_name` 留空时会按 `release_tag` 精确下载
 `open-browser-use-chrome-extension-<version>.zip`。如果需要上传非默认 asset，可以
 显式填写完整 asset 文件名。
+
+如果补发时商店里仍有旧版本在审核中，先确认是否要替换旧审核版本；确认后把
+`cancel_pending_submission=true`。否则 workflow 会跳过上传并保留当前审核队列。
 
 ## 官方参考
 
@@ -249,3 +269,7 @@ skip_review=false
   <https://developer.chrome.com/docs/webstore/api/reference/rest/v2/media/upload>
 - Chrome Web Store API v2 publish：
   <https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/publish>
+- Chrome Web Store API v2 fetchStatus：
+  <https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/fetchStatus>
+- Chrome Web Store API v2 cancelSubmission：
+  <https://developer.chrome.com/docs/webstore/api/reference/rest/v2/publishers.items/cancelSubmission>

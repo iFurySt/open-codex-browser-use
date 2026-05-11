@@ -5,7 +5,7 @@ import { createSign } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 
-const apiRoot = "https://chromewebstore.googleapis.com";
+const apiRoot = process.env.CWS_API_ROOT ?? "https://chromewebstore.googleapis.com";
 const oauthTokenUrl = "https://oauth2.googleapis.com/token";
 const chromeWebStoreScope = "https://www.googleapis.com/auth/chromewebstore";
 
@@ -199,6 +199,44 @@ async function fetchStatus(accessToken) {
   });
 }
 
+async function cancelSubmission(accessToken) {
+  return requestJson(`${apiRoot}/v2/${itemName()}:cancelSubmission`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+}
+
+function submittedRevisionState(status) {
+  return status?.submittedItemRevisionStatus?.state ?? "";
+}
+
+function revisionVersions(revisionStatus) {
+  if (!Array.isArray(revisionStatus?.distributionChannels)) {
+    return [];
+  }
+  return revisionStatus.distributionChannels
+    .map((channel) => channel?.crxVersion)
+    .filter((version) => typeof version === "string" && version !== "");
+}
+
+function statusSummary(status) {
+  return {
+    publishedState: status?.publishedItemRevisionStatus?.state ?? null,
+    publishedVersions: revisionVersions(status?.publishedItemRevisionStatus),
+    submittedState: submittedRevisionState(status) || null,
+    submittedVersions: revisionVersions(status?.submittedItemRevisionStatus),
+    lastAsyncUploadState: status?.lastAsyncUploadState ?? null,
+    takenDown: status?.takenDown ?? false,
+    warned: status?.warned ?? false
+  };
+}
+
+function hasActiveSubmittedRevision(status) {
+  return ["PENDING_REVIEW", "STAGED"].includes(submittedRevisionState(status));
+}
+
 async function waitForUpload(accessToken, uploadResponse) {
   let state = uploadResponse.uploadState;
   if (state === "SUCCEEDED") {
@@ -253,12 +291,34 @@ async function main() {
   }
   const absoluteZipPath = path.resolve(zipPath);
   const accessToken = await getAccessToken();
-  const uploadResponse = await uploadPackage(accessToken, absoluteZipPath);
-  const finalUploadState = await waitForUpload(accessToken, uploadResponse);
+  const preflightStatus = await fetchStatus(accessToken);
   const result = {
-    uploaded: finalUploadState,
+    preflightStatus: statusSummary(preflightStatus),
+    skipped: null,
+    cancelledSubmission: null,
+    uploaded: null,
     published: null
   };
+  if (hasActiveSubmittedRevision(preflightStatus)) {
+    if (hasFlag("cancel-pending") || process.env.CWS_CANCEL_PENDING_SUBMISSION === "true") {
+      result.cancelledSubmission = await cancelSubmission(accessToken);
+    } else {
+      result.skipped = {
+        reason: "ACTIVE_SUBMISSION",
+        message:
+          "Chrome Web Store already has an active submitted revision. Re-run with --cancel-pending or CWS_CANCEL_PENDING_SUBMISSION=true to replace it."
+      };
+      const outputPath = readFlag("output", process.env.CWS_RESULT_PATH ?? "");
+      if (outputPath) {
+        await writeFile(outputPath, `${JSON.stringify(result, null, 2)}\n`);
+      }
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+  }
+  const uploadResponse = await uploadPackage(accessToken, absoluteZipPath);
+  const finalUploadState = await waitForUpload(accessToken, uploadResponse);
+  result.uploaded = finalUploadState;
   if (hasFlag("submit") || process.env.CWS_SUBMIT_FOR_REVIEW === "true") {
     result.published = await publish(accessToken);
   }

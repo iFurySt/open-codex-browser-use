@@ -25,6 +25,7 @@ node "${repo_root}/scripts/generate-chrome-extension-icons.mjs"
   cd "${repo_root}"
   go test ./...
   node --test apps/chrome-extension/*.test.mjs
+  node --test scripts/*.test.mjs
   pnpm -r --if-present test
 )
 (

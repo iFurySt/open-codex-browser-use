@@ -12,7 +12,10 @@
   和 skill 下载包，普通安装入口使用 zip/unpacked，其他 manifest、SBOM 和 repo
   metadata 留在 workflow artifact 里。手动触发时按输入参数可把
   extension 上传并提交到 Chrome Web Store；tag 推送时也可以通过 repository
-  variable `CWS_AUTO_PUBLISH=true` 自动上传并提交商店审核。新建 GitHub Release 时使用
+  variable `CWS_AUTO_PUBLISH=true` 自动上传并提交商店审核。商店提交前会检查
+  active submission，默认遇到审核中或 staged 的旧提交时跳过 CWS 上传但不让
+  release workflow 因此失败；需要替换旧审核版本时显式开启 cancel pending
+  submission。新建 GitHub Release 时使用
   `gh release create --generate-notes`，交给 GitHub 自动生成 `What's Changed`、
   `New Contributors` 和 `Full Changelog`。
 - `npm-publish.yml`：tag `v*` 推送触发的 npm 发布流水线，使用 npm
@@ -53,6 +56,8 @@
    `HOMEBREW_TAP_TOKEN` 能写入 tap repo。
 7. 浏览器插件发布走 `docs/CHROME_WEB_STORE_RELEASE.md` 里的 Chrome Web
    Store API v2 流程；需要每个 tag 自动提交时，再开启 `CWS_AUTO_PUBLISH=true`。
+   如果要让最新 tag 取消并替换审核中的旧版本，再开启
+   `CWS_CANCEL_PENDING_SUBMISSION=true`。
 8. 技术栈和环境稳定后，再补其他部署 job 或非阻塞的依赖巡检。
 9. 即使交付方式变化，release 阶段的 SBOM 和 provenance 这类供应链能力也建议保留。
 
