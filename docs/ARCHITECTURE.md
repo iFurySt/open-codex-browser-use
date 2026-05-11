@@ -162,7 +162,10 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   新 session 的默认任务组名是 `Task - OBU`，上层 runtime 应通过
   `nameSession`/`name-session` 按 `<short task> - OBU` 设置更具体的任务名；
   `deliverable` tabs 统一移动到共享 `✅ Open Browser Use` tab group，`handoff`
-  tabs 保留在当前任务组。
+  tabs 保留在当前任务组。每个 Chrome 窗口至多存在一个 `✅ Open Browser Use`
+  分组：`moveToDeliverables` 按 `windowId` 调用 `chrome.tabGroups.query` 找出已有
+  同名分组，合并任何重复（如 session restore 带回的旧分组）后再加入新 tab，
+  仅在该窗口完全没有同名分组时才新建。
   `turnEnded` and `finalizeTabs` clear active session state when control ends
   so download notifications only fire while a browser session is active.
 - MV3 extension event forwarding：`chrome.debugger.onEvent` 转发为
