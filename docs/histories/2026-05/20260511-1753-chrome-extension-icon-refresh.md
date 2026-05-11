@@ -31,3 +31,9 @@ Keep the manifest icon paths and packaging flow unchanged while swapping only th
 - `apps/chrome-extension/icons/icon-48.png`
 - `apps/chrome-extension/icons/icon-128.png`
 - `apps/chrome-extension/icons/logo-source.png`
+
+## [2026-05-11 18:03] | Update: release 0.1.33
+
+- Bumped Open Browser Use runtime/package versions from `0.1.32` to `0.1.33`.
+- Added the `0.1.33` user-facing release note for the Chrome extension logo refresh.
+- Prepared the tag release path so GitHub Actions can build release artifacts and submit the Chrome Web Store update when repository automation is enabled.

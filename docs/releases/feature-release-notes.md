@@ -4,6 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
+| 2026-05-11 | Chrome Extension Logo | Chrome Web Store 和浏览器工具栏会显示新版 Open Browser Use 标识，减少旧视觉资产和当前品牌方向不一致的问题。 | 发布 `0.1.33` patch 版本，替换 Chrome extension 的 16/32/48/128 PNG icons 和 1024px source logo，并沿用现有 tag release 与 Chrome Web Store 自动提交链路。 |
 | 2026-05-11 | Chrome Web Store Release Drill | 维护者可以用 `v0.1.32` 验证 tag release 到 Chrome Web Store 自动提交审核的完整链路。 | 发布 `0.1.32` patch 版本，用新配置的 `CWS_SERVICE_ACCOUNT_JSON`、publisher/extension secrets 和 `CWS_AUTO_PUBLISH=true` 触发真实 CWS 上传与提交流程。 |
 | 2026-05-11 | Chrome Web Store Publishing | Chrome Web Store 上架后，用户安装提示切回正式商店路径，维护者也可以让 `v*` tag 自动上传并提交新版审核。 | 发布 `0.1.31` patch 版本，Chrome extension release zip 恢复为不含 `manifest.key` 的正式 Web Store 上传包，`setup beta` 只在本机生成 keyed fallback ZIP；release workflow 支持 `CWS_AUTO_PUBLISH=true` 的 tag 自动提交，并同步 README、npm/Homebrew 提示和发布文档。 |
 | 2026-05-11 | Deliverable Tab Group Cleanup | 用户把结果标签页交给 Open Browser Use 后，Chrome 标签栏会复用并合并同窗口已有的 `✅ Open Browser Use` 分组，不再因为会话恢复或旧 group id 失效而堆出多个同名交付分组。 | 发布 `0.1.30` patch 版本，`finalize_tabs(deliverable)` 按窗口查询同名 deliverable group、合并重复分组后再移动新标签页，并把对应 Node 回归测试接入 `make ci`。 |
