@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -711,6 +712,55 @@ func chromeProfileSortKey(dir string) string {
 	return "2:" + dir
 }
 
+// resolveProfileForInstanceID searches each Chrome profile's
+// `Local Extension Settings/<extensionID>/` LevelDB files for the given
+// instanceID UUID. LevelDB stores values as raw bytes, so a UUID string written
+// via `chrome.storage.local` appears verbatim in the .log / .ldb files of the
+// profile that generated it. This gives us a stable mapping from
+// instanceID -> profile directory without needing the host to know its profile
+// at startup or requiring extra extension permissions.
+func resolveProfileForInstanceID(extensionID string, instanceID string) (directory string, displayName string, ok bool) {
+	if extensionID == "" || instanceID == "" {
+		return "", "", false
+	}
+	root, err := defaultChromeUserDataDir()
+	if err != nil {
+		return "", "", false
+	}
+	profiles, err := chromeProfileDirs(root)
+	if err != nil {
+		return "", "", false
+	}
+	names := chromeProfileDisplayNames(root)
+	needle := []byte(instanceID)
+	for _, profileDir := range profiles {
+		storageDir := filepath.Join(profileDir, "Local Extension Settings", extensionID)
+		entries, err := os.ReadDir(storageDir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			name := entry.Name()
+			if !strings.HasSuffix(name, ".log") && !strings.HasSuffix(name, ".ldb") {
+				continue
+			}
+			payload, err := os.ReadFile(filepath.Join(storageDir, name))
+			if err != nil {
+				continue
+			}
+			if !bytes.Contains(payload, needle) {
+				continue
+			}
+			dir := filepath.Base(profileDir)
+			return dir, names[dir], true
+		}
+	}
+	return "", "", false
+}
+
 func chromeProfileDisplayNames(root string) map[string]string {
 	payload, err := os.ReadFile(filepath.Join(root, "Local State"))
 	if err != nil {
@@ -911,6 +961,7 @@ type socketOptions struct {
 	socketDir  string
 	timeout    time.Duration
 	sessionID  string
+	profile    string
 }
 
 func addSocketFlags(cmd *cobra.Command, options *socketOptions) {
@@ -921,6 +972,7 @@ func addSocketFlags(cmd *cobra.Command, options *socketOptions) {
 	cmd.Flags().StringVar(&options.socketDir, "socket-dir", host.DefaultSocketDir, "directory containing active socket registry")
 	cmd.Flags().DurationVar(&options.timeout, "timeout", 10*time.Second, "request timeout")
 	cmd.Flags().StringVar(&options.sessionID, "session-id", options.sessionID, "browser session id used for tab grouping and cleanup")
+	cmd.Flags().StringVar(&options.profile, "profile", "", "Chrome profile selector (directory name like \"Default\" / \"Profile 1\" or display name like \"Eva\")")
 }
 
 func newCallCommand() *cobra.Command {
@@ -1296,6 +1348,9 @@ func newVersionCommand() *cobra.Command {
 
 func newProfilesCommand() *cobra.Command {
 	var asJSON bool
+	var connected bool
+	var socketDir string
+	var timeout time.Duration
 	cmd := &cobra.Command{
 		Use:   "profiles",
 		Short: "List Chrome profiles that have the Open Browser Use extension installed",
@@ -1305,20 +1360,103 @@ func newProfilesCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return renderProfilesList(cmd.OutOrStdout(), profiles, asJSON)
+			var connections []connectedProfileInfo
+			if connected {
+				connections = probeConnectedProfiles(socketDir, timeout)
+			}
+			return renderProfilesList(cmd.OutOrStdout(), profiles, connections, connected, asJSON)
 		},
 	}
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit JSON instead of a human-readable table")
+	cmd.Flags().BoolVar(&connected, "connected", false, "also probe running hosts and mark which profile is currently connected")
+	cmd.Flags().StringVar(&socketDir, "socket-dir", host.DefaultSocketDir, "directory containing host sockets (used with --connected)")
+	cmd.Flags().DurationVar(&timeout, "timeout", 2*time.Second, "per-socket probe timeout (used with --connected)")
 	return cmd
 }
 
-func renderProfilesList(writer io.Writer, profiles []installedChromeProfile, asJSON bool) error {
+func probeConnectedProfiles(socketDir string, timeout time.Duration) []connectedProfileInfo {
+	candidates, err := listSocketCandidates(socketDir)
+	if err != nil || len(candidates) == 0 {
+		return nil
+	}
+	probeTimeout := timeout
+	if probeTimeout <= 0 {
+		probeTimeout = 800 * time.Millisecond
+	} else if probeTimeout > 800*time.Millisecond {
+		probeTimeout = 800 * time.Millisecond
+	}
+	var out []connectedProfileInfo
+	for _, candidate := range candidates {
+		conn, err := net.DialTimeout("unix", candidate.path, probeTimeout)
+		if err != nil {
+			continue
+		}
+		resp, err := getInfoOverConn(conn, probeTimeout)
+		_ = conn.Close()
+		if err != nil {
+			continue
+		}
+		out = append(out, connectedProfileFromInfo(candidate.path, resp))
+	}
+	return out
+}
+
+func renderProfilesList(writer io.Writer, profiles []installedChromeProfile, connected []connectedProfileInfo, showConnected bool, asJSON bool) error {
+	connectedByDir := map[string]connectedProfileInfo{}
+	connectedByInstance := map[string]connectedProfileInfo{}
+	for _, info := range connected {
+		if info.Directory != "" {
+			connectedByDir[info.Directory] = info
+		}
+		if info.InstanceID != "" {
+			connectedByInstance[info.InstanceID] = info
+		}
+	}
+
 	if asJSON {
-		payload, err := json.MarshalIndent(profiles, "", "  ")
+		type row struct {
+			Directory   string `json:"directory"`
+			DisplayName string `json:"displayName,omitempty"`
+			ExtensionID string `json:"extensionId"`
+			Version     string `json:"version"`
+			Source      string `json:"source"`
+			Connected   bool   `json:"connected,omitempty"`
+			SocketPath  string `json:"socketPath,omitempty"`
+			InstanceID  string `json:"instanceId,omitempty"`
+		}
+		rows := make([]row, 0, len(profiles))
+		for _, profile := range profiles {
+			r := row{
+				Directory:   profile.Directory,
+				DisplayName: profile.DisplayName,
+				ExtensionID: profile.ExtensionID,
+				Version:     profile.Version,
+				Source:      profile.Source,
+			}
+			if showConnected {
+				if info, ok := connectedByDir[profile.Directory]; ok {
+					r.Connected = true
+					r.SocketPath = info.SocketPath
+					r.InstanceID = info.InstanceID
+				}
+			}
+			rows = append(rows, r)
+		}
+		payload, err := json.MarshalIndent(rows, "", "  ")
 		if err != nil {
 			return err
 		}
 		fmt.Fprintln(writer, string(payload))
+		if showConnected {
+			// Surface any connected host whose instanceId didn't resolve to a known
+			// installed profile (rare; would happen if the install registered
+			// extension state under an unknown directory layout).
+			for _, info := range connected {
+				if info.Directory == "" && info.InstanceID != "" {
+					fmt.Fprintf(writer, "// unresolved connected host: socket=%s instance=%s\n", info.SocketPath, info.InstanceID)
+				}
+			}
+		}
 		return nil
 	}
 	if len(profiles) == 0 {
@@ -1339,6 +1477,31 @@ func renderProfilesList(writer io.Writer, profiles []installedChromeProfile, asJ
 		if w := len(name); w > nameWidth {
 			nameWidth = w
 		}
+	}
+	if showConnected {
+		format := fmt.Sprintf("%%-%ds  %%-%ds  %%-7s  %%s\n", dirWidth, nameWidth)
+		fmt.Fprintf(writer, format, "DIRECTORY", "DISPLAY NAME", "VERSION", "CONNECTED")
+		for _, profile := range profiles {
+			name := profile.DisplayName
+			if name == "" {
+				name = "(unnamed)"
+			}
+			marker := "-"
+			if _, ok := connectedByDir[profile.Directory]; ok {
+				marker = "yes"
+			}
+			fmt.Fprintf(writer, format, profile.Directory, name, profile.Version, marker)
+		}
+		for _, info := range connected {
+			if info.Directory != "" {
+				continue
+			}
+			if info.InstanceID == "" {
+				continue
+			}
+			fmt.Fprintf(writer, "(unresolved host: socket=%s instance=%s)\n", info.SocketPath, info.InstanceID)
+		}
+		return nil
 	}
 	format := fmt.Sprintf("%%-%ds  %%-%ds  %%s\n", dirWidth, nameWidth)
 	fmt.Fprintf(writer, format, "DIRECTORY", "DISPLAY NAME", "VERSION")
@@ -1716,7 +1879,7 @@ func (runner *actionRunner) invoke(method string, params map[string]any) (map[st
 	}
 	params["session_id"] = runner.sessionID
 	params["turn_id"] = runner.turnID
-	response, err := invoke(runner.options.socketPath, runner.options.socketDir, method, params, runner.options.timeout)
+	response, err := invokeWithProfile(runner.options.socketPath, runner.options.socketDir, runner.options.profile, method, params, runner.options.timeout)
 	return response, runner.currentTabID, err
 }
 
@@ -1898,11 +2061,15 @@ func invokeAndWrite(options socketOptions, method string, params map[string]any)
 
 func invokeWithOptions(options socketOptions, method string, params map[string]any) (map[string]any, error) {
 	applySessionDefaults(params, options.sessionID)
-	return invoke(options.socketPath, options.socketDir, method, params, options.timeout)
+	return invokeWithProfile(options.socketPath, options.socketDir, options.profile, method, params, options.timeout)
 }
 
 func invoke(socketPath string, socketDir string, method string, params map[string]any, timeout time.Duration) (map[string]any, error) {
-	conn, err := dialBrowserSocket(socketPath, socketDir, timeout)
+	return invokeWithProfile(socketPath, socketDir, "", method, params, timeout)
+}
+
+func invokeWithProfile(socketPath string, socketDir string, profile string, method string, params map[string]any, timeout time.Duration) (map[string]any, error) {
+	conn, err := dialBrowserSocketForProfile(socketPath, socketDir, profile, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -1937,6 +2104,37 @@ func applySessionDefaults(params map[string]any, sessionID string) {
 	}
 }
 
+func dialBrowserSocketForProfile(socketPath string, socketDir string, profile string, timeout time.Duration) (net.Conn, error) {
+	if strings.TrimSpace(profile) == "" {
+		return dialBrowserSocket(socketPath, socketDir, timeout)
+	}
+	// When the caller pinned an explicit --socket, honour it but still verify it
+	// is the right profile. This protects the user from accidentally talking to
+	// the wrong Chrome.
+	if socketPath != "" {
+		conn, err := net.DialTimeout("unix", socketPath, timeout)
+		if err != nil {
+			return nil, err
+		}
+		match, info, verifyErr := verifySocketMatchesProfile(conn, profile, timeout)
+		if verifyErr != nil {
+			_ = conn.Close()
+			return nil, fmt.Errorf("could not verify profile of socket %s: %w", socketPath, verifyErr)
+		}
+		if !match {
+			_ = conn.Close()
+			return nil, fmt.Errorf("socket %s belongs to profile %s (%s); use --profile %q or omit --socket to auto-route", socketPath, info.Directory, info.DisplayName, profile)
+		}
+		return conn, nil
+	}
+	conn, picked, _, err := pickSocketForProfile(socketDir, profile, timeout)
+	if err != nil {
+		return nil, err
+	}
+	_ = picked
+	return conn, nil
+}
+
 func dialBrowserSocket(socketPath string, socketDir string, timeout time.Duration) (net.Conn, error) {
 	if socketPath != "" {
 		return net.DialTimeout("unix", socketPath, timeout)
@@ -1969,13 +2167,156 @@ type socketCandidate struct {
 	modTime time.Time
 }
 
-func scanSocketDir(socketDir string, skipPath string, timeout time.Duration) (net.Conn, error) {
+type connectedProfileInfo struct {
+	SocketPath  string `json:"socketPath"`
+	InstanceID  string `json:"instanceId,omitempty"`
+	ExtensionID string `json:"extensionId,omitempty"`
+	Directory   string `json:"directory,omitempty"`
+	DisplayName string `json:"displayName,omitempty"`
+}
+
+func (info connectedProfileInfo) label() string {
+	if info.DisplayName != "" && info.Directory != "" {
+		return fmt.Sprintf("%s (%s)", info.Directory, info.DisplayName)
+	}
+	if info.Directory != "" {
+		return info.Directory
+	}
+	if info.DisplayName != "" {
+		return info.DisplayName
+	}
+	if info.InstanceID != "" {
+		return "instance " + info.InstanceID
+	}
+	return "unknown"
+}
+
+func getInfoOverConn(conn net.Conn, timeout time.Duration) (map[string]any, error) {
+	deadline := time.Now().Add(timeout)
+	_ = conn.SetDeadline(deadline)
+	defer func() { _ = conn.SetDeadline(time.Time{}) }()
+	params := map[string]any{}
+	applySessionDefaults(params, defaultCLISessionID)
+	req := map[string]any{
+		"jsonrpc": "2.0",
+		"id":      fmt.Sprintf("cli-profile-%d", time.Now().UnixNano()),
+		"method":  "getInfo",
+		"params":  params,
+	}
+	wantID, _ := req["id"].(string)
+	if err := wire.WriteJSON(conn, req); err != nil {
+		return nil, err
+	}
+	for {
+		var resp map[string]any
+		if err := wire.ReadJSON(conn, &resp); err != nil {
+			return nil, err
+		}
+		if id, ok := resp["id"].(string); ok && id == wantID {
+			return resp, nil
+		}
+		// skip notifications / stale responses while waiting for our id
+	}
+}
+
+func connectedProfileFromInfo(socketPath string, payload map[string]any) connectedProfileInfo {
+	info := connectedProfileInfo{SocketPath: socketPath}
+	result, _ := payload["result"].(map[string]any)
+	metadata, _ := result["metadata"].(map[string]any)
+	if extID, ok := metadata["extensionId"].(string); ok {
+		info.ExtensionID = extID
+	}
+	if instanceID, ok := metadata["extensionInstanceId"].(string); ok {
+		info.InstanceID = instanceID
+	}
+	if dir, name, ok := resolveProfileForInstanceID(info.ExtensionID, info.InstanceID); ok {
+		info.Directory = dir
+		info.DisplayName = name
+	}
+	return info
+}
+
+func profileSelectorMatches(selector string, info connectedProfileInfo) bool {
+	target := strings.TrimSpace(selector)
+	if target == "" {
+		return true
+	}
+	if info.Directory != "" && strings.EqualFold(target, info.Directory) {
+		return true
+	}
+	if info.DisplayName != "" && strings.EqualFold(target, info.DisplayName) {
+		return true
+	}
+	if info.InstanceID != "" && strings.EqualFold(target, info.InstanceID) {
+		return true
+	}
+	return false
+}
+
+func verifySocketMatchesProfile(conn net.Conn, selector string, timeout time.Duration) (bool, connectedProfileInfo, error) {
+	resp, err := getInfoOverConn(conn, timeout)
+	if err != nil {
+		return false, connectedProfileInfo{}, err
+	}
+	info := connectedProfileFromInfo("", resp)
+	return profileSelectorMatches(selector, info), info, nil
+}
+
+func pickSocketForProfile(socketDir string, selector string, timeout time.Duration) (net.Conn, connectedProfileInfo, []connectedProfileInfo, error) {
+	candidates, err := listSocketCandidates(socketDir)
+	if err != nil {
+		return nil, connectedProfileInfo{}, nil, err
+	}
+	if len(candidates) == 0 {
+		return nil, connectedProfileInfo{}, nil, fmt.Errorf("no Open Browser Use socket found; open Chrome with the desired profile (`open-browser-use profiles` lists installed profiles)")
+	}
+	probeTimeout := timeout
+	if probeTimeout > 800*time.Millisecond {
+		probeTimeout = 800 * time.Millisecond
+	}
+	var seen []connectedProfileInfo
+	for _, candidate := range candidates {
+		conn, err := net.DialTimeout("unix", candidate.path, probeTimeout)
+		if err != nil {
+			removeSocketPathIfInDir(socketDir, candidate.path)
+			continue
+		}
+		resp, err := getInfoOverConn(conn, probeTimeout)
+		if err != nil {
+			_ = conn.Close()
+			continue
+		}
+		info := connectedProfileFromInfo(candidate.path, resp)
+		seen = append(seen, info)
+		if profileSelectorMatches(selector, info) {
+			return conn, info, seen, nil
+		}
+		_ = conn.Close()
+	}
+	return nil, connectedProfileInfo{}, seen, fmt.Errorf("no running Open Browser Use host matched --profile %q; %s", selector, profileMatchHint(seen))
+}
+
+func profileMatchHint(seen []connectedProfileInfo) string {
+	if len(seen) == 0 {
+		return "no Chrome host was reachable; open Chrome on the desired profile and retry"
+	}
+	labels := make([]string, 0, len(seen))
+	for _, info := range seen {
+		labels = append(labels, info.label())
+	}
+	return "currently connected: " + strings.Join(labels, ", ")
+}
+
+func listSocketCandidates(socketDir string) ([]socketCandidate, error) {
 	dir := socketDir
 	if dir == "" {
 		dir = host.DefaultSocketDir
 	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	var candidates []socketCandidate
@@ -1998,6 +2339,18 @@ func scanSocketDir(socketDir string, skipPath string, timeout time.Duration) (ne
 		}
 		return candidates[i].modTime.After(candidates[j].modTime)
 	})
+	return candidates, nil
+}
+
+func scanSocketDir(socketDir string, skipPath string, timeout time.Duration) (net.Conn, error) {
+	dir := socketDir
+	if dir == "" {
+		dir = host.DefaultSocketDir
+	}
+	candidates, err := listSocketCandidates(socketDir)
+	if err != nil {
+		return nil, err
+	}
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("no socket files in %q", dir)
 	}

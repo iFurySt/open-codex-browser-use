@@ -673,6 +673,123 @@ func TestProfilesCommandEmptyOutput(t *testing.T) {
 	}
 }
 
+func writeChromeExtensionStorage(t *testing.T, home, profileDir, extensionID, payload string) {
+	t.Helper()
+	base := filepath.Join(home, "Library/Application Support/Google/Chrome")
+	if runtime.GOOS == "linux" {
+		base = filepath.Join(home, ".config/google-chrome")
+	}
+	storageDir := filepath.Join(base, profileDir, "Local Extension Settings", extensionID)
+	if err := os.MkdirAll(storageDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// Mimic a LevelDB write-ahead log: arbitrary bytes that contain the UUID
+	// somewhere inside. Our resolver byte-greps so format doesn't matter.
+	if err := os.WriteFile(filepath.Join(storageDir, "000003.log"), []byte("garbage prefix\x00\x01extensionInstanceId\""+payload+"\"\x00more garbage"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestResolveProfileForInstanceIDHit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeLocalState(t, home, `{"profile":{"info_cache":{"Default":{"name":"Eva"},"Profile 1":{"name":"Work"}}}}`)
+	writeChromeExtensionStorage(t, home, "Default", defaultChromeExtensionID, "11111111-aaaa-bbbb-cccc-1234567890ab")
+	writeChromeExtensionStorage(t, home, "Profile 1", defaultChromeExtensionID, "22222222-aaaa-bbbb-cccc-1234567890ab")
+
+	dir, name, ok := resolveProfileForInstanceID(defaultChromeExtensionID, "22222222-aaaa-bbbb-cccc-1234567890ab")
+	if !ok {
+		t.Fatal("expected to resolve instance to a profile")
+	}
+	if dir != "Profile 1" {
+		t.Errorf("expected directory Profile 1, got %q", dir)
+	}
+	if name != "Work" {
+		t.Errorf("expected display name Work, got %q", name)
+	}
+}
+
+func TestResolveProfileForInstanceIDMiss(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeExtensionStorage(t, home, "Default", defaultChromeExtensionID, "11111111-aaaa-bbbb-cccc-1234567890ab")
+
+	if _, _, ok := resolveProfileForInstanceID(defaultChromeExtensionID, "ffffffff-ffff-ffff-ffff-ffffffffffff"); ok {
+		t.Fatal("expected no resolution for unknown UUID")
+	}
+	if _, _, ok := resolveProfileForInstanceID(defaultChromeExtensionID, ""); ok {
+		t.Fatal("expected empty instance to not resolve")
+	}
+	if _, _, ok := resolveProfileForInstanceID("", "11111111-aaaa-bbbb-cccc-1234567890ab"); ok {
+		t.Fatal("expected empty extension id to not resolve")
+	}
+}
+
+func TestProfileSelectorMatches(t *testing.T) {
+	info := connectedProfileInfo{
+		Directory:   "Profile 1",
+		DisplayName: "Work",
+		InstanceID:  "11111111-aaaa-bbbb-cccc-1234567890ab",
+	}
+	cases := []struct {
+		selector string
+		want     bool
+	}{
+		{"", true},
+		{"Profile 1", true},
+		{"profile 1", true},
+		{"Work", true},
+		{"work", true},
+		{"11111111-aaaa-bbbb-cccc-1234567890ab", true},
+		{"Eva", false},
+		{"Default", false},
+	}
+	for _, tc := range cases {
+		if got := profileSelectorMatches(tc.selector, info); got != tc.want {
+			t.Errorf("selector %q -> %v, want %v", tc.selector, got, tc.want)
+		}
+	}
+}
+
+func TestProfileSelectorMatchesUnresolved(t *testing.T) {
+	info := connectedProfileInfo{InstanceID: "abc"}
+	if !profileSelectorMatches("ABC", info) {
+		t.Error("expected case-insensitive instance id match")
+	}
+	if profileSelectorMatches("Default", info) {
+		t.Error("expected directory mismatch when info has no directory")
+	}
+}
+
+func TestConnectedProfileFromInfo(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeLocalState(t, home, `{"profile":{"info_cache":{"Profile 5":{"name":"Test"}}}}`)
+	writeChromeExtensionStorage(t, home, "Profile 5", defaultChromeExtensionID, "abcd1234-aaaa-bbbb-cccc-1234567890ab")
+
+	payload := map[string]any{
+		"result": map[string]any{
+			"metadata": map[string]any{
+				"extensionId":         defaultChromeExtensionID,
+				"extensionInstanceId": "abcd1234-aaaa-bbbb-cccc-1234567890ab",
+			},
+		},
+	}
+	got := connectedProfileFromInfo("/tmp/some.sock", payload)
+	if got.SocketPath != "/tmp/some.sock" || got.Directory != "Profile 5" || got.DisplayName != "Test" {
+		t.Errorf("unexpected resolution: %+v", got)
+	}
+}
+
 func TestChromeProfileSortKey(t *testing.T) {
 	cases := []struct {
 		dirs []string

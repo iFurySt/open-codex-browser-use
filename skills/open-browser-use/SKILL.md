@@ -12,7 +12,8 @@ Open Browser Use connects an MV3 Chrome extension, a local native messaging host
 ## Core Workflow
 
 1. Check setup with `open-browser-use ping` or `obu ping`. If it fails because setup is missing, read [references/installation.md](references/installation.md).
-2. Choose a unique browser session id for the current agent task before opening or claiming tabs. Prefer the surrounding runtime's conversation/session id when available; otherwise create a short unique id such as `obu-<task-slug>-<timestamp>`. Reuse that same id for every Open Browser Use command in this task.
+2. Pick the right Chrome profile if multiple are installed. See "Multi-profile handling" below before issuing browser commands.
+3. Choose a unique browser session id for the current agent task before opening or claiming tabs. Prefer the surrounding runtime's conversation/session id when available; otherwise create a short unique id such as `obu-<task-slug>-<timestamp>`. Reuse that same id for every Open Browser Use command in this task.
 3. Name the current browser task group before opening or claiming tabs. Use a short task label followed by ` - OBU`; if no better task label is available, use `Task - OBU`.
 4. Use the CLI for simple inspection or one-shot actions: `info`, `tabs`, `user-tabs`, `history`, `open-tab`, `navigate`, `cdp`, and `call`.
 5. Use `open-browser-use run` / `obu run` for CLI-level multi-step orchestration when a small line-oriented action plan is enough and writing SDK code would be unnecessary.
@@ -32,6 +33,54 @@ Open Browser Use connects an MV3 Chrome extension, a local native messaging host
 - Do not rely on the CLI fallback session `obu-cli` for agent tasks. Always pass a task-unique `--session-id` to CLI and MCP commands, or set `sessionId` / `session_id` / `SessionID` in SDK clients. The fallback exists for quick manual use and can reuse stale task groups across unrelated agent sessions.
 - Direct CLI subcommands and `open-browser-use run` can share the same browser session only when they use the same explicit `--session-id`. Finalize that same session before ending browser work.
 - Use `call --method <method> --params '<json>'` only when no safer convenience command or SDK wrapper exists.
+
+## Multi-profile handling
+
+Some users run Chrome with several profiles (work, personal, side accounts). If
+more than one profile has the Open Browser Use extension installed, the agent
+must decide which profile this task should operate on rather than silently
+picking whatever Chrome window happens to be active.
+
+1. Before any browser command, list installed profiles:
+
+   ```sh
+   open-browser-use profiles --connected
+   ```
+
+   Columns: `DIRECTORY` (stable id like `Default`, `Profile 1`), `DISPLAY NAME`
+   (what the user sees in the Chrome avatar menu), `VERSION`, and `CONNECTED`
+   (whether that profile's host is currently reachable). JSON output is
+   available via `--json`.
+
+2. If exactly one profile is installed, proceed without asking.
+
+3. If more than one profile is installed, ask the user which to use unless the
+   user already specified one in the original task ("use my work profile",
+   "do this on cookiy.com"). When asking, list both directory name and display
+   name so the user can recognize them.
+
+4. After the user has chosen, pass `--profile <selector>` to every CLI / MCP
+   command for the rest of the task. The selector accepts either the directory
+   name (`Default`, `Profile 1`) or the display name (`Eva`, `cookiy.com`),
+   case-insensitive. Do not switch profiles mid-task.
+
+5. If `--profile` does not match any running host, the CLI prints which
+   profiles are currently connected. Ask the user to open Chrome on the chosen
+   profile, then retry; do not silently fall back to a different profile.
+
+6. For MCP, lock the profile at server start:
+
+   ```toml
+   [mcp_servers.open_browser_use]
+   command = "obu"
+   args = ["mcp", "--session-id", "obu-<task-id>", "--profile", "<selector>"]
+   ```
+
+   Do not pass profile as a per-tool-call argument — the MCP server applies the
+   start-time selector to every call.
+
+7. Do not remember the user's profile choice across unrelated tasks. A future
+   task may belong to a different profile; ask again rather than assuming.
 
 ## Common CLI Actions
 
