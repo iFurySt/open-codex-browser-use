@@ -93,6 +93,7 @@ func newRootCommand() *cobra.Command {
 		newWaitFileChooserCommand(),
 		newSetFileChooserFilesCommand(),
 		newSimpleRPCCommand("turn-ended", "turnEnded", "End the current browser turn"),
+		newProfilesCommand(),
 		newVersionCommand(),
 	)
 	return root
@@ -502,13 +503,25 @@ type detectedExtension struct {
 	Source      string
 }
 
-func detectInstalledChromeExtension() (detectedExtension, bool) {
+type installedChromeProfile struct {
+	Directory   string `json:"directory"`
+	DisplayName string `json:"displayName,omitempty"`
+	ExtensionID string `json:"extensionId"`
+	Version     string `json:"version"`
+	Source      string `json:"source"`
+}
+
+func chromeExtensionCandidateIDs() []string {
 	candidates := []string{defaultChromeExtensionID}
 	if betaID, err := extensionIDFromPublicKey(betaExtensionPublicKey); err == nil && betaID != defaultChromeExtensionID {
 		candidates = append(candidates, betaID)
 	}
+	return candidates
+}
+
+func detectInstalledChromeExtension() (detectedExtension, bool) {
 	var best detectedExtension
-	for _, extensionID := range candidates {
+	for _, extensionID := range chromeExtensionCandidateIDs() {
 		detected, ok := detectInstalledChromeExtensionByID(extensionID)
 		if !ok {
 			continue
@@ -531,35 +544,195 @@ func detectInstalledChromeExtensionByID(extensionID string) (detectedExtension, 
 	}
 	var best detectedExtension
 	for _, profile := range profiles {
-		versionDirs, err := filepath.Glob(filepath.Join(profile, "Extensions", extensionID, "*"))
-		if err != nil {
+		detected, ok := detectExtensionInProfile(profile, extensionID)
+		if !ok {
 			continue
 		}
-		for _, versionDir := range versionDirs {
-			manifestPath := filepath.Join(versionDir, "manifest.json")
-			payload, err := os.ReadFile(manifestPath)
-			if err != nil {
+		if best.Version == "" || compareChromeVersions(detected.Version, best.Version) > 0 {
+			best = detected
+		}
+	}
+	return best, best.Version != ""
+}
+
+func detectExtensionInProfile(profileDir string, extensionID string) (detectedExtension, bool) {
+	var best detectedExtension
+	if detected, ok := detectCRXExtensionInProfile(profileDir, extensionID); ok {
+		if best.Version == "" || compareChromeVersions(detected.Version, best.Version) > 0 {
+			best = detected
+		}
+	}
+	if detected, ok := detectUnpackedExtensionInProfile(profileDir, extensionID); ok {
+		if best.Version == "" || compareChromeVersions(detected.Version, best.Version) > 0 {
+			best = detected
+		}
+	}
+	return best, best.Version != ""
+}
+
+func detectCRXExtensionInProfile(profileDir string, extensionID string) (detectedExtension, bool) {
+	versionDirs, err := filepath.Glob(filepath.Join(profileDir, "Extensions", extensionID, "*"))
+	if err != nil {
+		return detectedExtension{}, false
+	}
+	var best detectedExtension
+	for _, versionDir := range versionDirs {
+		manifestPath := filepath.Join(versionDir, "manifest.json")
+		detected, ok := readManifestVersion(manifestPath, extensionID)
+		if !ok {
+			continue
+		}
+		if best.Version == "" || compareChromeVersions(detected.Version, best.Version) > 0 {
+			best = detected
+		}
+	}
+	return best, best.Version != ""
+}
+
+func detectUnpackedExtensionInProfile(profileDir string, extensionID string) (detectedExtension, bool) {
+	securePrefsPath := filepath.Join(profileDir, "Secure Preferences")
+	payload, err := os.ReadFile(securePrefsPath)
+	if err != nil {
+		return detectedExtension{}, false
+	}
+	var prefs struct {
+		Extensions struct {
+			Settings map[string]struct {
+				Path     string         `json:"path"`
+				Manifest map[string]any `json:"manifest"`
+			} `json:"settings"`
+		} `json:"extensions"`
+	}
+	if err := json.Unmarshal(payload, &prefs); err != nil {
+		return detectedExtension{}, false
+	}
+	entry, ok := prefs.Extensions.Settings[extensionID]
+	if !ok || strings.TrimSpace(entry.Path) == "" {
+		return detectedExtension{}, false
+	}
+	resolved := entry.Path
+	if !filepath.IsAbs(resolved) {
+		// CRX-style paths in Secure Preferences are usually `<id>/<version>`
+		// rooted at `<profile>/Extensions/`.
+		resolved = filepath.Join(profileDir, "Extensions", resolved)
+	}
+	manifestPath := filepath.Join(resolved, "manifest.json")
+	if detected, ok := readManifestVersion(manifestPath, extensionID); ok {
+		return detected, true
+	}
+	// Fall back to the manifest blob embedded in Secure Preferences if the
+	// on-disk manifest is unreachable.
+	if version, ok := entry.Manifest["version"].(string); ok && strings.TrimSpace(version) != "" {
+		return detectedExtension{
+			ExtensionID: extensionID,
+			Version:     strings.TrimSpace(version),
+			Source:      securePrefsPath,
+		}, true
+	}
+	return detectedExtension{}, false
+}
+
+func readManifestVersion(manifestPath string, extensionID string) (detectedExtension, bool) {
+	payload, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return detectedExtension{}, false
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(payload, &manifest); err != nil {
+		return detectedExtension{}, false
+	}
+	extensionVersion, ok := manifest["version"].(string)
+	if !ok || strings.TrimSpace(extensionVersion) == "" {
+		return detectedExtension{}, false
+	}
+	return detectedExtension{
+		ExtensionID: extensionID,
+		Version:     strings.TrimSpace(extensionVersion),
+		Source:      manifestPath,
+	}, true
+}
+
+func listInstalledChromeProfiles() ([]installedChromeProfile, error) {
+	root, err := defaultChromeUserDataDir()
+	if err != nil {
+		return nil, err
+	}
+	profileDirs, err := chromeProfileDirs(root)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []installedChromeProfile{}, nil
+		}
+		return nil, err
+	}
+	displayNames := chromeProfileDisplayNames(root)
+	candidates := chromeExtensionCandidateIDs()
+
+	profiles := make([]installedChromeProfile, 0, len(profileDirs))
+	for _, profileDir := range profileDirs {
+		var best detectedExtension
+		for _, extensionID := range candidates {
+			detected, ok := detectExtensionInProfile(profileDir, extensionID)
+			if !ok {
 				continue
-			}
-			var manifest map[string]any
-			if err := json.Unmarshal(payload, &manifest); err != nil {
-				continue
-			}
-			extensionVersion, ok := manifest["version"].(string)
-			if !ok || strings.TrimSpace(extensionVersion) == "" {
-				continue
-			}
-			detected := detectedExtension{
-				ExtensionID: extensionID,
-				Version:     extensionVersion,
-				Source:      manifestPath,
 			}
 			if best.Version == "" || compareChromeVersions(detected.Version, best.Version) > 0 {
 				best = detected
 			}
 		}
+		if best.Version == "" {
+			continue
+		}
+		dirName := filepath.Base(profileDir)
+		profiles = append(profiles, installedChromeProfile{
+			Directory:   dirName,
+			DisplayName: displayNames[dirName],
+			ExtensionID: best.ExtensionID,
+			Version:     best.Version,
+			Source:      best.Source,
+		})
 	}
-	return best, best.Version != ""
+	sort.Slice(profiles, func(i, j int) bool {
+		return chromeProfileSortKey(profiles[i].Directory) < chromeProfileSortKey(profiles[j].Directory)
+	})
+	return profiles, nil
+}
+
+func chromeProfileSortKey(dir string) string {
+	// Keep "Default" first, then "Profile N" ordered numerically.
+	if dir == "Default" {
+		return "0"
+	}
+	if strings.HasPrefix(dir, "Profile ") {
+		suffix := strings.TrimPrefix(dir, "Profile ")
+		if n, err := strconv.Atoi(suffix); err == nil {
+			return fmt.Sprintf("1:%010d", n)
+		}
+	}
+	return "2:" + dir
+}
+
+func chromeProfileDisplayNames(root string) map[string]string {
+	payload, err := os.ReadFile(filepath.Join(root, "Local State"))
+	if err != nil {
+		return nil
+	}
+	var state struct {
+		Profile struct {
+			InfoCache map[string]struct {
+				Name string `json:"name"`
+			} `json:"info_cache"`
+		} `json:"profile"`
+	}
+	if err := json.Unmarshal(payload, &state); err != nil {
+		return nil
+	}
+	out := make(map[string]string, len(state.Profile.InfoCache))
+	for dir, info := range state.Profile.InfoCache {
+		if name := strings.TrimSpace(info.Name); name != "" {
+			out[dir] = name
+		}
+	}
+	return out
 }
 
 func defaultChromeUserDataDir() (string, error) {
@@ -1119,6 +1292,64 @@ func newVersionCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func newProfilesCommand() *cobra.Command {
+	var asJSON bool
+	cmd := &cobra.Command{
+		Use:   "profiles",
+		Short: "List Chrome profiles that have the Open Browser Use extension installed",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			profiles, err := listInstalledChromeProfiles()
+			if err != nil {
+				return err
+			}
+			return renderProfilesList(cmd.OutOrStdout(), profiles, asJSON)
+		},
+	}
+	cmd.Flags().BoolVar(&asJSON, "json", false, "emit JSON instead of a human-readable table")
+	return cmd
+}
+
+func renderProfilesList(writer io.Writer, profiles []installedChromeProfile, asJSON bool) error {
+	if asJSON {
+		payload, err := json.MarshalIndent(profiles, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(writer, string(payload))
+		return nil
+	}
+	if len(profiles) == 0 {
+		fmt.Fprintln(writer, "No Chrome profiles with the Open Browser Use extension were detected.")
+		fmt.Fprintln(writer, "Install the extension in at least one profile or run `open-browser-use setup`.")
+		return nil
+	}
+	dirWidth := len("DIRECTORY")
+	nameWidth := len("DISPLAY NAME")
+	for _, profile := range profiles {
+		if w := len(profile.Directory); w > dirWidth {
+			dirWidth = w
+		}
+		name := profile.DisplayName
+		if name == "" {
+			name = "(unnamed)"
+		}
+		if w := len(name); w > nameWidth {
+			nameWidth = w
+		}
+	}
+	format := fmt.Sprintf("%%-%ds  %%-%ds  %%s\n", dirWidth, nameWidth)
+	fmt.Fprintf(writer, format, "DIRECTORY", "DISPLAY NAME", "VERSION")
+	for _, profile := range profiles {
+		name := profile.DisplayName
+		if name == "" {
+			name = "(unnamed)"
+		}
+		fmt.Fprintf(writer, format, profile.Directory, name, profile.Version)
+	}
+	return nil
 }
 
 type actionRunner struct {
