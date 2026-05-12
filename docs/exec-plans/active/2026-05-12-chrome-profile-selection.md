@@ -50,33 +50,37 @@
 
 ## 里程碑
 
-1. **M1 — Profile 发现原子能力**
+1. **M1 — Profile 发现原子能力**（已完成）
    - 抽出 `listInstalledProfiles()` 函数，复用 `chromeProfileDirs` + 插件检测，附加 `Local State` 展示名解析。
    - 新增 `obu profiles` CLI 子命令（输出 JSON + 人类可读两种格式）。
-   - 单元测试覆盖：单 profile、多 profile、`Local State` 缺失、`Local State` 损坏、目标 profile 没装插件。
+   - 单元测试覆盖：单 profile、多 profile、`Local State` 缺失、`Local State` 损坏、目标 profile 没装插件、unpacked 检测、CRX vs unpacked 取版本较高者。
 
-2. **M2 — Active socket registry v2**
-   - 把 `active.json` 改成 v2 结构：`{ version, active, profiles: { <dir>: { socket, extensionId, pid, startedAt } } }`，保留 v1 字段做向后兼容。
-   - native host 启动时识别 origin extension id 对应的 profile（通过 extension 在握手帧里上报的 profile 目录名 + 展示名），写入对应条目。
-   - host 退出时清理自己的 entry；orphan entry 在 CLI 发现连不上时按目录扫描和 stale registry 清理逻辑顺手 evict。
-   - 多 profile host 并发写入测试。
+2. **M2 — 通过 `extensionInstanceId` 做 profile ↔ socket 反查**
+   - 复用 extension 已有的 `extensionInstanceId`（写在 `chrome.storage.local`，每个 profile 一份；`getInfo` 已经返回它）。
+   - 新增 `resolveProfileForInstanceID(extensionID, instanceID)`：扫描每个已知 profile 的 `<profile>/Local Extension Settings/<extension-id>/*.log` + `*.ldb`，grep 这个 UUID 字符串，匹配上的 profile 就是该 host 对应的 profile。
+   - 单元测试用伪造的 LevelDB log 文件覆盖：匹配命中、多 profile 唯一匹配、找不到。
 
-3. **M3 — Extension 上报 profile 身份**
-   - MV3 service worker 启动握手时通过 `chrome.runtime.getProfileUserInfo` + 读取 `chrome.identity.getProfileUserInfo`（或 manifest 中已有的 profile 标识方案）拿到 profile 信息；如果只有目录名可用就只上报目录名。
-   - native host 把这个标识写进 socket registry。
-   - 兜底：拿不到时退化为 `unknown-<pid>`。
+   > 调整说明：原方案打算升级 `active.json` 为 per-profile registry，需要 host 启动时就知道自己是哪个 profile。但 Chrome extension API 不暴露 profile 目录名，外加 `active.json` 的并发写入需要文件锁，代价偏高。新方案利用 extension 已有的 instanceId 做反向解析，不动 host 也不动 `active.json` 格式，复杂度大幅下降；后续真出现多 host 并发瓶颈时再升级 registry。
+
+3. **M3 — Extension 上报 profile 身份**（绝大部分已自由）
+   - `getInfo` 已经返回 `metadata.extensionInstanceId`（来源：`chrome.storage.local.extensionInstanceId`，首次启动时由 `crypto.randomUUID()` 生成）。
+   - 本里程碑只需要补充：documentation + 必要的话在 `getInfo` 中附带 `chrome.runtime.id`（已有 `extensionId`）和 manifest version。
+   - 不需要新增 `identity` 权限，不需要扩展 handshake 协议。
 
 4. **M4 — CLI / SDK / MCP 接入 `--profile`**
-   - CLI：所有面向用户的子命令加 `--profile` flag；socket 选择逻辑改为"先按 profile 查 registry，找不到就报错"。
-   - `obu mcp`：在启动参数上接 `--profile`，整个 server 生命周期锁定一个 profile。每个 tool call 不再单独接收 profile，避免一次会话里换来换去。
-   - SDK：构造函数接 `profile` 选项，同时暴露 `listProfiles()` 静态方法。
+   - CLI：在 root persistent flag 加 `--profile`；socketOptions 携带 selector。
+   - 连接策略：扫描 `socket-dir` 下所有 `.sock`，对能连通的逐个 `getInfo`，把 `metadata.extensionInstanceId` 反查到 profile directory + displayName；按 selector（接受 directory 名 或 displayName，case-insensitive）挑出匹配的 socket。
+   - 找不到匹配时给清晰错误：列出当前连得通的 profile 列表 + 安装但没连接的 profile 列表，提示用户先打开对应 Chrome profile。
+   - `obu mcp --profile`：server 启动时锁定 selector，每次工具调用复用同一个解析结果（带 1 分钟缓存）。
+   - SDK：构造函数接 `profile` 选项。Python/JS/Go 复用同一查找逻辑。
+   - `obu profiles --connected` / `obu info`：附加显示当前已连通的 profile（directory + displayName + instanceId）。
 
 5. **M5 — Skill 指引**
-   - 在 `skills/open-browser-use/SKILL.md` 增加 "Multi-profile handling" 章节：先 `listProfiles` → 多于 1 个就问用户 → 任务内持续使用。
+   - 在 `skills/open-browser-use/SKILL.md` 增加 "Multi-profile handling" 章节：先 `obu profiles` → 多于 1 个就问用户 → 任务内持续使用。
    - 给出"用户已在 prompt 里指定 profile 名称"时的快路径，不必再问。
 
 6. **M6 — 文档与发布**
-   - 更新 `docs/ARCHITECTURE.md` 中 `active.json` 描述、Chrome route topology。
+   - 更新 `docs/ARCHITECTURE.md` 中 profile 选择行为描述。
    - `docs/releases/` 加一条 user-facing changelog。
    - history 记录到 `docs/histories/`。
 
@@ -156,11 +160,29 @@
   - 新增 `obu profiles` 子命令，支持 `--json` 输出。
   - 测试：单 profile / 多 profile 排序 / 跳过未装插件的 profile / 缺失 `Local State` / 损坏 `Local State` / unpacked 检测 / CRX vs unpacked 版本择优 / CLI JSON / CLI human / CLI 空表 / 排序 key。
   - 实机回归（5 profile，beta 装在 Default 和 Profile 3）：CLI 正确列出 2 条 `0.1.29` 记录。
-- [ ] M2 Active socket registry v2
-- [ ] M3 Extension 上报 profile 身份
-- [ ] M4 CLI / SDK / MCP 接入 `--profile`
-- [ ] M5 Skill 指引
+- [x] M2 通过 `extensionInstanceId` 做 profile ↔ socket 反查（2026-05-12 完成）
+  - 新增 `resolveProfileForInstanceID(extensionID, instanceID)`，对每个 profile 的 `Local Extension Settings/<ext-id>/*.{log,ldb}` byte-grep UUID。
+  - 单测覆盖：命中、找不到、空参数、与 displayName 联合返回。
+- [x] M3 Extension 上报 profile 身份（2026-05-12 自动满足）
+  - 现有 `getInfo` 已经返回 `metadata.extensionInstanceId`（chrome.storage.local 中的 per-profile UUID）。
+  - 不需要修改 extension 代码或申请新权限。
+- [x] M4 CLI / MCP 接入 `--profile`（2026-05-12 完成）
+  - `socketOptions` 增加 `profile` 字段，`addSocketFlags` 同步注册 `--profile`。
+  - 新增 `dialBrowserSocketForProfile` / `pickSocketForProfile` / `verifySocketMatchesProfile`：枚举 socket 目录、对每个 socket `getInfo` 后通过 instanceID 反查 directory，按 selector（directory/displayName/instanceId，case-insensitive）挑出匹配 socket。
+  - `obu profiles --connected` 与 `--json` 输出新增 `connected` / `socketPath` / `instanceId` 字段。
+  - 错误信息列出当前连接的 profile，提示用户开对应 Chrome。
+  - `obu mcp --profile` 通过共享 `socketOptions` 自动生效，每次工具调用复用 server 启动时的 selector。
+  - SDK profile 选项延期；CLI/MCP 已覆盖 skill 主要用例。
+  - 实机回归（Default/Eva 与 Profile 3/cookiy.com 同时在线）：
+    - 无 `--profile`：连到 active socket（Profile 3）。
+    - `--profile Default` / `--profile Eva` 路由到 Default 的 socket（instance c68f12f2…）。
+    - `--profile "Profile 3"` / `--profile cookiy.com` 路由到 Profile 3 的 socket（instance ceb59c8d…）。
+    - `--profile "Profile 999"`：非零退出，提示当前已连接的两个 profile。
+    - TC-3 验证 user-tabs 在两个 profile 上返回不同的 tab 列表（Default=1, Profile 3=9）。
+- [x] M5 Skill 指引（2026-05-12 完成）
+  - `skills/open-browser-use/SKILL.md` 新增 "Multi-profile handling" 章节，覆盖 1/N profile 分支、selector 接受 directory/displayName、错误处理、MCP 启动锁定、不跨任务记忆 profile 选择。
 - [ ] M6 文档与发布
+  - 待补：`docs/ARCHITECTURE.md` profile 选择段落 + 用户面 changelog + history。
 
 ## 决策记录
 
@@ -169,3 +191,4 @@
 - 2026-05-12：`obu mcp` 在启动参数锁定 profile，而不是每个 tool call 都接收 profile。理由：和 skill 的"一个任务一个 profile"语义一致，避免一次会话里 agent 跳来跳去。
 - 2026-05-12：`active.json` 升级为 v2 结构，但保留 v1 顶层 `socket` 字段，确保旧 CLI/SDK 还能连。
 - 2026-05-12：profile 检测必须同时覆盖 CRX 和 unpacked 两条路径。实机发现 beta 用户的扩展只出现在 `<Profile>/UnpackedExtensions/` 下，并由 `Secure Preferences.extensions.settings.<id>.path` 指向；只扫 `Extensions/<id>/<ver>` 会完全漏掉这些 profile。
+- 2026-05-12：放弃原本计划的 `active.json` v2 多 profile registry。原因：Chrome extension API 不暴露 profile 目录名，host 启动时无法可靠自报身份，加上文件锁/并发写入的复杂度收益小。改用现有 `extensionInstanceId`（chrome.storage.local 里的 per-profile UUID，`getInfo` 已经返回）+ 在 CLI 侧 byte-grep 每个 profile 的 `Local Extension Settings/<ext-id>/*.{log,ldb}` 反查 directory。这条路径完全无需改 host 或 extension，靠扫 socket 目录 + getInfo 即可。后续真出现多 host 高频并发场景再回头补 registry。

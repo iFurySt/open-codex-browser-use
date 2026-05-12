@@ -155,7 +155,18 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - CLI 便捷子命令覆盖当前 SDK 核心能力：`ping`、`info`、`tabs`、
   `user-tabs`、`history`、`open-tab`、`navigate`、`claim-tab`、
   `finalize-tabs`、`name-session`、`cdp`、`move-mouse`、
-  `wait-file-chooser`、`set-file-chooser-files`、`turn-ended`。
+  `wait-file-chooser`、`set-file-chooser-files`、`turn-ended`、`profiles`。
+- Chrome multi-profile 支持：`open-browser-use profiles` 扫描每个 Chrome
+  profile 目录（CRX 与 unpacked 两条路径）找到已经装好插件的 profile，附带
+  显示名（来自 `Local State.profile.info_cache`）。所有面向用户的命令支持
+  `--profile <directory|displayName>`：CLI 枚举 `socket-dir` 下的 `.sock`
+  文件，对每个连通的 socket 调用 `getInfo`，把 `metadata.extensionInstanceId`
+  反查到 profile directory（grep 每个 profile 的
+  `Local Extension Settings/<extension-id>/*.{log,ldb}`），按 selector 选出
+  匹配的 socket。`obu mcp --profile` 在 MCP server 启动时锁定 selector，每次
+  工具调用复用同一个解析结果。selector 不匹配时 CLI 列出当前已连通的 profile
+  列表，提示用户开对应 Chrome。第一版没有改 `active.json` 结构，也不需要
+  extension 上报额外身份信息（`extensionInstanceId` 已经存在）。
 - MV3 extension core handlers：`getInfo`、`createTab`、`getTabs`、
   `getUserTabs`、`getUserHistory`、`claimUserTab`、`finalizeTabs`、
   `nameSession`、`attach`、`detach`、`executeCdp`、`moveMouse`、
