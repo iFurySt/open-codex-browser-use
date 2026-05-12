@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -344,6 +345,359 @@ func TestDetectInstalledChromeExtensionFromProfile(t *testing.T) {
 	}
 	if detected.Version != "0.1.10" {
 		t.Fatalf("expected version 0.1.10, got %q", detected.Version)
+	}
+}
+
+func writeChromeExtensionManifest(t *testing.T, home, profileDir, extensionVersion string) {
+	t.Helper()
+	base := filepath.Join(home, "Library/Application Support/Google/Chrome")
+	if runtime.GOOS == "linux" {
+		base = filepath.Join(home, ".config/google-chrome")
+	}
+	dir := filepath.Join(base, profileDir, "Extensions", defaultChromeExtensionID, extensionVersion)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	manifest := fmt.Sprintf(`{"version":%q}`, extensionVersion)
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeChromeLocalState(t *testing.T, home string, payload string) {
+	t.Helper()
+	base := filepath.Join(home, "Library/Application Support/Google/Chrome")
+	if runtime.GOOS == "linux" {
+		base = filepath.Join(home, ".config/google-chrome")
+	}
+	if err := os.MkdirAll(base, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(base, "Local State"), []byte(payload), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeChromeUnpackedExtension(t *testing.T, home, profileDir, extensionID, extensionVersion string) {
+	t.Helper()
+	base := filepath.Join(home, "Library/Application Support/Google/Chrome")
+	if runtime.GOOS == "linux" {
+		base = filepath.Join(home, ".config/google-chrome")
+	}
+	unpackedDir := filepath.Join(base, profileDir, "UnpackedExtensions", "open-browser-use-chrome-extension-"+extensionVersion+"_test")
+	if err := os.MkdirAll(unpackedDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	manifest := fmt.Sprintf(`{"version":%q}`, extensionVersion)
+	if err := os.WriteFile(filepath.Join(unpackedDir, "manifest.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	profileRoot := filepath.Join(base, profileDir)
+	if err := os.MkdirAll(profileRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	prefs := map[string]any{
+		"extensions": map[string]any{
+			"settings": map[string]any{
+				extensionID: map[string]any{
+					"path": unpackedDir,
+				},
+			},
+		},
+	}
+	payload, err := json.Marshal(prefs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(profileRoot, "Secure Preferences"), payload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListInstalledChromeProfilesDetectsUnpackedExtension(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	betaID, err := extensionIDFromPublicKey(betaExtensionPublicKey)
+	if err != nil {
+		t.Fatalf("could not derive beta extension id: %v", err)
+	}
+	writeChromeUnpackedExtension(t, home, "Profile 1", betaID, "0.1.29")
+	writeChromeLocalState(t, home, `{"profile":{"info_cache":{"Profile 1":{"name":"Beta"}}}}`)
+
+	profiles, err := listInstalledChromeProfiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 1 {
+		t.Fatalf("expected 1 profile, got %+v", profiles)
+	}
+	if profiles[0].ExtensionID != betaID {
+		t.Errorf("expected beta extension id %q, got %q", betaID, profiles[0].ExtensionID)
+	}
+	if profiles[0].Version != "0.1.29" {
+		t.Errorf("expected version 0.1.29, got %q", profiles[0].Version)
+	}
+}
+
+func TestListInstalledChromeProfilesPrefersHigherVersionAcrossCRXAndUnpacked(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeExtensionManifest(t, home, "Default", "0.1.10")
+	betaID, err := extensionIDFromPublicKey(betaExtensionPublicKey)
+	if err != nil {
+		t.Fatalf("could not derive beta extension id: %v", err)
+	}
+	writeChromeUnpackedExtension(t, home, "Default", betaID, "0.2.0")
+
+	profiles, err := listInstalledChromeProfiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 1 {
+		t.Fatalf("expected 1 profile, got %+v", profiles)
+	}
+	if profiles[0].Version != "0.2.0" {
+		t.Errorf("expected newer beta version 0.2.0 to win, got %q", profiles[0].Version)
+	}
+}
+
+func TestListInstalledChromeProfilesSingleProfile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeExtensionManifest(t, home, "Default", "0.1.10")
+	writeChromeLocalState(t, home, `{"profile":{"info_cache":{"Default":{"name":"Eva"}}}}`)
+
+	profiles, err := listInstalledChromeProfiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 1 {
+		t.Fatalf("expected 1 profile, got %d (%+v)", len(profiles), profiles)
+	}
+	got := profiles[0]
+	if got.Directory != "Default" {
+		t.Errorf("expected directory Default, got %q", got.Directory)
+	}
+	if got.DisplayName != "Eva" {
+		t.Errorf("expected display name Eva, got %q", got.DisplayName)
+	}
+	if got.Version != "0.1.10" {
+		t.Errorf("expected version 0.1.10, got %q", got.Version)
+	}
+	if got.ExtensionID != defaultChromeExtensionID {
+		t.Errorf("expected default extension id, got %q", got.ExtensionID)
+	}
+}
+
+func TestListInstalledChromeProfilesMultipleProfilesSorted(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeExtensionManifest(t, home, "Profile 10", "0.1.30")
+	writeChromeExtensionManifest(t, home, "Profile 2", "0.1.20")
+	writeChromeExtensionManifest(t, home, "Default", "0.1.10")
+	writeChromeLocalState(t, home, `{"profile":{"info_cache":{
+		"Default":{"name":"Eva"},
+		"Profile 2":{"name":"Work"},
+		"Profile 10":{"name":"测试 🧪"}
+	}}}`)
+
+	profiles, err := listInstalledChromeProfiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 3 {
+		t.Fatalf("expected 3 profiles, got %d (%+v)", len(profiles), profiles)
+	}
+	wantOrder := []string{"Default", "Profile 2", "Profile 10"}
+	for i, dir := range wantOrder {
+		if profiles[i].Directory != dir {
+			t.Errorf("profile[%d]: expected directory %q, got %q", i, dir, profiles[i].Directory)
+		}
+	}
+	if profiles[2].DisplayName != "测试 🧪" {
+		t.Errorf("expected unicode display name preserved, got %q", profiles[2].DisplayName)
+	}
+}
+
+func TestListInstalledChromeProfilesSkipsProfilesWithoutExtension(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeExtensionManifest(t, home, "Default", "0.1.10")
+	// Create a profile directory with no extension installed.
+	base := filepath.Join(home, "Library/Application Support/Google/Chrome")
+	if runtime.GOOS == "linux" {
+		base = filepath.Join(home, ".config/google-chrome")
+	}
+	if err := os.MkdirAll(filepath.Join(base, "Profile 1"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeChromeLocalState(t, home, `{"profile":{"info_cache":{"Default":{"name":"Eva"},"Profile 1":{"name":"Empty"}}}}`)
+
+	profiles, err := listInstalledChromeProfiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 1 {
+		t.Fatalf("expected only the Default profile, got %+v", profiles)
+	}
+	if profiles[0].Directory != "Default" {
+		t.Errorf("expected Default, got %q", profiles[0].Directory)
+	}
+}
+
+func TestListInstalledChromeProfilesMissingLocalState(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeExtensionManifest(t, home, "Default", "0.1.10")
+
+	profiles, err := listInstalledChromeProfiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 1 {
+		t.Fatalf("expected 1 profile, got %+v", profiles)
+	}
+	if profiles[0].DisplayName != "" {
+		t.Errorf("expected empty display name when Local State missing, got %q", profiles[0].DisplayName)
+	}
+}
+
+func TestListInstalledChromeProfilesCorruptLocalState(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeExtensionManifest(t, home, "Default", "0.1.10")
+	writeChromeLocalState(t, home, `{this is not json`)
+
+	profiles, err := listInstalledChromeProfiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profiles) != 1 {
+		t.Fatalf("expected 1 profile, got %+v", profiles)
+	}
+	if profiles[0].DisplayName != "" {
+		t.Errorf("expected display name to fall back to empty on corrupt Local State, got %q", profiles[0].DisplayName)
+	}
+}
+
+func TestProfilesCommandJSONOutput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeExtensionManifest(t, home, "Default", "0.1.10")
+	writeChromeExtensionManifest(t, home, "Profile 1", "0.1.10")
+	writeChromeLocalState(t, home, `{"profile":{"info_cache":{"Default":{"name":"Eva"},"Profile 1":{"name":"Work"}}}}`)
+
+	cmd := newRootCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{"profiles", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	var got []installedChromeProfile
+	if err := json.Unmarshal(output.Bytes(), &got); err != nil {
+		t.Fatalf("expected JSON output, got %q: %v", output.String(), err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 profiles in JSON output, got %+v", got)
+	}
+	if got[0].Directory != "Default" || got[1].Directory != "Profile 1" {
+		t.Errorf("unexpected directories: %+v", got)
+	}
+}
+
+func TestProfilesCommandHumanOutput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeExtensionManifest(t, home, "Default", "0.1.10")
+	writeChromeLocalState(t, home, `{"profile":{"info_cache":{"Default":{"name":"Eva"}}}}`)
+
+	cmd := newRootCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{"profiles"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	text := output.String()
+	for _, want := range []string{"DIRECTORY", "DISPLAY NAME", "VERSION", "Default", "Eva", "0.1.10"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("expected output to contain %q, got:\n%s", want, text)
+		}
+	}
+}
+
+func TestProfilesCommandEmptyOutput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Chrome profile detection is not implemented on windows")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	cmd := newRootCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{"profiles"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "No Chrome profiles") {
+		t.Errorf("expected empty notice, got:\n%s", output.String())
+	}
+}
+
+func TestChromeProfileSortKey(t *testing.T) {
+	cases := []struct {
+		dirs []string
+		want []string
+	}{
+		{
+			dirs: []string{"Profile 10", "Default", "Profile 2", "Profile 1"},
+			want: []string{"Default", "Profile 1", "Profile 2", "Profile 10"},
+		},
+		{
+			dirs: []string{"Profile Foo", "Default", "Profile 1"},
+			want: []string{"Default", "Profile 1", "Profile Foo"},
+		},
+	}
+	for _, tc := range cases {
+		got := append([]string(nil), tc.dirs...)
+		sort.SliceStable(got, func(i, j int) bool {
+			return chromeProfileSortKey(got[i]) < chromeProfileSortKey(got[j])
+		})
+		for i := range tc.want {
+			if got[i] != tc.want[i] {
+				t.Errorf("sort %v => %v, want %v", tc.dirs, got, tc.want)
+				break
+			}
+		}
 	}
 }
 
