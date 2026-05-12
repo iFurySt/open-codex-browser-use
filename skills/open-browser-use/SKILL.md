@@ -52,23 +52,29 @@ picking whatever Chrome window happens to be active.
    (whether that profile's host is currently reachable). JSON output is
    available via `--json`.
 
-2. If exactly one profile is installed, proceed without asking.
+2. If exactly one profile is installed and its `CONNECTED` column is `yes`,
+   proceed without asking.
 
-3. If more than one profile is installed, ask the user which to use unless the
-   user already specified one in the original task ("use my work profile",
-   "do this on cookiy.com"). When asking, list both directory name and display
-   name so the user can recognize them.
+3. If a profile is installed but `CONNECTED` is `-`, the user's Chrome is not
+   open on that profile. Ask the user to open Chrome on that profile (naming it
+   by display name so it is unambiguous) before retrying — do not run browser
+   commands yet, the connection will just fail.
 
-4. After the user has chosen, pass `--profile <selector>` to every CLI / MCP
+4. If more than one profile is installed and connected, ask the user which to
+   use unless the user already specified one in the original task ("use my work
+   profile", "do this on cookiy.com"). When asking, list both directory name
+   and display name so the user can recognize them.
+
+5. After the user has chosen, pass `--profile <selector>` to every CLI / MCP
    command for the rest of the task. The selector accepts either the directory
    name (`Default`, `Profile 1`) or the display name (`Eva`, `cookiy.com`),
    case-insensitive. Do not switch profiles mid-task.
 
-5. If `--profile` does not match any running host, the CLI prints which
+6. If `--profile` does not match any running host, the CLI prints which
    profiles are currently connected. Ask the user to open Chrome on the chosen
    profile, then retry; do not silently fall back to a different profile.
 
-6. For MCP, lock the profile at server start:
+7. For MCP, lock the profile at server start:
 
    ```toml
    [mcp_servers.open_browser_use]
@@ -79,7 +85,7 @@ picking whatever Chrome window happens to be active.
    Do not pass profile as a per-tool-call argument — the MCP server applies the
    start-time selector to every call.
 
-7. Do not remember the user's profile choice across unrelated tasks. A future
+8. Do not remember the user's profile choice across unrelated tasks. A future
    task may belong to a different profile; ask again rather than assuming.
 
 ## Common CLI Actions

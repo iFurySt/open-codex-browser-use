@@ -35,6 +35,10 @@ const chromeWebStoreUpdateURL = "https://clients2.google.com/service/update2/crx
 const chromeWebStoreExtensionURL = "https://chromewebstore.google.com/detail/open-browser-use/" + defaultChromeExtensionID + "?utm_source=open-computer-use"
 const betaExtensionPublicKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnBLT95WWVnHYH0pOBRH/eP+BWtlKVmLE/RHkERUTI2+PGDSQrbWVabmTw4CZ3yhjko04dijSX2Az8cnp65xh23Dh5mP5TCtiP9LexRFJokd8EsyeFdtKamMYr0hF1ZUc1/8ZpLnetAU65ZMB9VzHQBqpJWeUwuIvecgfRtGklDgJMjnvcq5J6pttZrzWrI/2B0BNufwsTQfEt7qLtDFPHXmUdtZfQbc2EfYFvkXLDAXicYviiocedrsAGIKUxpyQegobhUFL+tNLOuXKBpZlLFQn3xgm5CyGZwN6bueiV/S7reigVTKAMQ8BX0eacT22e8r0UzjsjkugeHOIonIvtQIDAQAB"
 
+// LevelDB log/ldb files for chrome.storage.local are typically under 1 MB; cap
+// the scan at 32 MB so a pathological file can't OOM the host.
+const maxLevelDBScanBytes = 32 << 20
+
 func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -747,6 +751,10 @@ func resolveProfileForInstanceID(extensionID string, instanceID string) (directo
 			if !strings.HasSuffix(name, ".log") && !strings.HasSuffix(name, ".ldb") {
 				continue
 			}
+			info, err := entry.Info()
+			if err != nil || info.Size() > maxLevelDBScanBytes {
+				continue
+			}
 			payload, err := os.ReadFile(filepath.Join(storageDir, name))
 			if err != nil {
 				continue
@@ -1350,7 +1358,6 @@ func newProfilesCommand() *cobra.Command {
 	var asJSON bool
 	var connected bool
 	var socketDir string
-	var timeout time.Duration
 	cmd := &cobra.Command{
 		Use:   "profiles",
 		Short: "List Chrome profiles that have the Open Browser Use extension installed",
@@ -1362,7 +1369,7 @@ func newProfilesCommand() *cobra.Command {
 			}
 			var connections []connectedProfileInfo
 			if connected {
-				connections = probeConnectedProfiles(socketDir, timeout)
+				connections = probeConnectedProfiles(socketDir)
 			}
 			return renderProfilesList(cmd.OutOrStdout(), profiles, connections, connected, asJSON)
 		},
@@ -1370,21 +1377,17 @@ func newProfilesCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&asJSON, "json", false, "emit JSON instead of a human-readable table")
 	cmd.Flags().BoolVar(&connected, "connected", false, "also probe running hosts and mark which profile is currently connected")
 	cmd.Flags().StringVar(&socketDir, "socket-dir", host.DefaultSocketDir, "directory containing host sockets (used with --connected)")
-	cmd.Flags().DurationVar(&timeout, "timeout", 2*time.Second, "per-socket probe timeout (used with --connected)")
 	return cmd
 }
 
-func probeConnectedProfiles(socketDir string, timeout time.Duration) []connectedProfileInfo {
+const connectedProbeTimeout = 800 * time.Millisecond
+
+func probeConnectedProfiles(socketDir string) []connectedProfileInfo {
 	candidates, err := listSocketCandidates(socketDir)
 	if err != nil || len(candidates) == 0 {
 		return nil
 	}
-	probeTimeout := timeout
-	if probeTimeout <= 0 {
-		probeTimeout = 800 * time.Millisecond
-	} else if probeTimeout > 800*time.Millisecond {
-		probeTimeout = 800 * time.Millisecond
-	}
+	probeTimeout := connectedProbeTimeout
 	var out []connectedProfileInfo
 	for _, candidate := range candidates {
 		conn, err := net.DialTimeout("unix", candidate.path, probeTimeout)
@@ -1403,13 +1406,9 @@ func probeConnectedProfiles(socketDir string, timeout time.Duration) []connected
 
 func renderProfilesList(writer io.Writer, profiles []installedChromeProfile, connected []connectedProfileInfo, showConnected bool, asJSON bool) error {
 	connectedByDir := map[string]connectedProfileInfo{}
-	connectedByInstance := map[string]connectedProfileInfo{}
 	for _, info := range connected {
 		if info.Directory != "" {
 			connectedByDir[info.Directory] = info
-		}
-		if info.InstanceID != "" {
-			connectedByInstance[info.InstanceID] = info
 		}
 	}
 
@@ -2127,11 +2126,10 @@ func dialBrowserSocketForProfile(socketPath string, socketDir string, profile st
 		}
 		return conn, nil
 	}
-	conn, picked, _, err := pickSocketForProfile(socketDir, profile, timeout)
+	conn, _, _, err := pickSocketForProfile(socketDir, profile, timeout)
 	if err != nil {
 		return nil, err
 	}
-	_ = picked
 	return conn, nil
 }
 

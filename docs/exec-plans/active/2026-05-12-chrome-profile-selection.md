@@ -107,7 +107,8 @@
 
 2. **TC-2 多 profile：列表正确**
    - 同时启动 `Default` 和 `Profile 1` 两个 Chrome 窗口。
-   - 运行 `obu profiles --json` → 期望返回 2 条：每条包含 `directory`、`displayName`、`extensionVersion`、`socket`、`active`（其中之一为 `true`）。
+   - 运行 `obu profiles --json` → 期望返回 2 条：每条包含 `directory`、`displayName`、`extensionId`、`version`、`source`。
+   - 运行 `obu profiles --connected --json` → 同上，额外多出 `connected: true`、`socketPath`、`instanceId`。
    - 展示名应该和 Chrome 头像菜单里看到的一致。
 
 3. **TC-3 显式指定 profile**
