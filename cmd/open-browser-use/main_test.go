@@ -633,11 +633,11 @@ func TestListInstalledChromeProfilesIncludesSupportedBrowsers(t *testing.T) {
 	}
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	writeChromeExtensionManifest(t, home, "Default", "0.1.35")
+	writeChromeExtensionManifest(t, home, "Default", "0.1.36")
 	writeChromeLocalState(t, home, `{"profile":{"info_cache":{"Default":{"name":"Stable"}}}}`)
-	writeChromeBetaExtensionManifest(t, home, "Default", "0.1.35")
+	writeChromeBetaExtensionManifest(t, home, "Default", "0.1.36")
 	writeLocalStateAtRoot(t, chromeBetaRootForTest(home), `{"profile":{"info_cache":{"Default":{"name":"Beta"}}}}`)
-	writeBitBrowserExtensionManifest(t, home, "abc123", "Default", "0.1.35")
+	writeBitBrowserExtensionManifest(t, home, "abc123", "Default", "0.1.36")
 	writeLocalStateAtRoot(t, bitBrowserRootForTest(home, "abc123"), `{"profile":{"info_cache":{"Default":{"name":"Bit"}}}}`)
 
 	profiles, err := listInstalledChromeProfiles()
