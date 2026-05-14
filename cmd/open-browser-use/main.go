@@ -1446,16 +1446,6 @@ func renderProfilesList(writer io.Writer, profiles []installedChromeProfile, con
 			return err
 		}
 		fmt.Fprintln(writer, string(payload))
-		if showConnected {
-			// Surface any connected host whose instanceId didn't resolve to a known
-			// installed profile (rare; would happen if the install registered
-			// extension state under an unknown directory layout).
-			for _, info := range connected {
-				if info.Directory == "" && info.InstanceID != "" {
-					fmt.Fprintf(writer, "// unresolved connected host: socket=%s instance=%s\n", info.SocketPath, info.InstanceID)
-				}
-			}
-		}
 		return nil
 	}
 	if len(profiles) == 0 {

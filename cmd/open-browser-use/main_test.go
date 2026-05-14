@@ -630,6 +630,35 @@ func TestProfilesCommandJSONOutput(t *testing.T) {
 	}
 }
 
+func TestProfilesJSONOutputRemainsValidWithUnresolvedHost(t *testing.T) {
+	profiles := []installedChromeProfile{{
+		Directory:   "Default",
+		DisplayName: "Eva",
+		ExtensionID: defaultChromeExtensionID,
+		Version:     "0.1.10",
+		Source:      "/tmp/manifest.json",
+	}}
+	connected := []connectedProfileInfo{{
+		SocketPath: "/tmp/open-browser-use/unresolved.sock",
+		InstanceID: "11111111-aaaa-bbbb-cccc-1234567890ab",
+	}}
+
+	var output bytes.Buffer
+	if err := renderProfilesList(&output, profiles, connected, true, true); err != nil {
+		t.Fatal(err)
+	}
+	var got []map[string]any
+	if err := json.Unmarshal(output.Bytes(), &got); err != nil {
+		t.Fatalf("expected strict JSON output, got %q: %v", output.String(), err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected one installed profile row, got %+v", got)
+	}
+	if _, ok := got[0]["connected"]; ok {
+		t.Fatalf("unresolved host should not mark installed profile connected: %+v", got[0])
+	}
+}
+
 func TestProfilesCommandHumanOutput(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Chrome profile detection is not implemented on windows")

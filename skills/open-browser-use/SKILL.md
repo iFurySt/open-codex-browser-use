@@ -52,18 +52,18 @@ picking whatever Chrome window happens to be active.
    (whether that profile's host is currently reachable). JSON output is
    available via `--json`.
 
-2. If exactly one profile is installed and its `CONNECTED` column is `yes`,
-   proceed without asking.
+2. If exactly one profile is installed and connected, proceed without asking.
+   If it is installed but not connected, ask the user to open Chrome on that
+   profile before running browser commands.
 
-3. If a profile is installed but `CONNECTED` is `-`, the user's Chrome is not
-   open on that profile. Ask the user to open Chrome on that profile (naming it
-   by display name so it is unambiguous) before retrying — do not run browser
-   commands yet, the connection will just fail.
+3. If multiple profiles are installed and the user did not already specify
+   which one to use, ask before the first browser command. List both directory
+   name and display name so the user can recognize them, and include whether
+   each profile is connected.
 
-4. If more than one profile is installed and connected, ask the user which to
-   use unless the user already specified one in the original task ("use my work
-   profile", "do this on cookiy.com"). When asking, list both directory name
-   and display name so the user can recognize them.
+4. If the chosen profile is not connected, ask the user to open Chrome on that
+   profile before retrying. Do not silently fall back to a different connected
+   profile.
 
 5. After the user has chosen, pass `--profile <selector>` to every CLI / MCP
    command for the rest of the task. The selector accepts either the directory
