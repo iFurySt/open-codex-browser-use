@@ -33,9 +33,9 @@ browser/profile selector 明确路由。
   `~/Library/Application Support/BitBrowser/BrowserCache/<id>` 作为
   `--user-data-dir`。对应 native manifest 目录在该 user-data-dir 下的
   `NativeMessagingHosts/`。
-- 当前实机只有一个 `/tmp/open-browser-use/*.sock`，来自 Chrome Stable。Chrome
-  Beta 目录存在但未注册 OBU native host；BitBrowser 正在运行但未看到 OBU
-  native host socket。
+- 当前实机已同时连通 Chrome Stable、Chrome Beta、BitBrowser。BitBrowser 使用
+  keyed release extension，并通过 BitBrowser local API 启动时加载本地 extension
+  目录。
 
 ## 设计
 
@@ -82,30 +82,31 @@ browser/profile selector 明确路由。
 - [x] setup / manifest path 支持
 - [x] skill 和 architecture 文档
 - [x] 自动化测试
-- [ ] 三 browser 全连接实机验证
+- [x] 三 browser 全连接实机验证
 
 ## 实机验证记录
 
-- `go run ./cmd/open-browser-use profiles --connected --json`：当前只检测到
-  Chrome Stable 的 OBU extension，并输出 `browser: chrome`、
-  `target: chrome:Default`、`connected: true`。
+- `go run ./cmd/open-browser-use profiles --connected --json`：同时检测到
+  `chrome:Default`、`chrome-beta:Default`、
+  `bitbrowser:23c443e599cd4b028b1455fb0eb58d5d:Default`，且三者
+  `connected: true`。
 - `go run ./cmd/open-browser-use setup --browser chrome-beta --path
   /opt/homebrew/bin/obu --no-open`：成功写入 Chrome Beta native manifest 和
-  External Extensions JSON。修正后状态不再误用 Stable active socket；当前提示
-  Chrome Beta 还需要安装/启用 extension。
+  External Extensions JSON。启用 Chrome Beta extension 后，
+  `info --browser chrome-beta --timeout 5s` 成功连到 Beta host。
 - `go run ./cmd/open-browser-use install-manifest --browser
   23c443e599cd4b028b1455fb0eb58d5d --path /opt/homebrew/bin/obu`：成功写入当前
   BitBrowser user-data-dir 的 `NativeMessagingHosts` manifest。
+- `go run ./cmd/open-browser-use setup beta --browser chrome-beta --zip
+  dist/chrome-extension/open-browser-use-chrome-extension-0.1.35.zip --path
+  /opt/homebrew/bin/obu --no-open`：生成 keyed release extension，extension id 为
+  `pnbmoicbkopffjjgfgfglopechaiemkp`。用 BitBrowser local API 启动目标 instance 并
+  传入 `--load-extension=<release-dir>` 后，`info --browser
+  23c443e599cd4b028b1455fb0eb58d5d --timeout 5s` 成功连到 BitBrowser host。
 - 删除 `/tmp/open-browser-use/active.json` 后执行
   `go run ./cmd/open-browser-use info --browser chrome --timeout 2s`：成功扫描 socket
   并修复 `active.json`，无需重装插件。
-- `go run ./cmd/open-browser-use info --browser chrome-beta --timeout 2s` 和
-  `--browser 23c443e599cd4b028b1455fb0eb58d5d`：当前按预期失败并列出已连接的
-  Chrome Stable，因为这两个 browser 尚未启动 OBU extension host。
-
-待补充：
-
-- Chrome Beta 安装/启用 OBU extension 并重启后，`info --browser chrome-beta`
-  应连到 Beta host。
-- BitBrowser 目标 instance 安装/启用 OBU extension 并重启后，`info --browser
-  23c443e599cd4b028b1455fb0eb58d5d` 应连到 BitBrowser host。
+- 分别删除 `/tmp/open-browser-use/active.json` 后执行
+  `info --browser chrome`、`info --browser chrome-beta`、`info --browser
+  23c443e599cd4b028b1455fb0eb58d5d`：三者均能通过 socket scan 找回对应 host，并把
+  `active.json` 修复为所选 browser 的 socket。

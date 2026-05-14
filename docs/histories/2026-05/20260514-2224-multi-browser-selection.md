@@ -30,18 +30,16 @@ browser/profile，后续整轮固定使用该目标。同时复查 `active.json`
 - `go test ./...`
 - `pnpm -F open-browser-use-sdk test`
 - `git diff --check`
-- 实机：`profiles --connected --json` 能输出 `browser/target` 并识别当前 Chrome
-  Stable；`setup --browser chrome-beta --path /opt/homebrew/bin/obu --no-open`
-  写入 Chrome Beta manifest / External Extensions；`install-manifest --browser
-  23c443e599cd4b028b1455fb0eb58d5d --path /opt/homebrew/bin/obu` 写入当前
-  BitBrowser instance manifest；删除 `/tmp/open-browser-use/active.json` 后
-  `info --browser chrome` 能扫描 socket 并修复 registry。
-
-未完成的实机前置条件：
-
-- Chrome Beta 和 BitBrowser 当前尚未启动 OBU extension host。CLI 已能注册
-  native host manifest，并且带 `--browser` 查询会明确失败而不误连 Stable；等用户
-  在对应 browser 中安装/启用 extension 并重启后，可继续做三 browser 全连接 smoke。
+- 实机：`profiles --connected --json` 同时输出 `chrome:Default`、
+  `chrome-beta:Default`、
+  `bitbrowser:23c443e599cd4b028b1455fb0eb58d5d:Default`，三者均为
+  `connected: true`。
+- 实机：`info --browser chrome --timeout 5s`、
+  `info --browser chrome-beta --timeout 5s`、
+  `info --browser 23c443e599cd4b028b1455fb0eb58d5d --timeout 5s` 均能连到各自
+  host，且返回不同 `extensionInstanceId`。
+- 实机：分别删除 `/tmp/open-browser-use/active.json` 后执行上述三个 selector，
+  均能扫描 socket 并把 `active.json` 修复为对应 browser 的 socket。
 
 影响文件：
 
