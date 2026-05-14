@@ -12,7 +12,7 @@ Open Browser Use connects an MV3 Chrome extension, a local native messaging host
 ## Core Workflow
 
 1. Check setup with `open-browser-use ping` or `obu ping`. If it fails because setup is missing, read [references/installation.md](references/installation.md).
-2. Pick the right Chrome profile if multiple are installed. See "Multi-profile handling" below before issuing browser commands.
+2. Pick the right browser/profile if multiple are installed. See "Browser and profile handling" below before issuing browser commands.
 3. Choose a unique browser session id for the current agent task before opening or claiming tabs. Prefer the surrounding runtime's conversation/session id when available; otherwise create a short unique id such as `obu-<task-slug>-<timestamp>`. Reuse that same id for every Open Browser Use command in this task.
 3. Name the current browser task group before opening or claiming tabs. Use a short task label followed by ` - OBU`; if no better task label is available, use `Task - OBU`.
 4. Use the CLI for simple inspection or one-shot actions: `info`, `tabs`, `user-tabs`, `history`, `open-tab`, `navigate`, `cdp`, and `call`.
@@ -34,59 +34,65 @@ Open Browser Use connects an MV3 Chrome extension, a local native messaging host
 - Direct CLI subcommands and `open-browser-use run` can share the same browser session only when they use the same explicit `--session-id`. Finalize that same session before ending browser work.
 - Use `call --method <method> --params '<json>'` only when no safer convenience command or SDK wrapper exists.
 
-## Multi-profile handling
+## Browser and profile handling
 
-Some users run Chrome with several profiles (work, personal, side accounts). If
-more than one profile has the Open Browser Use extension installed, the agent
-must decide which profile this task should operate on rather than silently
-picking whatever Chrome window happens to be active.
+Some users run several supported browsers (for example Google Chrome, Google
+Chrome Beta, or BitBrowser) and may also have multiple profiles inside them. If
+more than one browser/profile target has the Open Browser Use extension
+installed, the agent must decide which target this task should operate on rather
+than silently picking whatever window happens to be active.
 
-1. Before any browser command, list installed profiles:
+1. Before any browser command, list installed browser/profile targets:
 
    ```sh
    open-browser-use profiles --connected
    ```
 
-   Columns: `DIRECTORY` (stable id like `Default`, `Profile 1`), `DISPLAY NAME`
-   (what the user sees in the Chrome avatar menu), `VERSION`, and `CONNECTED`
-   (whether that profile's host is currently reachable). JSON output is
-   available via `--json`.
+   Columns include `BROWSER`, `DIRECTORY` (stable profile id like `Default`,
+   `Profile 1`), `DISPLAY NAME` (what the user sees in the browser avatar
+   menu), `VERSION`, and `CONNECTED` (whether that target's host is currently
+   reachable). JSON output is available via `--json` and includes a stable
+   `target` such as `chrome:Default`, `chrome-beta:Default`, or
+   `bitbrowser:<instance>:Default`.
 
-2. If exactly one profile is installed and connected, proceed without asking.
+2. If exactly one target is installed and connected, proceed without asking.
    If it is installed but not connected, ask the user to open Chrome on that
-   profile before running browser commands.
+   browser/profile before running browser commands.
 
-3. If multiple profiles are installed and the user did not already specify
+3. If multiple targets are installed and the user did not already specify
    which one to use, ask before the first browser command. List both directory
-   name and display name so the user can recognize them, and include whether
-   each profile is connected.
+   name and display name plus the browser name so the user can recognize them,
+   and include whether each target is connected.
 
-4. If the chosen profile is not connected, ask the user to open Chrome on that
+4. If the chosen target is not connected, ask the user to open that browser and
    profile before retrying. Do not silently fall back to a different connected
-   profile.
+   browser/profile.
 
-5. After the user has chosen, pass `--profile <selector>` to every CLI / MCP
-   command for the rest of the task. The selector accepts either the directory
-   name (`Default`, `Profile 1`) or the display name (`Eva`, `cookiy.com`),
-   case-insensitive. Do not switch profiles mid-task.
+5. After the user has chosen, pass `--browser <selector>` and, when needed,
+   `--profile <selector>` to every CLI / MCP command for the rest of the task.
+   Browser selectors accept ids such as `chrome`, `chrome-beta`, `bitbrowser`,
+   browser display names, or a BitBrowser instance id. Profile selectors accept
+   either the directory name (`Default`, `Profile 1`) or the display name
+   (`Eva`, `cookiy.com`), case-insensitive. Do not switch browser/profile
+   mid-task.
 
-6. If `--profile` does not match any running host, the CLI prints which
-   profiles are currently connected. Ask the user to open Chrome on the chosen
-   profile, then retry; do not silently fall back to a different profile.
+6. If `--browser` / `--profile` does not match any running host, the CLI prints
+   which targets are currently connected. Ask the user to open the chosen
+   browser/profile, then retry; do not silently fall back to a different target.
 
-7. For MCP, lock the profile at server start:
+7. For MCP, lock the browser/profile at server start:
 
    ```toml
    [mcp_servers.open_browser_use]
    command = "obu"
-   args = ["mcp", "--session-id", "obu-<task-id>", "--profile", "<selector>"]
+   args = ["mcp", "--session-id", "obu-<task-id>", "--browser", "<browser>", "--profile", "<profile>"]
    ```
 
-   Do not pass profile as a per-tool-call argument — the MCP server applies the
-   start-time selector to every call.
+   Do not pass browser/profile as per-tool-call arguments — the MCP server
+   applies the start-time selectors to every call.
 
-8. Do not remember the user's profile choice across unrelated tasks. A future
-   task may belong to a different profile; ask again rather than assuming.
+8. Do not remember the user's browser/profile choice across unrelated tasks. A
+   future task may belong to a different target; ask again rather than assuming.
 
 ## Common CLI Actions
 

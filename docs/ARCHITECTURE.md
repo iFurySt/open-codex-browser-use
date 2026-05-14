@@ -156,17 +156,21 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   `user-tabs`、`history`、`open-tab`、`navigate`、`claim-tab`、
   `finalize-tabs`、`name-session`、`cdp`、`move-mouse`、
   `wait-file-chooser`、`set-file-chooser-files`、`turn-ended`、`profiles`。
-- Chrome multi-profile 支持：`open-browser-use profiles` 扫描每个 Chrome
-  profile 目录（CRX 与 unpacked 两条路径）找到已经装好插件的 profile，附带
-  显示名（来自 `Local State.profile.info_cache`）。所有面向用户的命令支持
+- Multi-browser / multi-profile 支持：`open-browser-use profiles` 扫描 Chrome
+  Stable、Chrome Beta 和 BitBrowser user-data roots，在每个 profile 目录中
+  通过 CRX 与 unpacked 两条路径找到已经装好插件的 profile，附带 browser id、
+  browser display name、profile directory 和展示名（来自
+  `Local State.profile.info_cache`）。所有面向用户的命令支持
+  `--browser <chrome|chrome-beta|bitbrowser|displayName|instance>` 和
   `--profile <directory|displayName>`：CLI 枚举 `socket-dir` 下的 `.sock`
-  文件，对每个连通的 socket 调用 `getInfo`，把 `metadata.extensionInstanceId`
-  反查到 profile directory（grep 每个 profile 的
-  `Local Extension Settings/<extension-id>/*.{log,ldb}`），按 selector 选出
-  匹配的 socket。`obu mcp --profile` 在 MCP server 启动时锁定 selector，每次
-  工具调用复用同一个解析结果。selector 不匹配时 CLI 列出当前已连通的 profile
-  列表，提示用户开对应 Chrome。第一版没有改 `active.json` 结构，也不需要
-  extension 上报额外身份信息（`extensionInstanceId` 已经存在）。
+  文件，对每个连通的 socket 调用 `getInfo`，把
+  `metadata.extensionInstanceId` 反查到 browser/profile（grep 每个支持 browser
+  root 的 `Local Extension Settings/<extension-id>/*.{log,ldb}`），按 selector
+  选出匹配 socket。`obu mcp --browser ... --profile ...` 在 MCP server 启动时锁定
+  selector，每次工具调用复用同一个解析结果。selector 不匹配时 CLI 列出当前已连通
+  target 列表，提示用户打开对应 browser/profile。未显式选择时仍保留
+  `active.json` 快速路径；`active.json` 缺失或失效时，CLI 会扫描 socket 目录并
+  修复 registry，因此不需要重装扩展。
 - MV3 extension core handlers：`getInfo`、`createTab`、`getTabs`、
   `getUserTabs`、`getUserHistory`、`claimUserTab`、`finalizeTabs`、
   `nameSession`、`attach`、`detach`、`executeCdp`、`moveMouse`、

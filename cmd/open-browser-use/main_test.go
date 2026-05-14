@@ -186,6 +186,33 @@ func TestCobraInstallManifestDefaultsToStoreExtension(t *testing.T) {
 	}
 }
 
+func TestCobraInstallManifestSupportsChromeBeta(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("Chrome Beta manifest path test uses macOS browser roots")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	targetPath := filepath.Join(t.TempDir(), "open-browser-use")
+	if err := os.WriteFile(targetPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRootCommand()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	cmd.SetArgs([]string{"install-manifest", "--browser", "chrome-beta", "--path", targetPath})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(home, "Library/Application Support/Google/Chrome Beta/NativeMessagingHosts", host.NativeHostName+".json")
+	if strings.TrimSpace(output.String()) != want {
+		t.Fatalf("expected Chrome Beta manifest path %q, got %q", want, strings.TrimSpace(output.String()))
+	}
+	if _, err := os.Stat(want); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestInstallChromeExternalExtensionWritesWebStoreHint(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), defaultChromeExtensionID+".json")
 	path, err := installChromeExternalExtension("", outputPath)
@@ -245,6 +272,33 @@ func TestCobraSetupWritesNativeAndExternalManifests(t *testing.T) {
 	}
 	if _, err := os.Stat(externalPath); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestCobraSetupRejectsBitBrowserExternalExtensionPath(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("BitBrowser setup guidance test uses macOS browser roots")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeLocalStateAtRoot(t, bitBrowserRootForTest(home, "abc123"), `{"profile":{"info_cache":{"Default":{"name":"Bit"}}}}`)
+	targetPath := filepath.Join(t.TempDir(), "open-browser-use")
+	if err := os.WriteFile(targetPath, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := newRootCommand()
+	cmd.SetArgs([]string{"setup", "--browser", "abc123", "--path", targetPath, "--no-open"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected BitBrowser setup to require install-manifest path")
+	}
+	if !strings.Contains(err.Error(), "install-manifest --browser abc123") {
+		t.Fatalf("expected BitBrowser install-manifest guidance, got %v", err)
+	}
+	manifestPath := filepath.Join(bitBrowserRootForTest(home, "abc123"), "NativeMessagingHosts", host.NativeHostName+".json")
+	if _, statErr := os.Stat(manifestPath); !os.IsNotExist(statErr) {
+		t.Fatalf("expected setup rejection to avoid partial native manifest write, stat err=%v", statErr)
 	}
 }
 
@@ -354,7 +408,12 @@ func writeChromeExtensionManifest(t *testing.T, home, profileDir, extensionVersi
 	if runtime.GOOS == "linux" {
 		base = filepath.Join(home, ".config/google-chrome")
 	}
-	dir := filepath.Join(base, profileDir, "Extensions", defaultChromeExtensionID, extensionVersion)
+	writeExtensionManifestAtRoot(t, base, profileDir, defaultChromeExtensionID, extensionVersion)
+}
+
+func writeExtensionManifestAtRoot(t *testing.T, root, profileDir, extensionID, extensionVersion string) {
+	t.Helper()
+	dir := filepath.Join(root, profileDir, "Extensions", extensionID, extensionVersion)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -364,18 +423,55 @@ func writeChromeExtensionManifest(t *testing.T, home, profileDir, extensionVersi
 	}
 }
 
+func chromeRootForTest(home string) string {
+	if runtime.GOOS == "linux" {
+		return filepath.Join(home, ".config/google-chrome")
+	}
+	return filepath.Join(home, "Library/Application Support/Google/Chrome")
+}
+
+func chromeBetaRootForTest(home string) string {
+	return filepath.Join(home, "Library/Application Support/Google/Chrome Beta")
+}
+
+func bitBrowserRootForTest(home, instance string) string {
+	return filepath.Join(home, "Library/Application Support/BitBrowser/BrowserCache", instance)
+}
+
+func writeLocalStateAtRoot(t *testing.T, root string, payload string) {
+	t.Helper()
+	if err := os.MkdirAll(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "Local State"), []byte(payload), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeExtensionStorageAtRoot(t *testing.T, root, profileDir, extensionID, payload string) {
+	t.Helper()
+	storageDir := filepath.Join(root, profileDir, "Local Extension Settings", extensionID)
+	if err := os.MkdirAll(storageDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(storageDir, "000003.log"), []byte("garbage prefix\x00\x01extensionInstanceId\""+payload+"\"\x00more garbage"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeChromeBetaExtensionManifest(t *testing.T, home, profileDir, extensionVersion string) {
+	t.Helper()
+	writeExtensionManifestAtRoot(t, chromeBetaRootForTest(home), profileDir, defaultChromeExtensionID, extensionVersion)
+}
+
+func writeBitBrowserExtensionManifest(t *testing.T, home, instance, profileDir, extensionVersion string) {
+	t.Helper()
+	writeExtensionManifestAtRoot(t, bitBrowserRootForTest(home, instance), profileDir, defaultChromeExtensionID, extensionVersion)
+}
+
 func writeChromeLocalState(t *testing.T, home string, payload string) {
 	t.Helper()
-	base := filepath.Join(home, "Library/Application Support/Google/Chrome")
-	if runtime.GOOS == "linux" {
-		base = filepath.Join(home, ".config/google-chrome")
-	}
-	if err := os.MkdirAll(base, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(base, "Local State"), []byte(payload), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	writeLocalStateAtRoot(t, chromeRootForTest(home), payload)
 }
 
 func writeChromeUnpackedExtension(t *testing.T, home, profileDir, extensionID, extensionVersion string) {
@@ -528,6 +624,40 @@ func TestListInstalledChromeProfilesMultipleProfilesSorted(t *testing.T) {
 	}
 	if profiles[2].DisplayName != "测试 🧪" {
 		t.Errorf("expected unicode display name preserved, got %q", profiles[2].DisplayName)
+	}
+}
+
+func TestListInstalledChromeProfilesIncludesSupportedBrowsers(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("multi-browser discovery test uses macOS browser roots")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeChromeExtensionManifest(t, home, "Default", "0.1.35")
+	writeChromeLocalState(t, home, `{"profile":{"info_cache":{"Default":{"name":"Stable"}}}}`)
+	writeChromeBetaExtensionManifest(t, home, "Default", "0.1.35")
+	writeLocalStateAtRoot(t, chromeBetaRootForTest(home), `{"profile":{"info_cache":{"Default":{"name":"Beta"}}}}`)
+	writeBitBrowserExtensionManifest(t, home, "abc123", "Default", "0.1.35")
+	writeLocalStateAtRoot(t, bitBrowserRootForTest(home, "abc123"), `{"profile":{"info_cache":{"Default":{"name":"Bit"}}}}`)
+
+	profiles, err := listInstalledChromeProfiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]installedChromeProfile{}
+	for _, profile := range profiles {
+		got[profile.Target] = profile
+	}
+	for _, target := range []string{"chrome:Default", "chrome-beta:Default", "bitbrowser:abc123:Default"} {
+		if _, ok := got[target]; !ok {
+			t.Fatalf("expected target %q in profiles: %+v", target, profiles)
+		}
+	}
+	if got["chrome-beta:Default"].BrowserName != "Google Chrome Beta" {
+		t.Fatalf("expected Chrome Beta browser name, got %+v", got["chrome-beta:Default"])
+	}
+	if got["bitbrowser:abc123:Default"].BrowserInstance != "abc123" {
+		t.Fatalf("expected BitBrowser instance, got %+v", got["bitbrowser:abc123:Default"])
 	}
 }
 
@@ -697,7 +827,7 @@ func TestProfilesCommandEmptyOutput(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(output.String(), "No Chrome profiles") {
+	if !strings.Contains(output.String(), "No browser profiles") {
 		t.Errorf("expected empty notice, got:\n%s", output.String())
 	}
 }
@@ -729,15 +859,36 @@ func TestResolveProfileForInstanceIDHit(t *testing.T) {
 	writeChromeExtensionStorage(t, home, "Default", defaultChromeExtensionID, "11111111-aaaa-bbbb-cccc-1234567890ab")
 	writeChromeExtensionStorage(t, home, "Profile 1", defaultChromeExtensionID, "22222222-aaaa-bbbb-cccc-1234567890ab")
 
-	dir, name, ok := resolveProfileForInstanceID(defaultChromeExtensionID, "22222222-aaaa-bbbb-cccc-1234567890ab")
+	browserID, _, _, dir, name, ok := resolveProfileForInstanceID(defaultChromeExtensionID, "22222222-aaaa-bbbb-cccc-1234567890ab")
 	if !ok {
 		t.Fatal("expected to resolve instance to a profile")
+	}
+	if browserID != "chrome" {
+		t.Errorf("expected browser chrome, got %q", browserID)
 	}
 	if dir != "Profile 1" {
 		t.Errorf("expected directory Profile 1, got %q", dir)
 	}
 	if name != "Work" {
 		t.Errorf("expected display name Work, got %q", name)
+	}
+}
+
+func TestResolveProfileForInstanceIDChromeBeta(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("Chrome Beta discovery test uses macOS browser roots")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeLocalStateAtRoot(t, chromeBetaRootForTest(home), `{"profile":{"info_cache":{"Default":{"name":"Beta"}}}}`)
+	writeExtensionStorageAtRoot(t, chromeBetaRootForTest(home), "Default", defaultChromeExtensionID, "33333333-aaaa-bbbb-cccc-1234567890ab")
+
+	browserID, browserName, _, dir, name, ok := resolveProfileForInstanceID(defaultChromeExtensionID, "33333333-aaaa-bbbb-cccc-1234567890ab")
+	if !ok {
+		t.Fatal("expected to resolve Chrome Beta instance")
+	}
+	if browserID != "chrome-beta" || browserName != "Google Chrome Beta" || dir != "Default" || name != "Beta" {
+		t.Fatalf("unexpected Chrome Beta resolution: browser=%q name=%q dir=%q profile=%q", browserID, browserName, dir, name)
 	}
 }
 
@@ -749,13 +900,13 @@ func TestResolveProfileForInstanceIDMiss(t *testing.T) {
 	t.Setenv("HOME", home)
 	writeChromeExtensionStorage(t, home, "Default", defaultChromeExtensionID, "11111111-aaaa-bbbb-cccc-1234567890ab")
 
-	if _, _, ok := resolveProfileForInstanceID(defaultChromeExtensionID, "ffffffff-ffff-ffff-ffff-ffffffffffff"); ok {
+	if _, _, _, _, _, ok := resolveProfileForInstanceID(defaultChromeExtensionID, "ffffffff-ffff-ffff-ffff-ffffffffffff"); ok {
 		t.Fatal("expected no resolution for unknown UUID")
 	}
-	if _, _, ok := resolveProfileForInstanceID(defaultChromeExtensionID, ""); ok {
+	if _, _, _, _, _, ok := resolveProfileForInstanceID(defaultChromeExtensionID, ""); ok {
 		t.Fatal("expected empty instance to not resolve")
 	}
-	if _, _, ok := resolveProfileForInstanceID("", "11111111-aaaa-bbbb-cccc-1234567890ab"); ok {
+	if _, _, _, _, _, ok := resolveProfileForInstanceID("", "11111111-aaaa-bbbb-cccc-1234567890ab"); ok {
 		t.Fatal("expected empty extension id to not resolve")
 	}
 }
@@ -781,6 +932,32 @@ func TestProfileSelectorMatches(t *testing.T) {
 	}
 	for _, tc := range cases {
 		if got := profileSelectorMatches(tc.selector, info); got != tc.want {
+			t.Errorf("selector %q -> %v, want %v", tc.selector, got, tc.want)
+		}
+	}
+}
+
+func TestBrowserSelectorMatches(t *testing.T) {
+	info := connectedProfileInfo{
+		Browser:         "bitbrowser",
+		BrowserName:     "BitBrowser",
+		BrowserInstance: "abc123",
+		Directory:       "Default",
+		Target:          "bitbrowser:abc123:Default",
+	}
+	cases := []struct {
+		selector string
+		want     bool
+	}{
+		{"", true},
+		{"bitbrowser", true},
+		{"BitBrowser", true},
+		{"abc123", true},
+		{"bitbrowser:abc123:Default", true},
+		{"chrome", false},
+	}
+	for _, tc := range cases {
+		if got := browserSelectorMatches(tc.selector, info); got != tc.want {
 			t.Errorf("selector %q -> %v, want %v", tc.selector, got, tc.want)
 		}
 	}
@@ -814,7 +991,7 @@ func TestConnectedProfileFromInfo(t *testing.T) {
 		},
 	}
 	got := connectedProfileFromInfo("/tmp/some.sock", payload)
-	if got.SocketPath != "/tmp/some.sock" || got.Directory != "Profile 5" || got.DisplayName != "Test" {
+	if got.SocketPath != "/tmp/some.sock" || got.Browser != "chrome" || got.Target != "chrome:Profile 5" || got.Directory != "Profile 5" || got.DisplayName != "Test" {
 		t.Errorf("unexpected resolution: %+v", got)
 	}
 }
@@ -1123,6 +1300,78 @@ func TestInvokeCleansStaleSocketFilesDuringScan(t *testing.T) {
 	if record.SocketPath != livePath {
 		t.Fatalf("expected active socket record to point to live socket %q, got %#v", livePath, record)
 	}
+}
+
+func TestPickSocketForBrowserRepairsActiveRecord(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("multi-browser socket routing test uses macOS browser roots")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeLocalStateAtRoot(t, chromeBetaRootForTest(home), `{"profile":{"info_cache":{"Default":{"name":"Beta"}}}}`)
+	writeExtensionStorageAtRoot(t, chromeBetaRootForTest(home), "Default", defaultChromeExtensionID, "beta-instance")
+
+	socketDir, err := os.MkdirTemp("/tmp", "obu-browser-route-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(socketDir)
+	socketPath := filepath.Join(socketDir, "beta.sock")
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	serverDone := make(chan error, 1)
+	go serveFakeGetInfo(listener, "beta-instance", serverDone)
+
+	conn, info, _, err := pickSocketForProfile(socketDir, "chrome-beta", "Default", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = conn.Close()
+	if info.Browser != "chrome-beta" || info.Target != "chrome-beta:Default" {
+		t.Fatalf("expected Chrome Beta target, got %+v", info)
+	}
+	if err := <-serverDone; err != nil {
+		t.Fatal(err)
+	}
+	record, err := host.ReadActiveSocketRecord(socketDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.SocketPath != socketPath {
+		t.Fatalf("expected active record repaired to %q, got %#v", socketPath, record)
+	}
+}
+
+func serveFakeGetInfo(listener net.Listener, instanceID string, done chan<- error) {
+	conn, err := listener.Accept()
+	if err != nil {
+		done <- err
+		return
+	}
+	defer conn.Close()
+	var request map[string]any
+	if err := wire.ReadJSON(conn, &request); err != nil {
+		done <- err
+		return
+	}
+	if err := wire.WriteJSON(conn, map[string]any{
+		"jsonrpc": "2.0",
+		"id":      request["id"],
+		"result": map[string]any{
+			"version": version,
+			"metadata": map[string]any{
+				"extensionId":         defaultChromeExtensionID,
+				"extensionInstanceId": instanceID,
+			},
+		},
+	}); err != nil {
+		done <- err
+		return
+	}
+	done <- nil
 }
 
 func TestCobraRunActionPlan(t *testing.T) {
