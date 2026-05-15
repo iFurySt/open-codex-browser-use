@@ -60,7 +60,7 @@ open-browser-use history --query "browser use" --limit 20
 
 open-browser-use name-session --name "Docs scan - OBU"
 open-browser-use open-tab --url https://docs.browser-use.com
-open-browser-use navigate --tab-id <tab-id> --url https://github.com/iFurySt/open-codex-browser-use
+open-browser-use navigate --tab-id <tab-id> --url https://github.com/iFurySt/open-browser-use
 open-browser-use cdp --tab-id <tab-id> --method Runtime.evaluate --params '{"expression":"document.title","returnByValue":true}'
 open-browser-use finalize-tabs --keep '[]'
 ```
@@ -108,7 +108,7 @@ Example with explicit CDP and default tab reuse:
 ```sh
 open-browser-use run -c '
 name-session "GitHub issue scan - OBU"
-open-tab https://github.com/iFurySt/open-codex-browser-use/issues
+open-tab https://github.com/iFurySt/open-browser-use/issues
 wait-load domcontentloaded
 cdp Runtime.evaluate "{\"expression\":\"document.body.innerText.slice(0, 1000)\",\"returnByValue\":true}"
 finalize-tabs []

@@ -2,11 +2,11 @@
 
 [![English](https://img.shields.io/badge/English-Click-yellow)](./README.md)
 [![简体中文](https://img.shields.io/badge/简体中文-点击查看-orange)](./README.zh-CN.md)
-[![Release](https://img.shields.io/github/v/release/iFurySt/open-codex-browser-use)](https://github.com/iFurySt/open-codex-browser-use/releases)
+[![Release](https://img.shields.io/github/v/release/iFurySt/open-browser-use)](https://github.com/iFurySt/open-browser-use/releases)
 [![npm SDK](https://img.shields.io/npm/v/open-browser-use-sdk?label=npm%20SDK)](https://www.npmjs.com/package/open-browser-use-sdk)
 [![PyPI SDK](https://img.shields.io/pypi/v/open-browser-use-sdk?label=PyPI%20SDK)](https://pypi.org/project/open-browser-use-sdk/)
-[![Go SDK](https://pkg.go.dev/badge/github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go.svg)](https://pkg.go.dev/github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iFurySt/open-codex-browser-use)
+[![Go SDK](https://pkg.go.dev/badge/github.com/ifuryst/open-browser-use/packages/open-browser-use-go.svg)](https://pkg.go.dev/github.com/ifuryst/open-browser-use/packages/open-browser-use-go)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iFurySt/open-browser-use)
 
 ---
 
@@ -60,7 +60,7 @@ npm install open-browser-use-sdk
 pip install open-browser-use-sdk
 
 # Go
-go get github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go
+go get github.com/ifuryst/open-browser-use/packages/open-browser-use-go
 ```
 
 SDK 在 npm 和 PyPI 上统一叫 `open-browser-use-sdk`。Python 代码里的 import
@@ -72,12 +72,12 @@ SDK 在 npm 和 PyPI 上统一叫 `open-browser-use-sdk`。Python 代码里的 i
 
 ```bash
 # 安装到codex
-npx skills add iFurySt/open-codex-browser-use -g -a codex --skill open-browser-use --copy -y
+npx skills add iFurySt/open-browser-use -g -a codex --skill open-browser-use --copy -y
 npx skills ls -g -a codex | rg 'open-browser-use'
 codex exec --skip-git-repo-check "用open-browser-use查看下今天Hacker News有什么值得关注的"
 
 # 安装到claude code
-npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-browser-use --copy -y
+npx skills add iFurySt/open-browser-use -g -a claude-code --skill open-browser-use --copy -y
 ```
 
 更新已有的全局安装，包括上面安装到 Codex 的那份：
@@ -91,7 +91,7 @@ npx skills upgrade open-browser-use -g -y
 
 也可以手动下载`open-browser-use`的[skill](./skills/open-browser-use)并安装，就可以愉快的开始使用了🚀
 
-*[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases)里有可下载的.skill/.zip包*
+*[GitHub Releases](https://github.com/iFurySt/open-browser-use/releases)里有可下载的.skill/.zip包*
 
 #### MCP
 

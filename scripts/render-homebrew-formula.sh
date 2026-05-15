@@ -16,26 +16,26 @@ linux_arm64_sha256="$5"
 cat <<EOF
 class OpenBrowserUse < Formula
   desc "Browser automation native host and CLI"
-  homepage "https://github.com/iFurySt/open-codex-browser-use"
+  homepage "https://github.com/iFurySt/open-browser-use"
   license "MIT"
   version "${version}"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/iFurySt/open-codex-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-darwin-arm64.tar.gz"
+      url "https://github.com/iFurySt/open-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-darwin-arm64.tar.gz"
       sha256 "${darwin_arm64_sha256}"
     else
-      url "https://github.com/iFurySt/open-codex-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-darwin-amd64.tar.gz"
+      url "https://github.com/iFurySt/open-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-darwin-amd64.tar.gz"
       sha256 "${darwin_amd64_sha256}"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/iFurySt/open-codex-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-linux-arm64.tar.gz"
+      url "https://github.com/iFurySt/open-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-linux-arm64.tar.gz"
       sha256 "${linux_arm64_sha256}"
     else
-      url "https://github.com/iFurySt/open-codex-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-linux-amd64.tar.gz"
+      url "https://github.com/iFurySt/open-browser-use/releases/download/v${version}/open-browser-use-cli-${version}-linux-amd64.tar.gz"
       sha256 "${linux_amd64_sha256}"
     end
   end

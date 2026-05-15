@@ -1,4 +1,4 @@
-const REPO_URL = "https://github.com/iFurySt/open-codex-browser-use";
+const REPO_URL = "https://github.com/iFurySt/open-browser-use";
 const REFRESH_INTERVAL_MS = 5000;
 
 const statusPill = document.getElementById("status-pill");

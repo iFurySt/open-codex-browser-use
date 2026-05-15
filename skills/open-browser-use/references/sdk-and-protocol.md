@@ -41,7 +41,7 @@ Install the SDK package from the package registry for your runtime:
 ```sh
 npm install open-browser-use-sdk
 pip install open-browser-use-sdk
-go get github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go
+go get github.com/ifuryst/open-browser-use/packages/open-browser-use-go
 ```
 
 The Python distribution is named `open-browser-use-sdk`, while the import module
@@ -159,7 +159,7 @@ import (
 	"log"
 	"time"
 
-	obu "github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go"
+	obu "github.com/ifuryst/open-browser-use/packages/open-browser-use-go"
 )
 
 func main() {

@@ -1,4 +1,4 @@
-module github.com/ifuryst/open-codex-browser-use
+module github.com/ifuryst/open-browser-use
 
 go 1.25.10
 

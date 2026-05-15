@@ -47,11 +47,11 @@
 2. 在 `scripts/ci.sh` 里继续叠加项目自己的验证命令。
 3. 用真实构建产物替换 `scripts/release-package.sh`。
 4. CLI 和 JS SDK 的 npm 发布走 `npm-publish.yml`，两个包的 trusted
-   publisher 都要配置为 `iFurySt/open-codex-browser-use` + `npm-publish.yml`。
+   publisher 都要配置为 `iFurySt/open-browser-use` + `npm-publish.yml`。
 5. Python SDK 的 PyPI 发布走 `pypi-publish.yml`。首次发布前在 PyPI 账号
    Publishing 页面创建 pending trusted publisher：project name
    `open-browser-use-sdk`，owner `iFurySt`，repository
-   `open-codex-browser-use`，workflow `pypi-publish.yml`，environment `pypi`。
+   `open-browser-use`，workflow `pypi-publish.yml`，environment `pypi`。
 6. Homebrew 发布走 `homebrew-publish.yml`，需要仓库 secret
    `HOMEBREW_TAP_TOKEN` 能写入 tap repo。
 7. 浏览器插件发布走 `docs/CHROME_WEB_STORE_RELEASE.md` 里的 Chrome Web

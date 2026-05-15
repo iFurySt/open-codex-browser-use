@@ -7,7 +7,7 @@ higher-level browser/tab helpers for common agent workflows.
 ## Installation
 
 ```sh
-go get github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go
+go get github.com/ifuryst/open-browser-use/packages/open-browser-use-go
 ```
 
 The SDK expects the `open-browser-use` CLI and Chrome extension to already be
@@ -28,7 +28,7 @@ import (
 	"log"
 	"time"
 
-	obu "github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go"
+	obu "github.com/ifuryst/open-browser-use/packages/open-browser-use-go"
 )
 
 func main() {

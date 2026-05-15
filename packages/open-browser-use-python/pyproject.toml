@@ -10,9 +10,9 @@ authors = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/iFurySt/open-codex-browser-use"
-Repository = "https://github.com/iFurySt/open-codex-browser-use"
-Issues = "https://github.com/iFurySt/open-codex-browser-use/issues"
+Homepage = "https://github.com/iFurySt/open-browser-use"
+Repository = "https://github.com/iFurySt/open-browser-use"
+Issues = "https://github.com/iFurySt/open-browser-use/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]

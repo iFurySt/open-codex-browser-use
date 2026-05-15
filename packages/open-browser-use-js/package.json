@@ -23,13 +23,13 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iFurySt/open-codex-browser-use.git",
+    "url": "git+https://github.com/iFurySt/open-browser-use.git",
     "directory": "packages/open-browser-use-js"
   },
   "bugs": {
-    "url": "https://github.com/iFurySt/open-codex-browser-use/issues"
+    "url": "https://github.com/iFurySt/open-browser-use/issues"
   },
-  "homepage": "https://github.com/iFurySt/open-codex-browser-use/tree/main/packages/open-browser-use-js#readme",
+  "homepage": "https://github.com/iFurySt/open-browser-use/tree/main/packages/open-browser-use-js#readme",
   "engines": {
     "node": ">=18"
   },

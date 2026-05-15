@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ifuryst/open-codex-browser-use/internal/wire"
+	"github.com/ifuryst/open-browser-use/internal/wire"
 )
 
 func TestMCPInitializeAndListTools(t *testing.T) {

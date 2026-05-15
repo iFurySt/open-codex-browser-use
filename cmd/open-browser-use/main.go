@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ifuryst/open-codex-browser-use/internal/host"
-	"github.com/ifuryst/open-codex-browser-use/internal/wire"
+	"github.com/ifuryst/open-browser-use/internal/host"
+	"github.com/ifuryst/open-browser-use/internal/wire"
 	"github.com/spf13/cobra"
 )
 
@@ -488,7 +488,7 @@ func renderSkillUpdateResult(writer io.Writer, status skillUpdateStatus) {
 	if !status.Checked {
 		return
 	}
-	fmt.Fprintln(writer, "5. ℹ️ Agent skill install commands\n   Codex: npx skills add iFurySt/open-codex-browser-use -g -a codex --skill open-browser-use --copy -y\n   Claude Code: npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-browser-use --copy -y")
+	fmt.Fprintln(writer, "5. ℹ️ Agent skill install commands\n   Codex: npx skills add iFurySt/open-browser-use -g -a codex --skill open-browser-use --copy -y\n   Claude Code: npx skills add iFurySt/open-browser-use -g -a claude-code --skill open-browser-use --copy -y")
 }
 
 func detectBrowserExtension(socketDir string, timeout time.Duration) browserExtensionStatus {
@@ -2850,7 +2850,7 @@ func browserRootForInstallSelector(selector string) (browserProfileRoot, error) 
 func downloadLatestReleaseZIP() (string, error) {
 	assetName := fmt.Sprintf("open-browser-use-chrome-extension-%s.zip", version)
 	url := fmt.Sprintf(
-		"https://github.com/iFurySt/open-codex-browser-use/releases/download/v%s/%s",
+		"https://github.com/iFurySt/open-browser-use/releases/download/v%s/%s",
 		version,
 		assetName,
 	)

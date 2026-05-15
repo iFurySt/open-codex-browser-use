@@ -2,11 +2,11 @@
 
 [![English](https://img.shields.io/badge/English-Click-yellow)](./README.md)
 [![简体中文](https://img.shields.io/badge/简体中文-点击查看-orange)](./README.zh-CN.md)
-[![Release](https://img.shields.io/github/v/release/iFurySt/open-codex-browser-use)](https://github.com/iFurySt/open-codex-browser-use/releases)
+[![Release](https://img.shields.io/github/v/release/iFurySt/open-browser-use)](https://github.com/iFurySt/open-browser-use/releases)
 [![npm SDK](https://img.shields.io/npm/v/open-browser-use-sdk?label=npm%20SDK)](https://www.npmjs.com/package/open-browser-use-sdk)
 [![PyPI SDK](https://img.shields.io/pypi/v/open-browser-use-sdk?label=PyPI%20SDK)](https://pypi.org/project/open-browser-use-sdk/)
-[![Go SDK](https://pkg.go.dev/badge/github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go.svg)](https://pkg.go.dev/github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iFurySt/open-codex-browser-use)
+[![Go SDK](https://pkg.go.dev/badge/github.com/ifuryst/open-browser-use/packages/open-browser-use-go.svg)](https://pkg.go.dev/github.com/ifuryst/open-browser-use/packages/open-browser-use-go)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/iFurySt/open-browser-use)
 
 ---
 
@@ -70,7 +70,7 @@ npm install open-browser-use-sdk
 pip install open-browser-use-sdk
 
 # Go
-go get github.com/ifuryst/open-codex-browser-use/packages/open-browser-use-go
+go get github.com/ifuryst/open-browser-use/packages/open-browser-use-go
 ```
 
 The SDK package name is `open-browser-use-sdk` on both npm and PyPI. Python
@@ -83,12 +83,12 @@ Install the skill directly:
 
 ```bash
 # Install for Codex
-npx skills add iFurySt/open-codex-browser-use -g -a codex --skill open-browser-use --copy -y
+npx skills add iFurySt/open-browser-use -g -a codex --skill open-browser-use --copy -y
 npx skills ls -g -a codex | rg 'open-browser-use'
 codex exec --skip-git-repo-check "Use open-browser-use to check today’s Hacker News and summarize the most worth-reading posts."
 
 # Install for Claude Code
-npx skills add iFurySt/open-codex-browser-use -g -a claude-code --skill open-browser-use --copy -y
+npx skills add iFurySt/open-browser-use -g -a claude-code --skill open-browser-use --copy -y
 ```
 
 Update an existing global install, including the Codex install created above:
@@ -105,7 +105,7 @@ You can also manually download and install the
 your agent.
 
 Downloadable `.skill` and `.zip` packages are available in
-[GitHub Releases](https://github.com/iFurySt/open-codex-browser-use/releases).
+[GitHub Releases](https://github.com/iFurySt/open-browser-use/releases).
 
 #### MCP
 

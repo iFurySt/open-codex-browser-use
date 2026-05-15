@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ifuryst/open-codex-browser-use/internal/host"
+	"github.com/ifuryst/open-browser-use/internal/host"
 	"github.com/spf13/cobra"
 )
 
