@@ -26,22 +26,21 @@ https://github.com/user-attachments/assets/bcfba878-f6a8-44b9-b84b-29c7e0285687
 ## Quick Start
 
 ```bash
-brew tap iFurySt/open-browser-use
-brew install open-browser-use
+npm i -g open-browser-use
 open-browser-use setup
 ```
 
 ### Install the CLI
 
 ```bash
-# npm
+# npm (macOS, Linux, Windows)
 npm i -g open-browser-use
 
-# Homebrew
+# Homebrew (macOS, Linux)
 brew tap iFurySt/open-browser-use && brew install open-browser-use
 
 # Upgrade
-brew upgrade open-browser-use
+npm update -g open-browser-use
 ```
 
 ### Set Up Chrome

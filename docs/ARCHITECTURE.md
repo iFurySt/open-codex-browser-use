@@ -95,6 +95,11 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
 - `open-browser-use install-manifest`：把 native messaging host manifest
   写入 Chrome 默认位置，或通过 `--output` 写到指定路径。默认 extension id
   是 Chrome Web Store 版 `bgjoihaepiejlfjinojjfgokghnodnhd`。
+  Windows 默认写入
+  `%LOCALAPPDATA%\OpenBrowserUse\NativeMessagingHosts\com.ifuryst.open_browser_use.extension.json`，
+  并注册
+  `HKCU\Software\Google\Chrome\NativeMessagingHosts\com.ifuryst.open_browser_use.extension`
+  的默认值指向该 manifest。
 - `open-browser-use setup`：显式安装流程，先调用 native host manifest
   注册，再写入 Chrome External Extensions JSON。只有检测到浏览器插件未安装或
   版本低于当前 CLI 期望版本时，CLI 才打开 Chrome Web Store 正式扩展页，引导
@@ -115,7 +120,10 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   macOS 为
   `~/Library/Application Support/OpenBrowserUse/native-host/open-browser-use`，
   Linux 为 `~/.local/share/open-browser-use/native-host/open-browser-use`。
-  `install-manifest --path` 表示这个稳定 link 指向的真实二进制 target。
+  Windows 为
+  `%LOCALAPPDATA%\OpenBrowserUse\native-host\open-browser-use.exe`。macOS/Linux 上
+  `install-manifest --path` 表示这个稳定 link 指向的真实二进制 target；Windows
+  上会把 target 复制到稳定 exe 路径，避免依赖开发者模式或管理员权限创建 symlink。
 - npm 包 `open-browser-use` 是 CLI 二进制分发入口，安装后提供
   `open-browser-use` 和 `obu`；`postinstall` 只提示用户运行显式
   `open-browser-use setup`。
@@ -132,7 +140,8 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   `chrome.runtime.connectNative(...)` 后，Chrome 以 host manifest 中的可执行文件
   路径启动进程，并把调用方 extension origin 作为第一个 argv 传入。manifest
   自身不承载额外自定义 argv，因此 Chrome extension 专用启动信号使用这个
-  Chrome 提供的 origin argv。
+  Chrome 提供的 origin argv。Windows Chrome 还可能只暴露 `--parent-window=<handle>`
+  形状，因此 CLI 也把该参数识别为 native host mode。
 - `open-browser-use call`：unrestricted JSON-RPC 入口，允许上层应用发送
   任意 method/params；未显式传入 `--socket` 时会优先读取 active socket
   registry。registry 缺失时，CLI 会按修改时间扫描 `--socket-dir` 下的
@@ -168,7 +177,9 @@ dot；hyphen 版本 `com.ifuryst.open-computer-use.extension` 会被
   root 的 `Local Extension Settings/<extension-id>/*.{log,ldb}`），按 selector
   选出匹配 socket。`obu mcp --browser ... --profile ...` 在 MCP server 启动时锁定
   selector，每次工具调用复用同一个解析结果。selector 不匹配时 CLI 列出当前已连通
-  target 列表，提示用户打开对应 browser/profile。未显式选择时仍保留
+  target 列表，提示用户打开对应 browser/profile。Windows 当前覆盖 Chrome
+  Stable 和 Chrome Beta 的 `%LOCALAPPDATA%\Google\...\User Data` roots；BitBrowser
+  root 仍只在 macOS 路径中自动发现。未显式选择时仍保留
   `active.json` 快速路径；`active.json` 缺失或失效时，CLI 会扫描 socket 目录并
   修复 registry，因此不需要重装扩展。
 - MV3 extension core handlers：`getInfo`、`createTab`、`getTabs`、

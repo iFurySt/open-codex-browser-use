@@ -90,6 +90,11 @@ jobs:
             echo "Expected 4 CLI release archives, found ${cli_asset_count}" >&2
             exit 1
           fi
+          windows_cli_asset_count="$(find dist/cli -maxdepth 1 -type f -name '*.zip' | wc -l | tr -d ' ')"
+          if [ "${windows_cli_asset_count}" -ne 2 ]; then
+            echo "Expected 2 Windows CLI release archives, found ${windows_cli_asset_count}" >&2
+            exit 1
+          fi
           chrome_extension_zip="$(find dist/chrome-extension -maxdepth 1 -type f -name '*.zip' -print -quit)"
           if [ -z "${chrome_extension_zip}" ]; then
             echo "Chrome extension zip not found" >&2
@@ -131,6 +136,7 @@ jobs:
             dist/repo-metadata.tgz
             dist/release-manifest.json
             dist/cli/*.tar.gz
+            dist/cli/*.zip
             dist/chrome-extension/*.zip
             dist/chrome-extension/*.crx
             dist/chrome-extension/*.json
@@ -147,6 +153,7 @@ jobs:
             dist/chrome-extension/*.zip
             dist/chrome-extension/*.crx
             dist/cli/*.tar.gz
+            dist/cli/*.zip
             dist/skills/*.zip
             dist/skills/*.skill
 
@@ -158,6 +165,7 @@ jobs:
         run: |
           assets=(
             dist/cli/*.tar.gz
+            dist/cli/*.zip
             dist/chrome-extension/*.zip
             dist/chrome-extension/*.crx
             dist/skills/*.zip

@@ -39,6 +39,8 @@ cat > "${dist_dir}/release-manifest.json" <<EOF
     "cli_darwin_arm64": "cli/open-browser-use-cli-${version}-darwin-arm64.tar.gz",
     "cli_linux_amd64": "cli/open-browser-use-cli-${version}-linux-amd64.tar.gz",
     "cli_linux_arm64": "cli/open-browser-use-cli-${version}-linux-arm64.tar.gz",
+    "cli_windows_amd64": "cli/open-browser-use-cli-${version}-windows-amd64.zip",
+    "cli_windows_arm64": "cli/open-browser-use-cli-${version}-windows-arm64.zip",
     "chrome_extension": "chrome-extension/${chrome_extension_artifact}",
     "chrome_extension_internal_crx": "chrome-extension/${chrome_extension_crx_artifact}",
     "open_browser_use_skill_zip": "skills/${skill_artifact}",
@@ -53,6 +55,7 @@ tar -czf "${dist_dir}/repo-metadata.tgz" \
 
 echo "${dist_dir}/repo-metadata.tgz"
 find "${cli_dir}" -maxdepth 1 -type f -name '*.tar.gz' | sort
+find "${cli_dir}" -maxdepth 1 -type f -name '*.zip' | sort
 echo "${chrome_extension_zip}"
 echo "${skill_zip}"
 echo "${skill_bundle}"

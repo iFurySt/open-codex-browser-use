@@ -20,7 +20,8 @@ import (
 )
 
 const NativeHostName = "com.ifuryst.open_browser_use.extension"
-const DefaultSocketDir = "/tmp/open-browser-use"
+
+var DefaultSocketDir = filepath.Join(os.TempDir(), "open-browser-use")
 
 type Config struct {
 	SocketDir  string

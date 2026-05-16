@@ -20,21 +20,20 @@ https://github.com/user-attachments/assets/bcfba878-f6a8-44b9-b84b-29c7e0285687
 ## Quick Start
 第一次安装可以无脑运行：
 ```bash
-brew tap iFurySt/open-browser-use
-brew install open-browser-use
+npm i -g open-browser-use
 open-browser-use setup
 ```
 
 ### 安装 CLI
 ```bash
-# npm安装
+# npm安装（macOS、Linux、Windows）
 npm i -g open-browser-use
 
-# Homebrew安装
+# Homebrew安装（macOS、Linux）
 brew tap iFurySt/open-browser-use && brew install open-browser-use
 
 # 升级
-brew upgrade open-browser-use
+npm update -g open-browser-use
 ```
 
 ### 配置 Chrome

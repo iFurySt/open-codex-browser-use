@@ -95,7 +95,14 @@ open-browser-use setup beta --extension-id <extensionId>
 ## GitHub Release
 
 推送 `v*` tag 或手动触发 `.github/workflows/release.yml` 后，GitHub Release
-页面放两个 extension 制品和两个 agent skill 制品：
+页面放六个 CLI 制品、两个 extension 制品和两个 agent skill 制品：
+
+- `dist/cli/open-browser-use-cli-<version>-darwin-amd64.tar.gz`
+- `dist/cli/open-browser-use-cli-<version>-darwin-arm64.tar.gz`
+- `dist/cli/open-browser-use-cli-<version>-linux-amd64.tar.gz`
+- `dist/cli/open-browser-use-cli-<version>-linux-arm64.tar.gz`
+- `dist/cli/open-browser-use-cli-<version>-windows-amd64.zip`
+- `dist/cli/open-browser-use-cli-<version>-windows-arm64.zip`
 
 - `dist/chrome-extension/open-browser-use-chrome-extension-<version>.zip`
 - `dist/chrome-extension/open-browser-use-chrome-extension-<version>.crx`

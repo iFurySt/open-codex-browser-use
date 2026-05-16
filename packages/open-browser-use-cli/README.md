@@ -16,6 +16,13 @@ obu version
 The package contains prebuilt Go binaries for macOS, Linux, and Windows on
 `amd64` and `arm64`.
 
+On Windows, run setup from PowerShell or cmd after the npm install:
+
+```powershell
+open-browser-use setup
+open-browser-use info
+```
+
 ## Setup
 
 Run `open-browser-use` with no subcommand to print the CLI version, browser

@@ -22,7 +22,7 @@ if (process.env.OPEN_BROWSER_USE_SKIP_POSTINSTALL === "1") {
 const platform = platformMap[process.platform];
 const arch = archMap[process.arch];
 
-if (!platform || !arch || platform === "windows") {
+if (!platform || !arch) {
   console.warn(
     `open-browser-use setup is not fully automated for ${process.platform}/${process.arch}.`
   );

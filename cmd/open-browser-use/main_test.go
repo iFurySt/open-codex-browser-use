@@ -29,10 +29,13 @@ func TestNativeHostNameIsChromeCompatible(t *testing.T) {
 }
 
 func TestNativeMessagingLaunchArg(t *testing.T) {
-	if !isNativeMessagingLaunch("chrome-extension://nfjjgckfgejeofdcmaepbapclmldcflf/") {
+	if !isNativeMessagingLaunch([]string{"--parent-window=123", "chrome-extension://nfjjgckfgejeofdcmaepbapclmldcflf/"}) {
 		t.Fatal("expected Chrome extension origin to launch host mode")
 	}
-	if isNativeMessagingLaunch("host") {
+	if runtime.GOOS == "windows" && !isNativeMessagingLaunch([]string{"--parent-window=123"}) {
+		t.Fatal("expected Windows parent window arg to launch host mode")
+	}
+	if isNativeMessagingLaunch([]string{"host"}) {
 		t.Fatal("expected CLI subcommand not to be treated as native messaging launch")
 	}
 }
