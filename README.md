@@ -82,12 +82,12 @@ Install the skill directly:
 
 ```bash
 # Install for Codex
-npx skills add iFurySt/open-browser-use -g -a codex --skill open-browser-use --copy -y
+npx skills add iFurySt/open-browser-use -g -a codex --skill open-browser-use -y
 npx skills ls -g -a codex | rg 'open-browser-use'
 codex exec --skip-git-repo-check "Use open-browser-use to check today’s Hacker News and summarize the most worth-reading posts."
 
 # Install for Claude Code
-npx skills add iFurySt/open-browser-use -g -a claude-code --skill open-browser-use --copy -y
+npx skills add iFurySt/open-browser-use -g -a claude-code --skill open-browser-use -y
 ```
 
 Update an existing global install, including the Codex install created above:

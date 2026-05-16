@@ -10,7 +10,8 @@ Open Browser Use 当前 `main` 分支只保留 Chrome extension 前端。
 - `apps/chrome-extension/content-cursor.js`：页面内 cursor overlay。
 
 这个 popup 是工具面，不是 landing page。设计上优先保持状态清楚、权限边界
-明确、操作少而直接。
+明确、操作少而直接。popup 会展示当前 extension 版本，并根据浏览器平台检测结果
+显示 CLI 安装命令：macOS 展示 npm 和 Homebrew，Windows/Linux 展示 npm。
 
 ## 验证方式
 

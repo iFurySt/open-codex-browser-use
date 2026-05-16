@@ -71,12 +71,12 @@ SDK 在 npm 和 PyPI 上统一叫 `open-browser-use-sdk`。Python 代码里的 i
 
 ```bash
 # 安装到codex
-npx skills add iFurySt/open-browser-use -g -a codex --skill open-browser-use --copy -y
+npx skills add iFurySt/open-browser-use -g -a codex --skill open-browser-use -y
 npx skills ls -g -a codex | rg 'open-browser-use'
 codex exec --skip-git-repo-check "用open-browser-use查看下今天Hacker News有什么值得关注的"
 
 # 安装到claude code
-npx skills add iFurySt/open-browser-use -g -a claude-code --skill open-browser-use --copy -y
+npx skills add iFurySt/open-browser-use -g -a claude-code --skill open-browser-use -y
 ```
 
 更新已有的全局安装，包括上面安装到 Codex 的那份：

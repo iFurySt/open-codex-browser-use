@@ -8,8 +8,13 @@ const hostName = document.getElementById("host-name");
 const lastChecked = document.getElementById("last-checked");
 const errorMessage = document.getElementById("error-message");
 const repoLink = document.getElementById("repo-link");
+const extensionVersion = document.getElementById("extension-version");
+const platformLabel = document.getElementById("platform-label");
+const cliCommands = document.getElementById("cli-commands");
 const chromeApi = globalThis.chrome;
 
+renderExtensionVersion();
+renderInstallCommands();
 void refreshStatus();
 setInterval(() => {
   void refreshStatus();
@@ -58,6 +63,94 @@ function renderStatus(status) {
     errorMessage.hidden = true;
     errorMessage.textContent = "";
   }
+}
+
+function renderExtensionVersion() {
+  const version = chromeApi?.runtime?.getManifest?.().version;
+  if (typeof version === "string" && version.trim() !== "") {
+    extensionVersion.textContent = `v${version}`;
+  }
+}
+
+function renderInstallCommands() {
+  const platform = detectPlatform();
+  platformLabel.textContent = platform.label;
+  cliCommands.replaceChildren(
+    ...platform.commands.map((group) => {
+      const wrapper = document.createElement("div");
+      wrapper.className = "command-group";
+
+      const source = document.createElement("span");
+      source.className = "command-source";
+      source.textContent = group.label;
+
+      const command = document.createElement("code");
+      command.className = "command-line";
+      command.textContent = group.command;
+
+      wrapper.append(source, command);
+      return wrapper;
+    })
+  );
+}
+
+function detectPlatform() {
+  const rawPlatform =
+    globalThis.navigator?.userAgentData?.platform ??
+    globalThis.navigator?.platform ??
+    globalThis.navigator?.userAgent ??
+    "";
+  const platform = String(rawPlatform).toLowerCase();
+
+  if (platform.includes("mac")) {
+    return {
+      label: "macOS",
+      commands: [
+        {
+          label: "npm",
+          command: "npm install -g open-browser-use && open-browser-use setup"
+        },
+        {
+          label: "Homebrew",
+          command: "brew install iFurySt/open-browser-use/open-browser-use && open-browser-use setup"
+        }
+      ]
+    };
+  }
+
+  if (platform.includes("win")) {
+    return {
+      label: "Windows",
+      commands: [
+        {
+          label: "npm",
+          command: "npm install -g open-browser-use && open-browser-use setup"
+        }
+      ]
+    };
+  }
+
+  if (platform.includes("linux") || platform.includes("x11")) {
+    return {
+      label: "Linux",
+      commands: [
+        {
+          label: "npm",
+          command: "npm install -g open-browser-use && open-browser-use setup"
+        }
+      ]
+    };
+  }
+
+  return {
+    label: "This OS",
+    commands: [
+      {
+        label: "npm",
+        command: "npm install -g open-browser-use && open-browser-use setup"
+      }
+    ]
+  };
 }
 
 function normalizeState(state) {

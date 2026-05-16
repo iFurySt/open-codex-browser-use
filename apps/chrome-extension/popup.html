@@ -10,10 +10,11 @@
     <main class="popup-shell">
       <header class="popup-header">
         <img src="icons/icon-128.png" width="32" height="32" alt="" class="app-icon" />
-        <div>
+        <div class="title-block">
           <h1>Open Browser Use</h1>
           <p class="subtitle">Chrome automation bridge</p>
         </div>
+        <span class="version-pill" id="extension-version" aria-label="Extension version"></span>
       </header>
 
       <section class="panel" aria-labelledby="connection-title">
@@ -36,6 +37,14 @@
           </div>
         </dl>
         <p class="error-message" id="error-message" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="cli-title">
+        <div class="section-heading">
+          <span class="eyebrow" id="cli-title">CLI Install</span>
+          <span class="platform-pill" id="platform-label">Detecting OS</span>
+        </div>
+        <div class="command-list" id="cli-commands" aria-live="polite"></div>
       </section>
 
       <section class="panel repo-panel" aria-labelledby="repo-title">

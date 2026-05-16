@@ -21,6 +21,11 @@ body {
   padding: 2px 2px 0;
 }
 
+.title-block {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .app-icon {
   display: block;
   flex: 0 0 auto;
@@ -44,6 +49,31 @@ p {
 .subtitle {
   color: #657084;
   font-size: 12px;
+}
+
+.version-pill,
+.platform-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  border: 1px solid #d9dee7;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4b5565;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+  padding: 1px 8px;
+  box-sizing: border-box;
+}
+
+.version-pill:empty {
+  display: none;
+}
+
+.platform-pill {
+  background: #f8fafc;
 }
 
 .panel {
@@ -169,6 +199,36 @@ dd {
   background: #fff5f4;
   border-radius: 6px;
   font-size: 12px;
+}
+
+.command-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.command-group {
+  display: grid;
+  gap: 5px;
+}
+
+.command-source {
+  color: #323b4b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.command-line {
+  display: block;
+  border: 1px solid #e0e4ea;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #202938;
+  font-family: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  padding: 7px 8px;
 }
 
 .repo-panel {
