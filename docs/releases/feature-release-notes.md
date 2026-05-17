@@ -4,6 +4,7 @@
 
 | 日期 | 功能域 | 用户价值 | 变更摘要 |
 | --- | --- | --- | --- |
+| 2026-05-17 | macOS Native Host Socket | macOS 用户在较长 `TMPDIR` 环境下也能稳定连接 native host，不再因为 Unix socket 路径过长导致 popup 只显示 `Native host has exited`。 | 发布 `0.1.39` patch 版本，Unix 默认 socket 根目录恢复为固定短路径 `/tmp/open-browser-use`，Windows 继续使用系统临时目录；bind 失败错误补充 socket 路径长度，并新增默认路径、实际 bind、长路径诊断的回归测试。 |
 | 2026-05-16 | Chrome Extension Popup | 用户打开 popup 时能直接看到当前 extension 版本，并根据自己的系统看到合适的 CLI 安装命令；macOS 保留 npm 和 Homebrew 两条路径，Windows/Linux 只显示 npm。 | 发布 `0.1.38` patch 版本，popup 新增版本 pill 和 OS-aware CLI install 面板，补充 OBU render harness 验证，并同步 README skill 安装命令去掉不再需要的 `--copy`。 |
 | 2026-05-16 | Windows CLI Install | Windows 用户可以通过 `npm i -g open-browser-use && open-browser-use setup` 完成 native host 注册和 Chrome Web Store 扩展连接，也可以从 GitHub Release 下载 Windows zip 直接运行 CLI。 | 发布 `0.1.37` patch 版本，补齐 Windows registry setup、stable exe copy、`--parent-window` native host 启动识别、Windows socket/profile 路径、release Windows zip 制品，并用真实 Windows Chrome 跑通 `info`、`user-tabs`、`open-tab`、`page-info` 和 `finalize-tabs`。 |
 | 2026-05-14 | Multi-browser Profile Selection | 同一台机器上同时安装 Chrome Stable、Chrome Beta 和 BitBrowser 插件时，agent 会先确认本轮任务使用哪个 browser/profile，并在后续命令里稳定连接同一个目标；`active.json` 被删除后也会自动扫描存活 socket 恢复，不再需要重装插件。 | 发布 `0.1.36` patch 版本，CLI discovery/routing 新增 browser-aware target、`--browser` selector、Chrome Beta/BitBrowser manifest 支持，并更新 bundled skill 的多 profile 使用指导。 |

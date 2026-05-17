@@ -3,10 +3,13 @@ package host
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -188,6 +191,59 @@ func TestDefaultSocketPathUsesUUIDFilename(t *testing.T) {
 	}
 	if !matched {
 		t.Fatalf("expected UUID socket filename, got %q", filepath.Base(socketPath))
+	}
+}
+
+func TestDefaultSocketDirUsesShortUnixPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows keeps the socket directory under the user temp directory")
+	}
+	if DefaultSocketDir != "/tmp/open-browser-use" {
+		t.Fatalf("expected short default socket dir, got %q", DefaultSocketDir)
+	}
+	relay := NewRelay(Config{}, nil, nil)
+	socketPath := relay.SocketPath()
+	if filepath.Dir(socketPath) != DefaultSocketDir {
+		t.Fatalf("expected socket path under %q, got %q", DefaultSocketDir, socketPath)
+	}
+	if len(socketPath) > 100 {
+		t.Fatalf("default socket path is too long for macOS sockaddr_un: %q (%d)", socketPath, len(socketPath))
+	}
+}
+
+func TestDefaultRelayBindsShortUnixSocket(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket bind test")
+	}
+	relay := NewRelay(Config{}, strings.NewReader(""), nil)
+	socketPath := relay.SocketPath()
+	if len(socketPath) > 100 {
+		t.Fatalf("default socket path is too long for macOS sockaddr_un: %q (%d)", socketPath, len(socketPath))
+	}
+
+	err := relay.Serve(context.Background())
+	if err != nil {
+		t.Fatalf("default relay should bind before stdin EOF cleanup, got %v", err)
+	}
+}
+
+func TestRelayReportsSocketPathLengthOnBindFailure(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket bind test")
+	}
+	longSocketPath := filepath.Join("/tmp", strings.Repeat("obu-long-socket-name-", 8)+".sock")
+	relay := NewRelay(Config{SocketPath: longSocketPath}, strings.NewReader(""), nil)
+
+	err := relay.Serve(context.Background())
+	if err == nil {
+		t.Fatal("expected long Unix socket path bind failure")
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected bind failure after parent dir exists, got %v", err)
+	}
+	message := err.Error()
+	if !strings.Contains(message, "path length") || !strings.Contains(message, longSocketPath) {
+		t.Fatalf("expected bind error to include socket path and length, got %v", err)
 	}
 }
 

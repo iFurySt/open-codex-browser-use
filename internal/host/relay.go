@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -21,7 +22,7 @@ import (
 
 const NativeHostName = "com.ifuryst.open_browser_use.extension"
 
-var DefaultSocketDir = filepath.Join(os.TempDir(), "open-browser-use")
+var DefaultSocketDir = defaultSocketDir()
 
 type Config struct {
 	SocketDir  string
@@ -93,7 +94,7 @@ func (r *Relay) Serve(ctx context.Context) error {
 	_ = os.Remove(socketPath)
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("listen unix socket %q (path length %d): %w", socketPath, len(socketPath), err)
 	}
 	r.listener = listener
 	if err := os.Chmod(socketPath, 0o600); err != nil {
@@ -301,6 +302,13 @@ func socketDir(configured string) string {
 		return configured
 	}
 	return DefaultSocketDir
+}
+
+func defaultSocketDir() string {
+	if runtime.GOOS == "windows" {
+		return filepath.Join(os.TempDir(), "open-browser-use")
+	}
+	return "/tmp/open-browser-use"
 }
 
 func ActiveSocketRecordPath(configuredDir string) string {
